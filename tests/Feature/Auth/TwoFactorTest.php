@@ -6,13 +6,14 @@ use Tests\TestCase;
 
 class TwoFactorTest extends TestCase
 {
-    public function test_2fa_is_enabled_for_admin_and_super_admin(): void
+    public function test_2fa_is_disabled_in_development(): void
     {
         $twoFactor = config('tyro-login.two_factor');
 
-        $this->assertTrue($twoFactor['enabled']);
-        $this->assertSame('admin,super-admin', $twoFactor['forced_roles']);
-        $this->assertFalse($twoFactor['allow_skip']);
+        // 2FA is disabled in dev/test (no email system). Re-enable in prod
+        // by setting TYRO_LOGIN_2FA_ENABLED=true and
+        // TYRO_LOGIN_2FA_FORCED_ROLES=admin,super-admin.
+        $this->assertEmpty($twoFactor['enabled']);
     }
 
     public function test_lockout_is_configured(): void
