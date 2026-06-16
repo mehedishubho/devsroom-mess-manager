@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Models\Mess;
 use App\Models\User;
 use HasinHayder\Tyro\Models\Role;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -26,6 +27,7 @@ class RouteAccessTest extends TestCase
     {
         $user = User::factory()->create();
         $user->assignRole(Role::where('slug', 'admin')->first());
+        Mess::factory()->create();
 
         $this->actingAs($user)->get('/home')->assertOk();
     }
@@ -44,6 +46,11 @@ class RouteAccessTest extends TestCase
         $user->assignRole(Role::where('slug', 'user')->first());
 
         $this->actingAs($user)->get('/my')->assertOk();
+    }
+
+    public function test_my_route_redirects_when_unauthenticated(): void
+    {
+        $this->get('/my')->assertRedirect('/login');
     }
 
     public function test_my_returns_403_for_admin(): void
