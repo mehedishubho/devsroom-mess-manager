@@ -2,6 +2,7 @@
 
 namespace Tests;
 
+use App\Models\Mess;
 use HasinHayder\Tyro\Models\Role;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
@@ -12,6 +13,7 @@ abstract class TestCase extends BaseTestCase
         parent::setUp();
 
         config(['mess.active_mess_id' => 1]);
+        Mess::forgetActiveIdCache();
     }
 
     protected function seedTyroRoles(): void

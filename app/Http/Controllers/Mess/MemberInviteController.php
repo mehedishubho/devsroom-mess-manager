@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Mess\InviteMemberRequest;
 use App\Mail\SetPasswordMail;
 use App\Models\MemberInvitation;
+use App\Models\Mess;
 use App\Models\User;
 use HasinHayder\Tyro\Models\Role;
 use Illuminate\Http\RedirectResponse;
@@ -24,7 +25,7 @@ class MemberInviteController extends Controller
     public function store(InviteMemberRequest $request): RedirectResponse
     {
         $email = $request->validated()['email'];
-        $messId = config('mess.active_mess_id');
+        $messId = Mess::activeId();
 
         $user = User::firstOrCreate(
             ['email' => $email],
