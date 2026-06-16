@@ -1,14 +1,14 @@
 ---
-status: diagnosed
+status: testing
 phase: 01-foundation
 source: 01.1-SUMMARY.md, 01.2-SUMMARY.md, 01.3-SUMMARY.md
 started: 2026-06-16T23:00:00Z
-updated: 2026-06-17T00:20:00Z
+updated: 2026-06-17T00:35:00Z
 ---
 
 ## Current Test
 
-[testing complete — see summary; test 15 issue needs follow-up]
+[testing complete — 14 passed, 1 blocked (third-party email), 0 issues]
   As manager, click each sidebar link (Home, Mess settings, Audit log,
   Add member). Each takes you to the correct page. On mobile width
   (<768px), the sidebar collapses into a hamburger drawer.
@@ -194,5 +194,20 @@ et]
  Gaps
 
 [none yet]
+t]
+t]
+d: 0
+
+## Gaps
+
+[none yet]
+ Gaps
+
+[none yet]
+et]
+ Gaps
+
+[none yet]
+t]
 t]
 t]
