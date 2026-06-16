@@ -2,8 +2,8 @@
 
 **Initialized:** 2026-06-16
 **Project:** Devsroom Mess Management
-**Current Phase:** 1 (Foundation) — not yet started
-**Current Plan:** 1.1 (MySQL setup, env config, time zone, base migrations)
+**Current Phase:** 2 (Members + Daily Operations) — context gathered
+**Current Plan:** pending `/gsd-plan-phase 2`
 
 ## Project Reference
 
@@ -18,7 +18,7 @@ See: `.planning/PROJECT.md` (updated 2026-06-16)
 | Phase | Status | Goal | Plans | Started | Completed |
 |-------|--------|------|-------|---------|-----------|
 | 1. Foundation | Complete | Auth + mess config + schema + audit | 3 | 2026-06-16 | 2026-06-16 |
-| 2. Members + Daily Operations | Not started | Member CRUD, meal grid, meal off, bazar, fixed expenses | 5 | — | — |
+| 2. Members + Daily Operations | In progress | Member CRUD, meal grid, meal off, bazar, fixed expenses | 5 | 2026-06-17 | — |
 | 3. Payments + Month-Close | Not started | Payments, advance, close, notifications | 4 | — | — |
 | 4. Reports + Dashboard | Not started | 4 reports, dashboard cards/charts, PDF/Excel | 3 | — | — |
 | 5. Polish + Pilot | Not started | Mobile UX, performance, documentation, real-mess pilot | 3 | — | — |
@@ -61,6 +61,12 @@ None.
 - `01-RESEARCH.md` written (12 sections, 57KB — verifies Tyro 2FA needs 3 env keys, owen-it/laravel-auditing not yet installed, `config/app.php` hardcoded UTC, D-04 invite flow needs custom controller)
 - `01-UI-SPEC.md` written and verified (Tailwind v4 + Blade contract, 6/6 dimensions PASS, committed as `afe9ad0`)
 - Next: `/gsd-plan-phase 1` to break Phase 1 into executable PLAN.md files
+
+**2026-06-17** — Phase 2: context gathered.
+- `02-CONTEXT.md` written (24 locked decisions, 4 main + 4 follow-up + 4 deep-dive areas)
+- `02-DISCUSSION-LOG.md` written (full audit trail of all 12 discussion areas)
+- Key decisions: local photo storage + mobile-first camera UI, single "Save all" meal grid, deduct meal off on approval, single `room_or_seat` field, live AJAX member search, kind-on-category schema reconciliation, guest charge uses configured meal_value
+- Next: `/gsd-plan-phase 2` to break Phase 2 into executable PLAN.md files
 
 ## Open Questions for User
 
