@@ -288,6 +288,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | AUTH-01 to AUTH-10 | Phase 1 | Pending |
 | MESS-01 to MESS-04 | Phase 1 | Pending |
+| SET-01 to SET-05 | Phase 1 | Pending |
+| AUDIT-01 to AUDIT-05 | Phase 1 | Pending |
+| PERF-01, PERF-02, PERF-03 | Phase 1 | Pending |
+| PERF-05, PERF-07, PERF-08 | Phase 1 | Pending |
+| PERF-09, PERF-10 | Phase 1 | Pending |
 | MEM-01 to MEM-09 | Phase 2 | Pending |
 | MEAL-01 to MEAL-11 | Phase 2 | Pending |
 | OFF-01 to OFF-07 | Phase 2 | Pending |
@@ -295,16 +300,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BAZAR-01 to BAZAR-06 | Phase 2 | Pending |
 | FIXED-01 to FIXED-04 | Phase 2 | Pending |
 | CAT-01 to CAT-04 | Phase 2 | Pending |
+| PERF-04, PERF-11, PERF-12 | Phase 2 | Pending |
 | PAY-01 to PAY-06 | Phase 3 | Pending |
 | ADV-01 to ADV-07 | Phase 3 | Pending |
 | PREVIEW-01 to PREVIEW-05 | Phase 3 | Pending |
 | CLOSE-01 to CLOSE-12 | Phase 3 | Pending |
+| NOTIF-01 to NOTIF-05 | Phase 3 | Pending |
 | RPT-01 to RPT-08 | Phase 4 | Pending |
 | DASH-01 to DASH-06 | Phase 4 | Pending |
-| NOTIF-01 to NOTIF-05 | Phase 3 | Pending |
-| SET-01 to SET-05 | Phase 1 | Pending |
-| AUDIT-01 to AUDIT-05 | Phase 1 | Pending |
-| PERF-01 to PERF-13 | All phases | Pending |
+| PERF-06, PERF-13 | Phase 5 | Pending |
 
 **Coverage:**
 - v1 requirements: 154 total
