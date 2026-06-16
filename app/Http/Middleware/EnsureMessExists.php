@@ -11,7 +11,13 @@ class EnsureMessExists
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (Mess::withoutGlobalScopes()->doesntExist()) {
+        // Skip the check on the onboarding routes themselves to avoid
+        // self-redirect loops while creating the first mess.
+        if ($request->routeIs('onboarding.*')) {
+            return $next($request);
+        }
+
+        if (Mess::query()->doesntExist()) {
             return redirect()->route('onboarding.create');
         }
 
