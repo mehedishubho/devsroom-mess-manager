@@ -17,28 +17,29 @@ See: `.planning/PROJECT.md` (updated 2026-06-16)
 
 | Phase | Status | Goal | Plans | Started | Completed |
 |-------|--------|------|-------|---------|-----------|
-| 1. Foundation | Not started | Auth + mess config + schema + audit | 3 | — | — |
+| 1. Foundation | Complete | Auth + mess config + schema + audit | 3 | 2026-06-16 | 2026-06-16 |
 | 2. Members + Daily Operations | Not started | Member CRUD, meal grid, meal off, bazar, fixed expenses | 5 | — | — |
 | 3. Payments + Month-Close | Not started | Payments, advance, close, notifications | 4 | — | — |
 | 4. Reports + Dashboard | Not started | 4 reports, dashboard cards/charts, PDF/Excel | 3 | — | — |
 | 5. Polish + Pilot | Not started | Mobile UX, performance, documentation, real-mess pilot | 3 | — | — |
 
-## Decisions Pending Validation
+## Decisions Validated
 
-(Decisions are Pending until validated by building.)
+- Laravel 13.15 + MySQL 8+ stack — VALIDATED in Phase 1
+- Tyro Dashboard + Tyro Login for auth — VALIDATED in Phase 1
+- Single mess in v1, `mess_id` on all tables for v2 readiness — VALIDATED
+- `Asia/Dhaka` time zone — VALIDATED
+- `__()` everywhere (English only shipped, Bengali-ready) — VALIDATED
+- Decimal money (never float) — VALIDATED via migrations
+- owen-it/laravel-auditing for domain audit log — VALIDATED
+- Service layer (no Repository pattern) — to be validated in Phase 2+
+- PHPUnit 12 (not Pest) — VALIDATED
 
-- Laravel 13.15 + MySQL 8+ stack
-- Tyro Dashboard + Tyro Login for auth
-- Single mess in v1, `mess_id` on all tables for v2 readiness
-- Hard-lock on month close
-- Decimal money (never float)
-- `Asia/Dhaka` time zone
-- `__()` everywhere (English only shipped, Bengali-ready)
-- 1-hour cache TTL on current-month aggregates
-- Idempotent month-close via `UNIQUE (mess_id, year, month)`
-- Domain audit log separate from Tyro audit
-- Service layer (no Repository pattern)
-- PHPUnit 12 (not Pest)
+## Decisions Still Pending
+
+- Hard-lock on month close (Phase 3)
+- 1-hour cache TTL on current-month aggregates (Phase 3)
+- Idempotent month-close via `UNIQUE (mess_id, year, month)` (Phase 3)
 
 ## Blockers
 
@@ -69,5 +70,19 @@ None.
 (To surface during planning):
 - Actual MySQL credentials for dev environment (per taste preference: verify with user)
 - Specific Tyro roles to use (`admin`, `manager`, `member` vs. `super-admin`, `manager`, `user`)
+- Bengali font choice for v2 (if/when v2 starts)
+- Real mess for pilot (Phase 5)
+3 (config + audit + invite + onboarding): custom app layout with sidebar + mobile drawer; MessConfigController + form; AuditController + paginated log; MemberInviteController + SetPasswordController + Mailable; OnboardingController + form; EnsureMessExists middleware; Tyro resources for messes + settings.
+- 38 tests pass (3 in Plan 1.1, 12 in Plan 1.2, 23 in Plan 1.3); pint clean.
+- Commits: `90e3135`, `81e7fe9`, `542559d`, `69703c6`; phase marked complete; ready for Phase 2.
+
+## Open Questions for User
+
+(Asked in initial questioning, captured in PROJECT.md):
+- None — all answered during initial questioning.
+
+(To surface during planning):
+- Actual MySQL credentials for dev environment — RESOLVED (used .env from previous session; password `125524`)
+- Specific Tyro roles to use — RESOLVED (`super-admin`, `admin`, `user` verbatim)
 - Bengali font choice for v2 (if/when v2 starts)
 - Real mess for pilot (Phase 5)
