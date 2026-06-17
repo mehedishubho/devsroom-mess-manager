@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 04
-current_plan: 3
-status: Executing Phase 04 (Plan 04-02 complete; 04-03 next)
-last_updated: "2026-06-17T18:40:00.000Z"
+current_plan: 4
+status: Phase 04 complete (Plan 04-03 done; awaiting phase verification)
+last_updated: "2026-06-18T00:00:00.000Z"
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 13
-  completed_plans: 16
+  completed_plans: 17
   percent: 100
 ---
 
@@ -19,7 +19,7 @@ progress:
 **Initialized:** 2026-06-16
 **Project:** Devsroom Mess Management
 **Current Phase:** 04
-**Current Plan:** 2
+**Current Plan:** 4 (all 4 plans complete; phase ready for verification)
 
 ## Project Reference
 
@@ -36,7 +36,7 @@ See: `.planning/PROJECT.md` (updated 2026-06-16)
 | 1. Foundation | Complete | Auth + mess config + schema + audit | 3 | 2026-06-16 | 2026-06-16 |
 | 2. Members + Daily Operations | In progress | Member CRUD, meal grid, meal off, bazar, fixed expenses | 5 | 2026-06-17 | — |
 | 3. Payments + Month-Close | In progress (3 of 4 plans done) | Payments, advance, close, notifications | 4 | 2026-06-17 | — |
-| 4. Reports + Dashboard | In progress (3 of 4 plans done) | 4 reports, dashboard cards/charts, PDF/Excel | 4 | 2026-06-17 | — |
+| 4. Reports + Dashboard | Complete (4 of 4 plans done; awaiting verification) | 4 reports, dashboard cards/charts, PDF/Excel | 4 | 2026-06-17 | 2026-06-18 |
 | 5. Polish + Pilot | Not started | Mobile UX, performance, documentation, real-mess pilot | 3 | — | — |
 
 ## Decisions Validated
@@ -58,6 +58,22 @@ See: `.planning/PROJECT.md` (updated 2026-06-16)
 - D-32 "My reports" tab on /my links to own statement + aggregates-only monthly — VALIDATED in Plan 04.2 (test_member_sees_reports_tab; tab added to my.blade.php)
 - Open Question #3 LOCKED: My Meals / Today's Meals EXCLUDE guest meals — VALIDATED in Plan 04.2 (test_my_meals_excludes_guest_meals; MemberDashboardService::myMealsThisMonth mirrors BillPreviewService::mealTotals via MealType::value(), not guest_meals.charge_amount)
 - T-04-02-01 IDOR prevention: role:user routes have NO `{member}` URL param — VALIDATED in Plan 04.2 (test_member_cannot_view_other_member_statement; MyReportController::statement/monthly derive member from $request->user()->getMemberOrNull())
+
+## Decisions Validated in Phase 4 (Plan 04-03)
+
+- D-14 Manager /home is the real dashboard (6 stat cards + 3 Chart.js charts + pending-meal-off alert banner) — VALIDATED in Plan 04.3 (home.blade.php replaced the old link-card grid; ManagerDashboardTest::test_home_shows_all_6_card_labels + test_home_renders_chart_init_with_data + test_home_shows_pending_meal_off_banner_when_pending)
+- D-15 6 DASH-01 stat cards (Total Members, Today's Meals, Current Meal Rate, Monthly Expenses, Total Due, Total Advance) + DASH-03 alert banner linking to mess.meal-off.index — VALIDATED in Plan 04.3
+- D-17 Dashboard caching reuses bill-preview key + new composite `dash:counts:{mess_id}:{YYYY}-{MM}` key for count cards — VALIDATED in Plan 04.3 (DashboardService::managerCards; CacheInvalidationTest::test_dash_counts_key_is_mess_scoped verifies mess-scoped invalidation)
+- DASH-05 < 2s refresh — VALIDATED in Plan 04.3 (AppServiceProvider::invalidateForModel extended IN-PLACE with one Cache::forget('dash:counts:...') line; same listener body fires for saved+deleted on all 5 models; no duplicate Event::listen)
+- D-08 Range × granularity auto-bucket (≤60d→day, ≤365d→week, else→month) — VALIDATED in Plan 04.3 (ChartBucketingService::bucket; ChartRangeTest::test_autobucket_picks_daily_for_short_range + test_autobucket_picks_monthly_for_long_range)
+- D-13 PDF portrait A4 branded, footer "Page N" via CSS counter(page) only (counter(pages) does NOT work in Dompdf) — VALIDATED in Plan 04.3 (resources/views/layouts/pdf.blade.php uses plain CSS + counter(page); Pitfall 4 mitigation)
+- Pitfall 4 (Dompdf + Tailwind) — VALIDATED in Plan 04.3 (layouts/pdf.blade.php is plain CSS with inline `<style>`; no @vite, no Tailwind utilities)
+- Pitfall 5 (Excel SUM returns text) — VALIDATED in Plan 04.3 (all 4 Excel exports use `(float)` cast + `WithColumnFormatting` + `NumberFormat::FORMAT_NUMBER_00` on Amount columns)
+- T-04-03-01 cache cross-mess bleed — VALIDATED in Plan 04.3 (key ALWAYS scoped by Mess::activeId() in both DashboardService and AppServiceProvider extension)
+- T-04-03-04 export filename path traversal / header injection — VALIDATED in Plan 04.3 (ReportExportController::safeFilename strips /, \, .. via regex with `~` delimiter; ExcelExportTest::test_filename_sanitized)
+- T-04-03-05/06 IDOR + peer-dues disclosure on member exports — VALIDATED in Plan 04.3 (MyReportExportController has NO `{member}` URL param; monthlyExcel empties `members` array before passing to MonthlyReportExport — structural D-19 enforcement in DATA, not just view)
+- T-04-03-08 cross-mess member in export — VALIDATED in Plan 04.3 (Member::where('id', $id)->firstOrFail() triggers MessScope → 404; PdfExportTest::test_cross_mess_member_pdf_returns_404)
+- T-04-03-10 Dompdf SSRF via remote resources — VALIDATED in Plan 04.3 (every Pdf::loadView() chain sets setOption('isRemoteEnabled', false))
 
 ## Decisions Still Pending
 
@@ -178,6 +194,24 @@ None.
 - Decisions validated this plan: D-16 (Overview landing first), D-19 (member monthly aggregates-only), D-32 (My reports tab), Open Question #3 LOCKED (My Meals excludes guest meals).
 - Resume file: `.planning/phases/04-reports-dashboard/04-02-member-views-SUMMARY.md`
 - Next: Plan 04-03 (Wave 4 — PDF/Excel exports for all 4 reports + manager dashboard with charts; reuses `<x-stat-card>` + wires the report-toolbar's disabled PDF/Excel buttons to real routes).
+
+**2026-06-18** — Phase 4 Plan 04.3: Manager dashboard + PDF/Excel exports — COMPLETE (final wave of Phase 4).
+
+- Transformed manager `/home` into the real dashboard (D-14): 6 DASH-01 `<x-stat-card>` cards + 3 Chart.js charts (Meal Trend = line, Expense Trend = bar bazar-only, Payment Trend = bar all-methods) + DASH-03 pending-meal-off alert banner. Replaces the old link-card grid. Chart init via the existing `window.initDashboardChart(canvasId, config)` helper from Plan 4.0 (destroy-before-recreate guard).
+- Cache strategy (D-17): 3 bill-derived cards (`meal_rate`, `total_due`, `total_advance`) reuse the existing `bill-preview:{mess_id}:{YYYY}-{MM}` key via `BillPreviewService::preview()` (no new key); 3 count cards (`total_members`, `today_meals`, `monthly_expenses`) use ONE new composite key `dash:counts:{mess_id}:{YYYY}-{MM}` (1h TTL). `DashboardService::todayMealTotal` uses `MealType::value()` (never hard-coded 0.5/1/1, Pitfall A3) and EXCLUDES guest meals (Open Question #3 LOCKED). "Monthly Expenses" card = total bazar + fixed (Open Question #5 LOCKED). Expense Trend chart stays bazar-only (D-06).
+- Cache invalidation (DASH-05): extended the EXISTING `AppServiceProvider::invalidateForModel()` listener body with ONE `Cache::forget("dash:counts:{mess_id}:{YYYY}-{MM}")` line. NO duplicate `Event::listen` block. Same hook fires for both `saved` + `deleted` events on all 5 models (MealEntry, GuestMeal, MealOffRequest, Expense, Payment). Key scoped by `Mess::activeId()` → cross-mess bleed impossible (T-04-03-01). Preserves < 2s refresh (success #12).
+- D-08 auto-bucketing centralized in `ChartBucketingService::bucket(from, to)`: ≤60d → daily; ≤365d → weekly; else → monthly. Applied to all 3 trend queries via a `fillBucketAxis()` helper.
+- Exports (RPT-07 PDF, RPT-08 Excel) on all 4 reports × both sides. 12 new routes: 8 manager (`.pdf` + `.xlsx` for monthly / member-statement / expenses / payments) + 4 member (statement + monthly). PDF uses Dompdf via a dedicated plain-CSS `layouts/pdf.blade.php` (Pitfall 4 — NO Tailwind, NO `@vite`; `@page` margins + `position: fixed` header/footer + `counter(page)` → "Page N", D-13, NOT `counter(pages)` which doesn't work in Dompdf). Every `Pdf::loadView()` sets `setOption('isRemoteEnabled', false)` (T-04-03-10 SSRF prevention). Excel uses Maatwebsite/Excel: 4 export classes (`MonthlyReportExport` FromArray, `MemberStatementExport` FromCollection, `ExpenseReportExport` + `PaymentReportExport` FromQuery — chunked, T-04-03-03 DoS mitigation). All `map()`/`array()` return explicit `(float)` casts + `WithColumnFormatting` + `NumberFormat::FORMAT_NUMBER_00` on Amount columns (Pitfall 5 — manager can SUM/AVERAGE).
+- Filename sanitization via `ReportExportController::safeFilename()` (T-04-03-04): regex with `~` delimiter strips `/`, `\`, `..`, control chars. Prevents path traversal + header injection in `Content-Disposition`. Member names also pass through `Str::slug()`.
+- Member exports are IDOR-structurally-impossible (T-04-03-05/06): `MyReportExportController` has NO `{member}` URL param — member ALWAYS from `$request->user()->getMemberOrNull()`. `monthlyExcel` passes `['members' => []]` to `MonthlyReportExport` — peer rows can NEVER leave the server for a member request (D-19 enforced in DATA shape, not just view). The member Monthly PDF view also omits the per-member table.
+- Cross-mess member export returns 404 (T-04-03-08): `Member::where('id', $id)->firstOrFail()` triggers the `MessScope` global scope.
+- `<x-report-toolbar>` now renders real `<a>` links to `route({$route}.pdf)` / `route({$route}.xlsx)` (was disabled placeholders in Plan 4.1/4.2). `Route::has($pdfRoute)` guard degrades gracefully.
+- Deviations: (1) [Rule 1] `safeFilename` regex delimiter conflicted with the slash literal it was matching — switched delimiter `/` → `~`. (2) [Rule 1] test assertions too strict on Dompdf / Maatwebsite filename quoting (RFC-6266 allows unquoted form) — relaxed to assert sanitized basename substring + `.xlsx` suffix.
+- Tests: 205 → 233 passed (+28 new: 6 ManagerDashboard + 4 ChartRange + 3 CacheInvalidation + 9 PdfExport + 6 ExcelExport); `vendor/bin/pint --test` clean.
+- Commits this session: `1d87e00` (RED tests for dashboard), `e10d70a` (DashboardService + ChartBucketingService + HomeController + cache hook + home view), `b04afe6` (4 Excel exports + plain-CSS PDF layout + 6 PDF views + report-toolbar wiring), `281b2d3` (RED tests for exports), `7779943` (ReportExportController + MyReportExportController + 12 routes + safeFilename).
+- Decisions validated this plan: D-14 (dashboard), D-15 (6 cards + banner), D-17 (cache reuse), DASH-05 (< 2s refresh), D-08 (auto-bucket), D-13 (portrait PDF Page N), Pitfall 4 (plain CSS), Pitfall 5 (numeric Excel), T-04-03-01/04/05/06/08/10.
+- Resume file: `.planning/phases/04-reports-dashboard/04-03-dashboard-exports-SUMMARY.md`
+- Next: Phase 4 is feature-complete (4/4 plans). Orchestrator owns phase-completion (VERIFICATION + marking phase done). Phase 5 (Polish + Pilot) is the next phase.
 
 **2026-06-17** — Phase 4 Plan 04.1: Manager reports (Monthly + Member Statement + Expense + Payment) — COMPLETE.
 
