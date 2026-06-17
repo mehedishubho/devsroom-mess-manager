@@ -33,6 +33,8 @@
         </div>
     </header>
 
+    {{-- Aggregates-only Monthly Report (D-19): report-toolbar wires the .pdf/.xlsx
+         routes which structurally empty the `members` array server-side. --}}
     <div class="mb-6">
         <x-report-toolbar route="my.reports.monthly" :year="$year" :month="$month" showExports="true" />
     </div>

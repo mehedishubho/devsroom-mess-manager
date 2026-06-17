@@ -65,6 +65,7 @@
     <div class="mb-6">
         <x-report-toolbar route="mess.reports.member-statement" :year="$year" :month="$month" showExports="true" :extra="['member_id' => $member->id]" />
     </div>
+    {{-- The report-toolbar reads member_id from $extra above; no $filters needed for month-scoped reports. --}}
 
     @if (empty($row))
         <x-empty-state

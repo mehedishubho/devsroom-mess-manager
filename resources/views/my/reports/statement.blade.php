@@ -42,7 +42,8 @@
         </div>
     </header>
 
-    {{-- Month picker only — NO member picker (member is fixed = self) --}}
+    {{-- Month picker only — NO member picker (member is fixed = self). Export routes
+         derive the member from auth; no member_id needed in the toolbar. --}}
     <div class="mb-6">
         <x-report-toolbar route="my.reports.statement" :year="$year" :month="$month" showExports="true" />
     </div>
