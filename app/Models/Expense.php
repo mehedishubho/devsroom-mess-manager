@@ -7,14 +7,16 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use OwenIt\Auditing\Auditable;
+use OwenIt\Auditing\Contracts\Auditable as AuditableContract;
 
 #[Fillable([
     'mess_id', 'expense_category_id', 'date', 'purchased_by', 'vendor',
-    'description', 'amount', 'expense_type', 'receipt_path', 'entered_by',
+    'description', 'amount', 'receipt_path', 'entered_by',
 ])]
-class Expense extends Model
+class Expense extends Model implements AuditableContract
 {
-    use BelongsToActiveMess, HasFactory;
+    use Auditable, BelongsToActiveMess, HasFactory;
 
     protected function casts(): array
     {

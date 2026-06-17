@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Mess\AuditController;
+use App\Http\Controllers\Mess\ExpenseCategoryController;
+use App\Http\Controllers\Mess\ExpenseController;
 use App\Http\Controllers\Mess\GuestMealController;
 use App\Http\Controllers\Mess\ManagerMealOffController;
 use App\Http\Controllers\Mess\MealGridController;
@@ -72,6 +74,16 @@ Route::middleware(['auth', 'role:admin', EnsureMessExists::class])->group(functi
     Route::get('mess/meal-off', [MealOffApprovalController::class, 'index'])->name('mess.meal-off.index');
     Route::patch('mess/meal-off/{mealOffRequest}/approve', [MealOffApprovalController::class, 'approve'])->name('mess.meal-off.approve');
     Route::patch('mess/meal-off/{mealOffRequest}/reject', [MealOffApprovalController::class, 'reject'])->name('mess.meal-off.reject');
+
+    Route::get('mess/expenses', [ExpenseController::class, 'index'])->name('mess.expenses.index');
+    Route::get('mess/expenses/bazar/create', [ExpenseController::class, 'createBazar'])->name('mess.expenses.bazar.create');
+    Route::post('mess/expenses/bazar', [ExpenseController::class, 'storeBazar'])->name('mess.expenses.bazar.store');
+    Route::get('mess/expenses/fixed/create', [ExpenseController::class, 'createFixed'])->name('mess.expenses.fixed.create');
+    Route::post('mess/expenses/fixed', [ExpenseController::class, 'storeFixed'])->name('mess.expenses.fixed.store');
+
+    Route::get('mess/categories', [ExpenseCategoryController::class, 'index'])->name('mess.categories.index');
+    Route::post('mess/categories', [ExpenseCategoryController::class, 'store'])->name('mess.categories.store');
+    Route::delete('mess/categories/{category}', [ExpenseCategoryController::class, 'destroy'])->name('mess.categories.destroy');
 });
 
 // Member (user role) home
