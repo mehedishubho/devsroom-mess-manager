@@ -148,7 +148,7 @@ Phase 5: Polish           → PDF, Excel, mobile polish, performance, real-mess 
 
 **Out of scope for this phase:** Performance tuning, advanced reports, year-over-year, SMS/WhatsApp.
 
-**Plans:** 4 plans
+**Plans:** 4/4 plans complete
 
 Plans:
 - [x] 04-00-PLAN.md — Wave 0 prerequisites: install Dompdf + Maatwebsite/Excel + chart.js, expose window.initDashboardChart, add Reports sidebar group (D-31), create test dirs, lock Money::taka() as canonical helper
