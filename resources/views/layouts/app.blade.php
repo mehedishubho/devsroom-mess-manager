@@ -63,6 +63,18 @@
                         </svg>
                         <span>{{ __('Members') }}</span>
                     </a>
+                    <a href="{{ route('mess.meals.index') }}" class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition min-h-[44px] {{ request()->routeIs('mess.meals.*') ? 'bg-emerald-50 text-emerald-700 border-l-2 border-emerald-600' : 'text-slate-700 hover:bg-slate-100 border-l-2 border-transparent' }}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 3h18v18H3V3zm9 4v10m-5-7h10"/>
+                        </svg>
+                        <span>{{ __('Daily meals') }}</span>
+                    </a>
+                    <a href="{{ route('mess.guest-meals.index') }}" class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition min-h-[44px] {{ request()->routeIs('mess.guest-meals.*') ? 'bg-emerald-50 text-emerald-700 border-l-2 border-emerald-600' : 'text-slate-700 hover:bg-slate-100 border-l-2 border-transparent' }}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 4.681.935m0 0a9 9 0 0 1-4.681-.935M12 6.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Zm0 0v-3"/>
+                        </svg>
+                        <span>{{ __('Guest meals') }}</span>
+                    </a>
                 </nav>
             </aside>
 

@@ -2,7 +2,9 @@
 
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Mess\AuditController;
+use App\Http\Controllers\Mess\GuestMealController;
 use App\Http\Controllers\Mess\ManagerMealOffController;
+use App\Http\Controllers\Mess\MealGridController;
 use App\Http\Controllers\Mess\MemberController;
 use App\Http\Controllers\Mess\MemberInviteController;
 use App\Http\Controllers\Mess\MemberSearchController;
@@ -56,6 +58,15 @@ Route::middleware(['auth', 'role:admin', EnsureMessExists::class])->group(functi
 
     Route::post('mess/members/{member}/meal-off', [ManagerMealOffController::class, 'store'])
         ->name('mess.members.meal-off.store');
+
+    Route::get('mess/meals', [MealGridController::class, 'index'])->name('mess.meals.index');
+    Route::post('mess/meals', [MealGridController::class, 'save'])->name('mess.meals.save');
+
+    Route::get('mess/guest-meals', [GuestMealController::class, 'index'])->name('mess.guest-meals.index');
+    Route::get('mess/guest-meals/create', [GuestMealController::class, 'create'])->name('mess.guest-meals.create');
+    Route::post('mess/guest-meals', [GuestMealController::class, 'store'])->name('mess.guest-meals.store');
+    Route::get('mess/guest-meals/{guestMeal}/edit', [GuestMealController::class, 'edit'])->name('mess.guest-meals.edit');
+    Route::patch('mess/guest-meals/{guestMeal}', [GuestMealController::class, 'update'])->name('mess.guest-meals.update');
 });
 
 // Member (user role) home
