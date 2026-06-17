@@ -2,8 +2,11 @@
 
 namespace App\Services;
 
+use App\Models\AdvanceBalance;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
+use App\Models\GuestMeal;
+use App\Models\MealEntry;
 use App\Models\Member;
 use App\Models\Mess;
 use App\Models\Payment;
@@ -12,7 +15,6 @@ use App\Support\MealType;
 use App\Support\MemberStatus;
 use App\Support\PaymentType;
 use Carbon\Carbon;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
 class BillPreviewService
@@ -89,12 +91,6 @@ class BillPreviewService
             ->whereBetween('date', [$start->toDateString(), $end->toDateString()])
             ->whereIn('expense_category_id', $bazarCategoryIds)
             ->sum('amount');
-        throw new \RuntimeException('DBG: messId='.$messId.' catIds='.json_encode($bazarCategoryIds).' expenses='.Expense::query()->where('mess_id', $messId)->count().' sum='.$totalBazar.' date='.$start);
-        \Illuminate\Support\Facades\Log::debug('BillPreview total_bazar', [
-            'count' => Expense::query()->where('mess_id', $messId)->count(),
-            'bazar_category_ids' => $bazarCategoryIds,
-            'total' => $totalBazar,
-        ]);
 
         $totalFixed = (float) Expense::query()
             ->where('mess_id', $messId)
@@ -183,7 +179,7 @@ class BillPreviewService
             return [];
         }
 
-        $entries = \App\Models\MealEntry::query()
+        $entries = MealEntry::query()
             ->whereIn('member_id', $memberIds)
             ->whereBetween('date', [$start->toDateString(), $end->toDateString()])
             ->get(['member_id', 'breakfast', 'lunch', 'dinner']);
@@ -212,7 +208,7 @@ class BillPreviewService
             return [];
         }
 
-        $rows = \App\Models\GuestMeal::query()
+        $rows = GuestMeal::query()
             ->whereIn('member_id', $memberIds)
             ->whereBetween('date', [$start->toDateString(), $end->toDateString()])
             ->get(['member_id', 'charge_amount']);
@@ -258,7 +254,7 @@ class BillPreviewService
             return [];
         }
 
-        $rows = \App\Models\AdvanceBalance::query()
+        $rows = AdvanceBalance::query()
             ->whereIn('member_id', $memberIds)
             ->get(['member_id', 'balance', 'due_balance']);
 
@@ -308,7 +304,5 @@ class BillPreviewService
         }
 
         return (int) $memberStart->diffInDays($memberEnd) + 1;
-    }
-}erEnd) + 1;
     }
 }
