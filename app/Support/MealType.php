@@ -5,7 +5,9 @@ namespace App\Support;
 final class MealType
 {
     public const BREAKFAST = 'breakfast';
+
     public const LUNCH = 'lunch';
+
     public const DINNER = 'dinner';
 
     public const ALL = [self::BREAKFAST, self::LUNCH, self::DINNER];

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Mess\StoreMemberRequest;
 use App\Http\Requests\Mess\UpdateMemberRequest;
 use App\Models\Member;
+use App\Models\Mess;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -38,7 +39,7 @@ class MemberController extends Controller
 
     public function create(): View
     {
-        return view('mess.members.create', ['member' => new Member()]);
+        return view('mess.members.create', ['member' => new Member]);
     }
 
     public function store(StoreMemberRequest $request): RedirectResponse
@@ -47,6 +48,7 @@ class MemberController extends Controller
         $photo = $data['photo'] ?? null;
         unset($data['photo']);
 
+        $data['mess_id'] = Mess::activeId();
         $member = Member::create($data);
 
         if ($photo) {

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Mess;
 
+use App\Models\Mess;
 use App\Support\MemberStatus;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -26,7 +27,7 @@ class UpdateMemberRequest extends FormRequest
                 'nullable', 'email', 'max:255',
                 Rule::unique('members', 'email')
                     ->ignore($memberId)
-                    ->where('mess_id', \App\Models\Mess::activeId()),
+                    ->where('mess_id', Mess::activeId()),
             ],
             'nid' => ['nullable', 'string', 'max:50'],
             'profession' => ['nullable', 'string', 'max:100'],
