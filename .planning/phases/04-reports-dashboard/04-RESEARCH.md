@@ -1124,27 +1124,30 @@ new Chart(document.getElementById('expense-trend').getContext('2d'), {
 | A5 | `chart.js/auto` (auto-register all controllers) is acceptable vs importing only `LineController` + `BarController` (tree-shaking). Discretion area. | Pattern 6 | `auto` adds ~20KB; fine for 3 charts on one page. Switch to explicit imports only if bundle size becomes a Phase 5 perf concern. |
 | A6 | Chart.js wires into the existing global `app.js` (not a per-page chunk). Discretion area. | Pattern 6 | If perf audit (Phase 5) flags it, refactor to a `resources/js/dashboard.js` chunk loaded only on `/home`. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Money helper resolution (Gap 1).**
+> All 5 questions below are **LOCKED**. The plans (04-00 through 04-03) implement these resolutions verbatim; this section is preserved for traceability.
+
+1. **Money helper resolution (Gap 1).** — RESOLVED: **adopt `App\Support\Money::taka()`; do NOT create `app/helpers.php` or `bdt()`.**
    - What we know: `App\Support\Money::taka()` exists, is used in 14 views; `bdt()` does not exist anywhere despite CONTEXT claiming it.
-   - What's unclear: Should Plan 4.1 Wave 0 (a) standardize on `Money::taka()` everywhere (and update CONTEXT's `bdt()` references), or (b) actually create `app/helpers.php` with a `bdt()` wrapper that calls `Money::taka()` + a `mess_date()` helper, and add `app/helpers.php` to composer `autoload.files`?
-   - Recommendation: **(a) adopt `Money::taka()`** — it's already the de facto standard, avoids a global-function layer, and matches the project's class-based `App\Support\*` organization. Add a `mess_date(Carbon $date)` helper as a thin static on `Money` (or a new `App\Support\DateFormat` class) for D-34.
+   - LOCKED ANSWER: standardize on `Money::taka()` everywhere. No `app/helpers.php`, no `bdt()`, no `autoload.files` entry in `composer.json`. This is the canonical helper. Plan 04-00 Task 1 step 5 verifies `grep -c "function bdt" app/` returns 0 and `composer.json` has no `app/helpers.php` entry. Every money display in Phase 4 uses `Money::taka()`.
 
-2. **Does the manager Member Statement need a member-picker?**
-   - What we know: RPT-02 says "any member, any month". The route is `/mess/reports/member-statement/{member}`.
-   - What's unclear: How does the manager pick the member? A dropdown in the filter bar? A search (like `mess.members.search`)? Default to first member?
-   - Recommendation: a `<select>` of active members in the report's filter bar (small list — v1 is single mess with a manageable member count). If the list grows, reuse the existing AJAX member search.
+2. **Does the manager Member Statement need a member-picker?** — RESOLVED: **`<select>` of active members in the manager Member Statement filter bar.**
+   - What we know: RPT-02 says "any member, any month". The route accepts `?member_id=X`.
+   - LOCKED ANSWER: `ReportController::memberStatement()` loads `Member::where('mess_id', Mess::activeId())->whereIn('status', ['active','former'])->orderBy('name')->get(['id','name'])` and passes it as `$members` to the view, which renders `<select name="member_id">` in the filter bar. (Plan 04-01 Task 2 step 5.) Cross-mess access returns 404 via `Member::where('id', $id)->firstOrFail()` + MessScope.
 
-3. **Does "Today's Meals" card count guest meals?**
-   - What we know: D-05 defines Meal Trend as "total meals consumed across the mess that day, e.g. 42.5". The `MealEntry` table has separate `guest_breakfast/lunch/dinner` decimal columns.
-   - What's unclear: Should the card include guest meal counts?
-   - Recommendation: **exclude guest meals from the trend** (they're charged separately via `charge_amount`, not counted in `total_meals`). Match `BillPreviewService::mealTotals()` exactly.
+3. **Does "Today's Meals" card count guest meals?** — RESOLVED: **EXCLUDE guest meals from "Today's Meals" / "My Meals" cards and Meal Trend (match `BillPreviewService::mealTotals()`).**
+   - What we know: D-05 defines Meal Trend as "total meals consumed across the mess that day, e.g. 42.5".
+   - **CORRECTION of earlier research text:** The `MealEntry` table has `breakfast`, `lunch`, `dinner` **boolean** columns (NOT `guest_breakfast/lunch/dinner` decimals as an earlier draft of this research doc claimed). Guest meals live in a separate `guest_meals` table and are charged via `charge_amount`; they are NOT part of `total_meals`. (Plans already use the correct boolean CASE-WHEN pattern, so this correction is documentation-only.)
+   - LOCKED ANSWER: `DashboardService::todayMealTotal()` sums only the regular `MealEntry` booleans (CASE WHEN `breakfast` THEN `MealType::value(BREAKFAST)` …). Member-side `MemberDashboardService::overviewCards()` does the same for the "My Meals" card. Plan 04-02 test `test_my_meals_excludes_guest_meals` enforces this.
 
-4. **Does the closed-month path need a banner on the report?**
+4. **Does the closed-month path need a badge on the report?** — RESOLVED: **small "Closed month" badge next to the period label.**
    - What we know: D-24 says label changes to "for {Month Year}" for closed months; D-30 says no gating banner on the dashboard.
-   - What's unclear: Does a *report* for a closed month show a small "Closed month" badge?
-   - Recommendation: yes, a small badge next to the period label — matches the "MONTH CLOSED" banner pattern on `/home` (already shipped in Phase 3).
+   - LOCKED ANSWER: `ReportService::monthlyReport()` and `MemberStatementService::forMember()` return a `'source' => 'snapshot'|'live'` flag. The views render a small `<span class="badge…">{{ __('Closed month') }}</span>` next to the period label when `source === 'snapshot'`. No gating, no disabled reports. (Plan 04-01 Task 2 step 4 + Plan 04-02 Task 2 step 5.)
+
+5. **What does the dashboard "Monthly Expenses" card mean (bazar-only vs total)?** — RESOLVED: **total = bazar + fixed.**
+   - What we know: CONTEXT D-15 names a "Monthly Expenses" card. CONTEXT discretion area says "default: total monthly expenses; confirm during planning".
+   - LOCKED ANSWER: `DashboardService::managerCards()['monthly_expenses']` = `Expense::where('mess_id', $messId)->whereBetween('date', [month-start, month-end])->sum('amount')` — total expenses (bazar + fixed). This matches the card's literal label "Monthly Expenses" (a TOTAL view, not just bazar). NOTE: the **Expense Trend chart** (D-06) is **still bazar-only** — that is a separate, locked visualization decision. Only the *card* shows the total. (Plan 04-03 Task 1 step 3.)
 
 ## Environment Availability
 
@@ -1300,12 +1303,12 @@ new Chart(document.getElementById('expense-trend').getContext('2d'), {
 | Pitfalls | HIGH | 3 of 7 are direct source-code readings; 4 are standard pitfalls cross-verified with official docs |
 | Money Helper Gap | HIGH | Verified by `grep -rln "bdt("` (0 results) + `grep -rln "Money::taka"` (14 results) + reading `composer.json` (no `autoload.files`) |
 
-### Open Questions
-1. **Money helper** — standardize on `Money::taka()` vs create `bdt()`? (recommendation: `Money::taka()`)
-2. **Member-picker UX** for manager Member Statement (recommendation: `<select>` of active members)
-3. **Guest meals in "Today's Meals" card** (recommendation: exclude — match `BillPreviewService::mealTotals()`)
-4. **"Monthly Expenses" card scope** (recommendation: total = bazar + fixed, per default in CONTEXT discretion)
-5. **Closed-month badge on reports** (recommendation: small badge next to period label, matches existing `/home` banner pattern)
+### Open Questions (RESOLVED — see full text in the "Open Questions (RESOLVED)" section above)
+1. RESOLVED: **adopt `App\Support\Money::taka()`; do NOT create `app/helpers.php` / `bdt()`.**
+2. RESOLVED: **`<select>` of active members in the manager Member Statement filter bar.**
+3. RESOLVED: **exclude guest meals from "Today's Meals" / "My Meals" (match `BillPreviewService::mealTotals()`).**
+4. RESOLVED: **"Monthly Expenses" card = total bazar + fixed (Expense Trend chart stays bazar-only per D-06).**
+5. RESOLVED: **small "Closed month" badge next to the period label.**
 
 ### Ready for Planning
 Research complete. Planner can create PLAN.md files for Plans 4.1, 4.2, 4.3.
