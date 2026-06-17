@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 03
 current_plan: 4
-status: Executing Phase 03 (Plan 03.3 complete; 03.4 next)
-last_updated: "2026-06-17T10:30:00.000Z"
+status: Executing Phase 03 (Plan 03.4 complete; phase 03 ready for orchestrator completion)
+last_updated: "2026-06-17T11:30:00.000Z"
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 9
-  completed_plans: 11
+  completed_plans: 12
   percent: 100
 ---
 
@@ -19,7 +19,7 @@ progress:
 **Initialized:** 2026-06-16
 **Project:** Devsroom Mess Management
 **Current Phase:** 03
-**Current Plan:** 4 (Plan 03.3 — Live bill preview + 1-hour cache — complete; Plan 03.4 next)
+**Current Plan:** 4 (Plan 03.4 — Month-close job + corrections + notifications — complete; Phase 03 ready for orchestrator to mark complete)
 
 ## Project Reference
 
@@ -53,8 +53,14 @@ See: `.planning/PROJECT.md` (updated 2026-06-16)
 
 ## Decisions Still Pending
 
-- Hard-lock on month close (Phase 3, Plan 3.4)
-- Idempotent month-close via `UNIQUE (mess_id, year, month)` (Phase 3, Plan 3.4)
+(None — the two month-close decisions below were validated in Plan 03.4 and moved to the Phase 3 validated list.)
+
+## Decisions Validated in Phase 3 (now including 03.4)
+
+- Hard-lock on month close via `EnsureMonthIsOpen` middleware (Phase 3, Plan 3.4) — VALIDATED (test_payment_write_to_closed_month_is_rejected, test_closed_month_for_one_mess_does_not_lock_another)
+- Idempotent month-close via `UNIQUE (mess_id, year, month)` + `firstOrCreate` + `wasRecentlyCreated` (Phase 3, Plan 3.4) — VALIDATED (test_idempotent_close_does_not_duplicate_rows, test_second_close_returns_same_closing_and_same_summaries)
+- Corrections apply immediately to balances; `monthly_member_summaries` snapshot stays immutable (D-24, CLOSE-12) — VALIDATED (test_correction_does_not_mutate_existing_member_summary_snapshot)
+- Close math reuses `BillPreviewService` verbatim (D-18) — VALIDATED (test_close_numbers_match_bill_preview_service_for_same_inputs)
 
 ## Decisions Validated in Phase 3 (so far)
 
@@ -120,6 +126,18 @@ None.
 - Commits: `b4ce6ee` (bug fixes), `35b42ae` (test env), `fe931b1` (pint + test fix). Docs commit pending.
 - Resume file: `.planning/phases/03-payments-month-close/03.3-live-bill-preview-caching-SUMMARY.md`
 - Next: Plan 03.4 — Month-close job (queued, idempotent, hard-locked) + corrections + notifications.
+
+**2026-06-17** — Phase 3 Plan 03.4: Month-close job + corrections + notifications — COMPLETE (resumed after interruption).
+
+- Resumed a ~50%-complete plan: the prior executor had committed the entire backend domain layer (8 commits: models w/ Auditable, NotificationType, NotificationService, MonthCloseService, MonthlyCorrectionService, CloseMonthJob, EnsureMonthIsOpen middleware + month.open alias applied to 11 routes, MonthClose/MonthlyClosing/MonthlyCorrection controllers + form requests, factories, migrations). Suite was green at 116 tests. This session did NOT redo any committed backend — it built the presentation + wiring + tests + docs on top.
+- Committed this session: (1) NotificationController + NotificationBell component + bell blade; (2) DueReminderController + 9 views (close index/modal, closings index/show/member-summaries, corrections create/index, notifications index, due-reminder index) + sidebar links + `<x-notification-bell />` in layout + closed-month banner on /home + NOTIF-02 wired into MealOffApprovalService + NOTIF-03 wired into PaymentService; (3) 7 test files / 38 tests.
+- Critical safety properties verified by test: idempotency (firstOrCreate + UNIQUE), close math == BillPreviewService math (byte-for-byte), mid-month joiner excluded from denominator, zero-meal member included in summary, positive net_bill → due_balance, negative → advance_balance, payment subtracted from snapshot net_bill, second close is a no-op, snapshot immutable after correction, close_complete notification to all managers + super-admins, mess isolation, bill-preview cache invalidated on close, payment write to closed month rejected (mess-scoped), corrections apply immediately + audit log written, member forbidden from corrections, due reminder skips clear members, notification index lists own + marks read, closed-month banner shows when current month is closed.
+- Deviations: (a) corrections routes intentionally NOT locked by `month.open` (they target closed months by design — D-24/CLOSE-12); (b) test math corrected — the plan's example conflated meal_rate with bill; actual formulas used (`meal_rate = total_bazar / total_meals`, `bill = meals × rate`) with a dedicated parity test against BillPreviewService.
+- Tests: 116 → 154 passed (+38 new); `vendor/bin/pint --test` clean.
+- Commits this session: `4ba1e34` (notification controller + bell), `56400e4` (routes + views + layout + NOTIF wiring), `adf09fc` (test suite).
+- Decisions validated: Hard-lock via EnsureMonthIsOpen (D-19) and Idempotent month-close via UNIQUE (D-18) moved Pending → Validated.
+- Resume file: `.planning/phases/03-payments-month-close/03.4-month-close-job-corrections-notifications-SUMMARY.md`
+- Next: Phase 03 is feature-complete (4/4 plans). Orchestrator owns phase-completion (VERIFICATION + marking phase done). Phase 4 (Reports + Dashboard) is the next phase.
 
 ## Open Questions for User
 
