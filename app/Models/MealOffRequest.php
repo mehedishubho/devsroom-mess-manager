@@ -13,7 +13,7 @@ use OwenIt\Auditing\Contracts\Auditable as AuditableContract;
 
 #[Fillable([
     'mess_id', 'member_id', 'from_date', 'to_date', 'reason', 'status',
-    'requested_at', 'acted_at', 'acted_by',
+    'requested_at', 'acted_at', 'acted_by', 'rejection_reason',
 ])]
 class MealOffRequest extends Model implements AuditableContract
 {

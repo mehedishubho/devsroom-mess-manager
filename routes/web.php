@@ -5,6 +5,7 @@ use App\Http\Controllers\Mess\AuditController;
 use App\Http\Controllers\Mess\GuestMealController;
 use App\Http\Controllers\Mess\ManagerMealOffController;
 use App\Http\Controllers\Mess\MealGridController;
+use App\Http\Controllers\Mess\MealOffApprovalController;
 use App\Http\Controllers\Mess\MemberController;
 use App\Http\Controllers\Mess\MemberInviteController;
 use App\Http\Controllers\Mess\MemberSearchController;
@@ -67,6 +68,10 @@ Route::middleware(['auth', 'role:admin', EnsureMessExists::class])->group(functi
     Route::post('mess/guest-meals', [GuestMealController::class, 'store'])->name('mess.guest-meals.store');
     Route::get('mess/guest-meals/{guestMeal}/edit', [GuestMealController::class, 'edit'])->name('mess.guest-meals.edit');
     Route::patch('mess/guest-meals/{guestMeal}', [GuestMealController::class, 'update'])->name('mess.guest-meals.update');
+
+    Route::get('mess/meal-off', [MealOffApprovalController::class, 'index'])->name('mess.meal-off.index');
+    Route::patch('mess/meal-off/{mealOffRequest}/approve', [MealOffApprovalController::class, 'approve'])->name('mess.meal-off.approve');
+    Route::patch('mess/meal-off/{mealOffRequest}/reject', [MealOffApprovalController::class, 'reject'])->name('mess.meal-off.reject');
 });
 
 // Member (user role) home
