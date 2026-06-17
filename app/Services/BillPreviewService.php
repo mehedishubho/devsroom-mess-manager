@@ -150,6 +150,14 @@ class BillPreviewService
             $bill = round($mealCost + $fixedShare + $guestTotal, 2);
 
             $billPayments = $paymentsByMember[$member->id]['bill_payments'] ?? 0.0;
+            // NOTE (CR-03): despite its name, `advance_applied` does NOT consume
+            // advance deposits — it snapshots the bill-payment-type payments made
+            // against this month's gross bill. Per the locked Phase-3 model
+            // (D-07/D-08/D-10), advance deposits live only in `advance_balance`
+            // and `due_balance`, tracked separately; they are NOT auto-applied
+            // against the bill here. `net_bill` is therefore gross − bill payments.
+            // The column name is retained for stability; a rename to
+            // `bill_payments_applied` is tracked as a separate follow-up.
             $advanceApplied = $billPayments;
             $due = round($bill - $advanceApplied, 2);
 

@@ -42,7 +42,9 @@ class MonthlyCorrectionService
             ]);
 
             // Apply to advance (amount > 0) or due (amount < 0) immediately (D-24).
-            $this->balances->carryForward($memberId, $amount);
+            // Normalize to a 2-decimal string so the carry-forward stays in BC
+            // math end-to-end (CR-03: "decimal money, never float").
+            $this->balances->carryForward($memberId, number_format($amount, 2, '.', ''));
 
             // Invalidate the preview cache for the applied-to month so future previews
             // pick up the balance change (D-26).

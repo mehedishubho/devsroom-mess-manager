@@ -10,6 +10,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use OwenIt\Auditing\Auditable;
 use OwenIt\Auditing\Contracts\Auditable as AuditableContract;
 
+/**
+ * Frozen per-member snapshot written once at month close (CLOSE-09: immutable).
+ *
+ * Money columns are DECIMAL(10,2); reads return 2-decimal strings via the casts
+ * below. NOTE (CR-03): `advance_applied` is misnamed — it holds the
+ * bill-payment-type payments applied against the gross bill this month, NOT
+ * advance deposits consumed (per D-07/D-08/D-10, advance deposits are tracked
+ * separately in `advance_balances` and are never auto-applied to the bill).
+ * A rename to `bill_payments_applied` is tracked as a separate follow-up.
+ */
 #[Fillable([
     'mess_id', 'monthly_closing_id', 'member_id', 'total_meals', 'meal_rate',
     'meal_cost', 'fixed_cost_share', 'guest_meal_charge', 'gross_bill',

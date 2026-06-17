@@ -135,7 +135,7 @@ class AdvanceBalanceTest extends TestCase
         $member = Member::factory()->create(['status' => MemberStatus::ACTIVE]);
 
         $service = app(AdvanceBalanceService::class);
-        $service->carryForward($member->id, 300.0);
+        $service->carryForward($member->id, '300.00');
 
         $this->assertDatabaseHas('advance_balances', [
             'member_id' => $member->id,
@@ -150,7 +150,7 @@ class AdvanceBalanceTest extends TestCase
         $member = Member::factory()->create(['status' => MemberStatus::ACTIVE]);
 
         $service = app(AdvanceBalanceService::class);
-        $service->carryForward($member->id, -150.0);
+        $service->carryForward($member->id, '-150.00');
 
         $this->assertDatabaseHas('advance_balances', [
             'member_id' => $member->id,

@@ -114,11 +114,20 @@ class AdvanceBalanceService
     }
 
     /**
-     * Used by the month-close service in Plan 3.4.
+     * Carry a signed month-close net bill into the member's running balance (D-09).
+     *
+     * Positive `$amount` → increases `balance` (advance/credit); negative →
+     * increases `due_balance` (debt). This is the single write point that
+     * accumulates money across months, so it operates purely in BC math on a
+     * 2-decimal string — never float (CR-03: "decimal money, never float").
+     *
+     * `$amount` MUST be a normalized 2-decimal string (e.g. `'6000.00'`,
+     * `'-150.00'`). Callers normalize via `number_format($value, 2, '.', '')`
+     * or `bcmul()` before calling.
      */
-    public function carryForward(int $memberId, float $amount): AdvanceBalance
+    public function carryForward(int $memberId, string $amount): AdvanceBalance
     {
-        $amountStr = number_format($amount, 2, '.', '');
+        $amountStr = number_format((float) $amount, 2, '.', '');
 
         return DB::transaction(function () use ($memberId, $amountStr) {
             $row = AdvanceBalance::query()

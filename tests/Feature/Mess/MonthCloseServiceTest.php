@@ -12,6 +12,7 @@ use App\Models\MonthlyClosing;
 use App\Models\MonthlyMemberSummary;
 use App\Models\Payment;
 use App\Models\User;
+use App\Services\AdvanceBalanceService;
 use App\Services\BillPreviewService;
 use App\Services\MonthCloseService;
 use App\Support\ExpenseKind;
@@ -315,5 +316,63 @@ class MonthCloseServiceTest extends TestCase
         app(MonthCloseService::class)->close(2026, 6, $this->admin->id);
 
         $this->assertFalse(Cache::has($cacheKey));
+    }
+
+    public function test_consecutive_month_closes_accumulate_balance_in_bc_math(): void
+    {
+        // CR-03: closing two consecutive months must accumulate advance/due
+        // balances in exact BC math on the SAME advance_balances row — never a
+        // float round-trip. June's due and July's due (with cents) add exactly,
+        // and a mid-stream advance deposit lands in the separate `balance` column.
+        $member = $this->seedFullMonthMember('2026-01-01', 2026, 6, 2);
+
+        // June: bazar 60 / 60 meals => rate 1 => bill 60 => net_bill 60 (due).
+        $this->seedBazar(60, 2026, 6);
+        app(MonthCloseService::class)->close(2026, 6, $this->admin->id);
+
+        $afterJune = AdvanceBalance::where('member_id', $member->id)->first();
+        $this->assertSame('60.00', (string) $afterJune->due_balance);
+        $this->assertSame('0.00', (string) $afterJune->balance);
+
+        // Between months: a 100 advance deposit → balance (D-07, applyPayment).
+        $deposit = Payment::create([
+            'mess_id' => Mess::activeId(),
+            'member_id' => $member->id,
+            'date' => '2026-07-03',
+            'amount' => 100,
+            'method' => PaymentMethod::CASH,
+            'type' => PaymentType::ADVANCE_DEPOSIT,
+            'entered_by' => $this->admin->id,
+        ]);
+        app(AdvanceBalanceService::class)->applyPayment($deposit);
+
+        // July: 31 days x 2 meals = 62 meals; bazar 62 => rate 1 => bill 62.
+        // A 0.25 bill payment => net_bill 61.75 (due).
+        $this->seedBazar(62, 2026, 7);
+        for ($d = 1; $d <= 31; $d++) {
+            MealEntry::factory()->create([
+                'mess_id' => Mess::activeId(),
+                'member_id' => $member->id,
+                'date' => sprintf('2026-07-%02d', $d),
+                'breakfast' => false, 'lunch' => true, 'dinner' => true,
+            ]);
+        }
+        Payment::create([
+            'mess_id' => Mess::activeId(),
+            'member_id' => $member->id,
+            'date' => '2026-07-05',
+            'amount' => 0.25,
+            'method' => PaymentMethod::CASH,
+            'type' => PaymentType::BILL_PAYMENT,
+            'entered_by' => $this->admin->id,
+        ]);
+
+        app(MonthCloseService::class)->close(2026, 7, $this->admin->id);
+
+        // End-state: due accumulates 60.00 + 61.75 = 121.75 (exact, BC across two
+        // closes); balance stays 100.00 (separate column, untouched by closes).
+        $final = AdvanceBalance::where('member_id', $member->id)->first();
+        $this->assertSame('100.00', (string) $final->balance);
+        $this->assertSame('121.75', (string) $final->due_balance);
     }
 }

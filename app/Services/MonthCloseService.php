@@ -64,8 +64,12 @@ class MonthCloseService
 
             $summaries = collect();
             foreach ($preview['members'] as $row) {
-                $netBill = (float) ($row['due'] ?? 0.0);
-                $advanceApplied = (float) ($row['advance_applied'] ?? 0.0);
+                // CR-03: freeze money into the snapshot as normalized 2-decimal
+                // strings so the carry-forward below never round-trips through
+                // float. BillPreviewService returns rounded floats for display;
+                // number_format() yields the canonical decimal string per the
+                // project's "decimal money, never float" convention.
+                $netBill = $this->money($row['due'] ?? 0);
 
                 $summaries->push(MonthlyMemberSummary::create([
                     'mess_id' => Mess::activeId(),
@@ -73,25 +77,27 @@ class MonthCloseService
                     'member_id' => $row['member_id'],
                     'total_meals' => $row['meals'],
                     'meal_rate' => $preview['meal_rate'],
-                    'meal_cost' => $row['meal_cost'],
-                    'fixed_cost_share' => $row['fixed_share'],
-                    'guest_meal_charge' => $row['guest_total'],
-                    'gross_bill' => $row['bill'],
-                    'advance_applied' => $advanceApplied,
+                    'meal_cost' => $this->money($row['meal_cost'] ?? 0),
+                    'fixed_cost_share' => $this->money($row['fixed_share'] ?? 0),
+                    'guest_meal_charge' => $this->money($row['guest_total'] ?? 0),
+                    'gross_bill' => $this->money($row['bill'] ?? 0),
+                    'advance_applied' => $this->money($row['advance_applied'] ?? 0),
                     'net_bill' => $netBill,
-                    'payments_received' => $row['bill_payments'],
+                    'payments_received' => $this->money($row['bill_payments'] ?? 0),
                     'balance_due' => $netBill,
                 ]));
             }
 
             // Carry-forward (D-09): positive net_bill → due; negative → advance.
+            // BC math on the exact decimal string — sign via bcmul(), not float
+            // negation (CR-03). carryForward() requires a 2-decimal string.
             $balanceService = app(AdvanceBalanceService::class);
             foreach ($summaries as $summary) {
-                $net = (float) $summary->net_bill;
-                if ($net > 0) {
-                    $balanceService->carryForward($summary->member_id, -1 * $net);
-                } elseif ($net < 0) {
-                    $balanceService->carryForward($summary->member_id, abs($net));
+                $net = (string) $summary->net_bill;
+                if (bccomp($net, '0', 2) > 0) {
+                    $balanceService->carryForward($summary->member_id, bcmul($net, '-1', 2));
+                } elseif (bccomp($net, '0', 2) < 0) {
+                    $balanceService->carryForward($summary->member_id, ltrim($net, '-'));
                 }
             }
 
@@ -115,5 +121,17 @@ class MonthCloseService
                 'was_recently_created' => true,
             ];
         });
+    }
+
+    /**
+     * Normalize a money value to a canonical 2-decimal string (CR-03).
+     *
+     * BillPreviewService yields rounded floats; this freezes them into exact
+     * decimal strings before they touch a DECIMAL column or the carry-forward
+     * path, so money never round-trips through float.
+     */
+    private function money(float|int|string|null $value): string
+    {
+        return number_format((float) ($value ?? 0), 2, '.', '');
     }
 }
