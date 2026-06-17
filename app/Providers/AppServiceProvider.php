@@ -12,6 +12,7 @@ use App\Services\BillPreviewInvalidator;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
@@ -91,5 +92,25 @@ class AppServiceProvider extends ServiceProvider
 
         $dateStr = $date instanceof \DateTimeInterface ? $date->format('Y-m-d') : (string) $date;
         $invalidator->forDate($dateStr);
+
+        // Phase 4 DASH-05: also forget the dashboard counts cache for the
+        // affected month. The key is scoped by mess_id (T-04-03-01) so
+        // cross-mess bleed is impossible. This extends the EXISTING listener
+        // body — NO second Event::listen() call (preserves < 2s refresh,
+        // success #12). Same hook fires for both saved + deleted events.
+        try {
+            $carbon = Carbon::parse($dateStr);
+        } catch (\Throwable) {
+            return;
+        }
+
+        $messId = Mess::activeId();
+        if ($messId === null) {
+            return;
+        }
+
+        Cache::forget(
+            "dash:counts:{$messId}:{$carbon->year}-".str_pad((string) $carbon->month, 2, '0', STR_PAD_LEFT)
+        );
     }
 }

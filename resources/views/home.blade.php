@@ -1,21 +1,38 @@
 @extends('layouts.app')
 @section('content')
-    <header class="mb-6">
-        <h1 class="text-2xl font-semibold leading-tight text-slate-900">
-            {{ __('Welcome, :name', ['name' => auth()->user()->name]) }}
-        </h1>
-        <p class="mt-2 text-sm text-slate-600">
-            {{ __('Quick access to today\'s mess operations.') }}
-        </p>
-    </header>
-
     @php
-        $now = \Carbon\Carbon::now();
-        $currentClosing = \App\Models\MonthlyClosing::query()
+        use App\Models\MonthlyClosing;
+        use App\Support\Money;
+        use Carbon\Carbon;
+
+        $now = Carbon::now();
+        $currentClosing = MonthlyClosing::query()
             ->where('year', $now->year)
             ->where('month', $now->month)
             ->first();
+        $cards = $cards ?? [
+            'total_members' => 0, 'today_meals' => 0.0,
+            'monthly_expenses' => 0.0, 'meal_rate' => 0.0,
+            'total_due' => 0.0, 'total_advance' => 0.0,
+        ];
+        $pendingMealOff = $pendingMealOff ?? 0;
+        $charts = $charts ?? ['meal' => ['labels' => [], 'values' => []], 'expense' => ['labels' => [], 'values' => []], 'payment' => ['labels' => [], 'values' => []]];
+
+        $hasChartData =
+            ! empty($charts['meal']['labels']) ||
+            ! empty($charts['expense']['labels']) ||
+            ! empty($charts['payment']['labels']);
     @endphp
+
+    <header class="mb-6">
+        <h1 class="text-2xl font-semibold leading-tight text-slate-900">
+            {{ __('Dashboard') }}
+        </h1>
+        <p class="mt-2 text-sm text-slate-600">
+            {{ __('Welcome, :name', ['name' => auth()->user()->name]) }}
+        </p>
+    </header>
+
     @if ($currentClosing)
         <div class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
             <div>
@@ -28,39 +45,163 @@
         </div>
     @endif
 
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <a href="{{ route('mess.members.index') }}" class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:bg-slate-50 md:p-6">
-            <h2 class="text-lg font-semibold leading-tight text-slate-900">{{ __('Members') }}</h2>
-            <p class="mt-1 text-sm text-slate-600">{{ __('Add, edit, and search mess members.') }}</p>
-            <p class="mt-3 text-2xl font-semibold text-emerald-700">{{ \App\Models\Member::where('status', 'active')->count() }}</p>
-            <p class="text-xs text-slate-500">{{ __('Active members') }}</p>
+    {{-- DASH-03: Pending meal-off alert banner (rendered only when count > 0) --}}
+    @if ($pendingMealOff > 0)
+        <a href="{{ route('mess.meal-off.index') }}" class="mb-4 block rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 hover:bg-amber-100">
+            {{ trans_choice(':count pending meal off request awaiting approval|:count pending meal off requests awaiting approval', $pendingMealOff) }}
         </a>
+    @endif
 
-        <a href="{{ route('mess.settings.edit') }}" class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:bg-slate-50 md:p-6">
-            <h2 class="text-lg font-semibold leading-tight text-slate-900">{{ __('Mess settings') }}</h2>
-            <p class="mt-1 text-sm text-slate-600">{{ __('Update name, address, rent, meal values, and currency.') }}</p>
-        </a>
+    {{-- DASH-01: 6 stat cards --}}
+    <section class="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-3">
+        <x-stat-card
+            :label="__('Total Members')"
+            :value="(string) number_format((int) $cards['total_members'])" />
 
-        <a href="{{ route('mess.audit') }}" class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:bg-slate-50 md:p-6">
-            <h2 class="text-lg font-semibold leading-tight text-slate-900">{{ __('Audit log') }}</h2>
-            <p class="mt-1 text-sm text-slate-600">{{ __('Every change to mess data, recorded with the user, timestamp, and before/after values.') }}</p>
-        </a>
+        <x-stat-card
+            :label="__('Today\'s Meals')"
+            :value="number_format((float) $cards['today_meals'], 1)" />
 
-        <a href="{{ route('mess.payments.index') }}" class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:bg-slate-50 md:p-6">
-            <h2 class="text-lg font-semibold leading-tight text-slate-900">{{ __('Payments') }}</h2>
-            <p class="mt-1 text-sm text-slate-600">{{ __('Record a bill payment or advance deposit.') }}</p>
-            <p class="mt-3 text-2xl font-semibold text-emerald-700">{{ \App\Models\Payment::count() }}</p>
-            <p class="text-xs text-slate-500">{{ __('Total payments recorded') }}</p>
-        </a>
+        @php
+            $mealRateHint = ((float) $cards['meal_rate'] === 0.0) ? __('no bazar recorded yet') : null;
+        @endphp
+        <x-stat-card
+            :label="__('Current Meal Rate')"
+            :value="Money::taka((float) $cards['meal_rate']).' / '.__('meal')"
+            :hint="$mealRateHint" />
 
-        <a href="{{ route('mess.advance-balances.index') }}" class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:bg-slate-50 md:p-6">
-            <h2 class="text-lg font-semibold leading-tight text-slate-900">{{ __('Advance balances') }}</h2>
-            <p class="mt-1 text-sm text-slate-600">{{ __('View and adjust member credit and debt.') }}</p>
-        </a>
+        <x-stat-card
+            :label="__('Monthly Expenses')"
+            :value="Money::taka((float) $cards['monthly_expenses'])" />
 
-        <a href="{{ route('mess.bill-preview.index') }}" class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:bg-slate-50 md:p-6">
-            <h2 class="text-lg font-semibold leading-tight text-slate-900">{{ __('Bill preview') }}</h2>
-            <p class="mt-1 text-sm text-slate-600">{{ __('See this month\'s per-member bill before closing.') }}</p>
-        </a>
-    </div>
+        <x-stat-card
+            :label="__('Total Due')"
+            :value="Money::taka((float) $cards['total_due'])" />
+
+        <x-stat-card
+            :label="__('Total Advance')"
+            :value="Money::taka((float) $cards['total_advance'])" />
+    </section>
+
+    {{-- DASH-02: 3 charts (D-27 empty state when no data anywhere) --}}
+    @if (! $hasChartData)
+        <x-empty-state
+            :title="__('No data yet')"
+            :description="__('Charts appear once you have expenses, meals, or payments.')" />
+    @else
+        <section class="grid grid-cols-1 gap-4">
+            {{-- Meal Trend (line) — D-05 --}}
+            <div class="rounded-lg border border-slate-200 bg-white p-4">
+                <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <h3 class="text-sm font-semibold text-slate-900">{{ __('Meal Trend') }}</h3>
+                    <form method="GET" action="{{ route('home') }}" class="flex flex-wrap items-center gap-1">
+                        <input type="hidden" name="expense_from" value="{{ $charts['expense']['range']['from'] ?? '' }}">
+                        <input type="hidden" name="expense_to" value="{{ $charts['expense']['range']['to'] ?? '' }}">
+                        <input type="hidden" name="payment_from" value="{{ $charts['payment']['range']['from'] ?? '' }}">
+                        <input type="hidden" name="payment_to" value="{{ $charts['payment']['range']['to'] ?? '' }}">
+                        <label class="text-xs text-slate-600">{{ __('From') }}
+                            <input type="date" name="meal_from" value="{{ $charts['meal']['range']['from'] ?? '' }}" class="mt-1 block rounded-md border-slate-300 text-xs">
+                        </label>
+                        <label class="text-xs text-slate-600">{{ __('To') }}
+                            <input type="date" name="meal_to" value="{{ $charts['meal']['range']['to'] ?? '' }}" class="mt-1 block rounded-md border-slate-300 text-xs">
+                        </label>
+                        <button type="submit" class="min-h-[44px] rounded-md bg-slate-800 px-3 py-1 text-xs font-medium text-white hover:bg-slate-900">{{ __('Apply') }}</button>
+                    </form>
+                </div>
+                <div style="height: 280px;">
+                    <canvas id="meal-trend-chart"></canvas>
+                </div>
+            </div>
+
+            {{-- Expense Trend (bar, bazar-only) — D-06 --}}
+            <div class="rounded-lg border border-slate-200 bg-white p-4">
+                <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <h3 class="text-sm font-semibold text-slate-900">{{ __('Expense Trend') }}</h3>
+                    <form method="GET" action="{{ route('home') }}" class="flex flex-wrap items-center gap-1">
+                        <input type="hidden" name="meal_from" value="{{ $charts['meal']['range']['from'] ?? '' }}">
+                        <input type="hidden" name="meal_to" value="{{ $charts['meal']['range']['to'] ?? '' }}">
+                        <input type="hidden" name="payment_from" value="{{ $charts['payment']['range']['from'] ?? '' }}">
+                        <input type="hidden" name="payment_to" value="{{ $charts['payment']['range']['to'] ?? '' }}">
+                        <label class="text-xs text-slate-600">{{ __('From') }}
+                            <input type="date" name="expense_from" value="{{ $charts['expense']['range']['from'] ?? '' }}" class="mt-1 block rounded-md border-slate-300 text-xs">
+                        </label>
+                        <label class="text-xs text-slate-600">{{ __('To') }}
+                            <input type="date" name="expense_to" value="{{ $charts['expense']['range']['to'] ?? '' }}" class="mt-1 block rounded-md border-slate-300 text-xs">
+                        </label>
+                        <button type="submit" class="min-h-[44px] rounded-md bg-slate-800 px-3 py-1 text-xs font-medium text-white hover:bg-slate-900">{{ __('Apply') }}</button>
+                    </form>
+                </div>
+                <div style="height: 280px;">
+                    <canvas id="expense-trend-chart"></canvas>
+                </div>
+            </div>
+
+            {{-- Payment Trend (bar, all methods) — D-07 --}}
+            <div class="rounded-lg border border-slate-200 bg-white p-4">
+                <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <h3 class="text-sm font-semibold text-slate-900">{{ __('Payment Trend') }}</h3>
+                    <form method="GET" action="{{ route('home') }}" class="flex flex-wrap items-center gap-1">
+                        <input type="hidden" name="meal_from" value="{{ $charts['meal']['range']['from'] ?? '' }}">
+                        <input type="hidden" name="meal_to" value="{{ $charts['meal']['range']['to'] ?? '' }}">
+                        <input type="hidden" name="expense_from" value="{{ $charts['expense']['range']['from'] ?? '' }}">
+                        <input type="hidden" name="expense_to" value="{{ $charts['expense']['range']['to'] ?? '' }}">
+                        <label class="text-xs text-slate-600">{{ __('From') }}
+                            <input type="date" name="payment_from" value="{{ $charts['payment']['range']['from'] ?? '' }}" class="mt-1 block rounded-md border-slate-300 text-xs">
+                        </label>
+                        <label class="text-xs text-slate-600">{{ __('To') }}
+                            <input type="date" name="payment_to" value="{{ $charts['payment']['range']['to'] ?? '' }}" class="mt-1 block rounded-md border-slate-300 text-xs">
+                        </label>
+                        <button type="submit" class="min-h-[44px] rounded-md bg-slate-800 px-3 py-1 text-xs font-medium text-white hover:bg-slate-900">{{ __('Apply') }}</button>
+                    </form>
+                </div>
+                <div style="height: 280px;">
+                    <canvas id="payment-trend-chart"></canvas>
+                </div>
+            </div>
+        </section>
+    @endif
+
+    {{-- Chart.js init (uses the Plan 4.0 global helper — destroy-before-recreate guard). --}}
+    @once
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                window.initDashboardChart('meal-trend-chart', {
+                    type: 'line',
+                    data: {
+                        labels: @json($charts['meal']['labels']),
+                        datasets: [{
+                            label: '@lang('Meals')',
+                            data: @json($charts['meal']['values']),
+                            borderColor: '#059669',
+                            backgroundColor: 'rgba(5,150,105,0.1)',
+                            tension: 0.3,
+                            fill: true,
+                        }],
+                    },
+                });
+                window.initDashboardChart('expense-trend-chart', {
+                    type: 'bar',
+                    data: {
+                        labels: @json($charts['expense']['labels']),
+                        datasets: [{
+                            label: '@lang('Bazar')',
+                            data: @json($charts['expense']['values']),
+                            backgroundColor: '#059669',
+                        }],
+                    },
+                });
+                window.initDashboardChart('payment-trend-chart', {
+                    type: 'bar',
+                    data: {
+                        labels: @json($charts['payment']['labels']),
+                        datasets: [{
+                            label: '@lang('Collected')',
+                            data: @json($charts['payment']['values']),
+                            backgroundColor: '#0ea5e9',
+                        }],
+                    },
+                });
+            });
+        </script>
+    @endonce
 @endsection
