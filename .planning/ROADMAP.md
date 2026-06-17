@@ -148,10 +148,13 @@ Phase 5: Polish           → PDF, Excel, mobile polish, performance, real-mess 
 
 **Out of scope for this phase:** Performance tuning, advanced reports, year-over-year, SMS/WhatsApp.
 
-**Estimated plans:** 3
-- Plan 4.1: 4 reports (manager-side)
-- Plan 4.2: Member statement + member self-view dashboards
-- Plan 4.3: Manager dashboard (cards + charts) + PDF/Excel export
+**Plans:** 4 plans
+
+Plans:
+- [ ] 04-00-PLAN.md — Wave 0 prerequisites: install Dompdf + Maatwebsite/Excel + chart.js, expose window.initDashboardChart, add Reports sidebar group (D-31), create test dirs, lock Money::taka() as canonical helper
+- [ ] 04-01-PLAN.md — 4 manager-side reports (Monthly, Member Statement, Expense, Payment): routes + ReportService + MemberStatementService + Form Requests + Blade views + month-nav + filter UX + tests (RPT-01..04)
+- [ ] 04-02-PLAN.md — Member self-view + member dashboard: own Member Statement, aggregates-only Monthly Report (D-19), /my Overview landing with 4 DASH-04 cards, My reports tab (RPT-05, RPT-06, DASH-04, DASH-06)
+- [ ] 04-03-PLAN.md — Manager dashboard + exports: transform /home into dashboard (6 cards + alert banner + 3 Chart.js charts with auto-bucketing), extend cache hook for dash:counts:* key, PDF (Dompdf plain-CSS layout) + Excel (Maatwebsite raw-numeric) exports on all 4 reports both sides (RPT-07, RPT-08, DASH-01, DASH-02, DASH-03, DASH-05)
 
 **UI hint:** yes (report views, dashboard cards, charts, PDF/Excel download buttons)
 
