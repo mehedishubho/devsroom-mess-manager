@@ -14,7 +14,19 @@ A mess manager can run a full month end-to-end on a phone — enter meals, log b
 
 ### Validated
 
-(None yet — ship to validate)
+Validated in Phase 3: Payments + Month-Close — manager records bill/advance payments; queued, idempotent, hard-locked month-close; immutable snapshot + corrections; live bill preview (manager + member); advance/due carry-forward in exact BC-math decimal; in-app notifications; 1-hour cached aggregates:
+
+- [x] **R-PAY**: Manager can record member payments (date, amount, method, reference #, notes) — methods: Cash, bKash, Nagad, Rocket, Bank
+- [x] **R-PAY-TYPE**: Payment type is either "bill payment" or "advance deposit" — kept distinct in the schema, not conflated
+- [x] **R-ADV**: Advance balance carries forward month-to-month; auto-adjusts against next month's bill
+- [x] **R-PREVIEW**: Member can view their own running bill (current month) any time
+- [x] **R-PREVIEW-MGR**: Manager sees live "if we closed today, meal rate would be ৳X" preview
+- [x] **R-CLOSE**: Manager can run month-close: computes meal rate, fixed cost share, individual bills, persists immutable snapshot
+- [x] **R-CLOSE-LOCK**: Once closed, month is hard-locked — no edits. Corrections require adjustment entries in next month
+- [x] **R-CLOSE-IDEMP**: Month-close is idempotent — unique index on (mess_id, year, month); second close attempt is refused
+- [x] **R-CLOSE-Q**: Month-close runs as a queued job, not synchronously
+- [x] **R-NOTIF**: In-app notifications (monthly closing, due reminder, payment received, meal off approval)
+- [x] **R-CACHE**: Current-month aggregates (meal rate, total bazar, member bills) cached with 1-hour TTL, invalidated on write
 
 ### Active
 
@@ -29,29 +41,20 @@ A mess manager can run a full month end-to-end on a phone — enter meals, log b
 - [ ] R-BAZAR: Manager can record daily bazar purchases (date, purchased by, vendor, description, amount, optional receipt image)
 - [ ] R-EXP-FIX: Manager can record fixed monthly expenses (rent, cook salary, internet, electricity, water, gas, security)
 - [ ] R-EXP-CAT: Default expense categories (Bazar, Rent, Cook, Internet, Electricity, Water, Gas, Maintenance, Cleaning, Others); admin can add custom
-- [ ] R-PAY: Manager can record member payments (date, amount, method, reference #, notes) — methods: Cash, bKash, Nagad, Rocket, Bank
-- [ ] R-PAY-TYPE: Payment type is either "bill payment" or "advance deposit" — kept distinct in the schema, not conflated
-- [ ] R-ADV: Advance balance carries forward month-to-month; auto-adjusts against next month's bill
-- [ ] R-PREVIEW: Member can view their own running bill (current month) any time
-- [ ] R-PREVIEW-MGR: Manager sees live "if we closed today, meal rate would be ৳X" preview
-- [ ] R-CLOSE: Manager can run month-close: computes meal rate, fixed cost share, individual bills, persists immutable snapshot
-- [ ] R-CLOSE-LOCK: Once closed, month is hard-locked — no edits. Corrections require adjustment entries in next month
-- [ ] R-CLOSE-IDEMP: Month-close is idempotent — unique index on (mess_id, year, month); second close attempt is refused
-- [ ] R-CLOSE-Q: Month-close runs as a queued job, not synchronously
 - [ ] R-RPT-M: Monthly report (total members, total meals, meal rate, total bazar, fixed expenses)
 - [ ] R-RPT-S: Member statement (meals, guest meals, payments, due, advance)
 - [ ] R-RPT-E: Expense report (filter by date, category, month)
 - [ ] R-RPT-P: Payment report (filter by member, method, date)
 - [ ] R-DASH: Dashboard cards (total members, today's meals, current meal rate, monthly expenses, total due, total advance) + trend charts
-- [ ] R-NOTIF: In-app notifications (monthly closing, due reminder, payment received, meal off approval)
 - [ ] R-SET: Mess settings (meal values, currency BDT, date format, auto-close toggle)
 - [ ] R-AUDIT-M: Domain audit log (meal edits, expense edits, payment edits, member updates) via Auditable trait
 - [ ] R-MULTI-PREP: All domain tables carry `mess_id` from day one — multi-mess is out of scope for v1 but the schema is ready
 - [ ] R-I18N: All user-facing strings wrapped in `__()` from day one (English only shipped, Bengali-ready)
-- [ ] R-CACHE: Current-month aggregates (meal rate, total bazar, member bills) cached with 1-hour TTL, invalidated on write
 - [ ] R-MOBILE: All manager-facing screens are mobile-first (375px baseline)
 - [ ] R-AUTH-MGR: Manager + super admin use Tyro Login (email/password, role-based)
 - [ ] R-AUTH-MEM: Members log in via Tyro Login; role `member` restricts them to their own data only
+
+> **Current State (2026-06-17):** Phases 1 (Foundation), 2 (Members + Daily Ops), and 3 (Payments + Month-Close) are complete and verified — 162 PHPUnit tests green. Phase 4 (Reports + Dashboard) is next, then Phase 5 (Polish + Pilot). The Phase 1/2 items still listed under Active above are built and passing but retained here for now; they will be re-classified to Validated on their next review pass.
 
 ### Out of Scope
 
@@ -136,4 +139,4 @@ These are not strict requirements but inform the design:
 - **No real-time websockets** — simple page reload is fine.
 
 ---
-*Last updated: 2026-06-16 after initialization*
+*Last updated: 2026-06-17 after Phase 3 (Payments + Month-Close) completion*
