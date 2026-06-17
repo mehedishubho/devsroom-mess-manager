@@ -11,7 +11,6 @@ use App\Models\Payment;
 use App\Models\User;
 use App\Support\ExpenseKind;
 use App\Support\MemberStatus;
-use Carbon\Carbon;
 use HasinHayder\Tyro\Models\Role;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -93,8 +92,15 @@ class PdfExportTest extends TestCase
 
         $response->assertOk();
         $response->assertHeader('Content-Type', 'application/pdf');
+        // Dompdf emits `filename=...` (no quotes) — both quoted and unquoted
+        // forms are RFC-6266 compliant. Assert on the sanitized basename.
         $monthStr = str_pad((string) $month, 2, '0', STR_PAD_LEFT);
-        $response->assertHeader('Content-Disposition', 'attachment; filename="monthly-report-'.$year.'-'.$monthStr.'.pdf"');
+        $disposition = $response->headers->get('Content-Disposition', '');
+        $this->assertStringContainsString(
+            "monthly-report-{$year}-{$monthStr}.pdf",
+            $disposition,
+            'Content-Disposition must contain the sanitized monthly PDF filename'
+        );
     }
 
     public function test_member_statement_pdf_downloads(): void

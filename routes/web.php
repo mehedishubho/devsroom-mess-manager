@@ -20,9 +20,11 @@ use App\Http\Controllers\Mess\MonthlyClosingController;
 use App\Http\Controllers\Mess\MonthlyCorrectionController;
 use App\Http\Controllers\Mess\PaymentController;
 use App\Http\Controllers\Mess\ReportController;
+use App\Http\Controllers\Mess\ReportExportController;
 use App\Http\Controllers\My\MyBillPreviewController;
 use App\Http\Controllers\My\MyPaymentController;
 use App\Http\Controllers\My\MyReportController;
+use App\Http\Controllers\My\MyReportExportController;
 use App\Http\Controllers\MyController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OnboardingController;
@@ -127,12 +129,23 @@ Route::middleware(['auth', 'role:admin', EnsureMessExists::class])->group(functi
 
     Route::get('mess/bill-preview', [BillPreviewController::class, 'index'])->name('mess.bill-preview.index');
 
-    // Reports — Plan 04-01 (HTML only; PDF/Excel exports land in Plan 04-03)
+    // Reports — Plan 04-01 (HTML) + Plan 04-03 (PDF + Excel exports)
     Route::prefix('mess/reports')->name('mess.reports.')->group(function () {
         Route::get('monthly', [ReportController::class, 'monthly'])->name('monthly');
+        Route::get('monthly.pdf', [ReportExportController::class, 'monthlyPdf'])->name('monthly.pdf');
+        Route::get('monthly.xlsx', [ReportExportController::class, 'monthlyExcel'])->name('monthly.xlsx');
+
         Route::get('member-statement', [ReportController::class, 'memberStatement'])->name('member-statement');
+        Route::get('member-statement.pdf', [ReportExportController::class, 'memberStatementPdf'])->name('member-statement.pdf');
+        Route::get('member-statement.xlsx', [ReportExportController::class, 'memberStatementExcel'])->name('member-statement.xlsx');
+
         Route::get('expenses', [ReportController::class, 'expenses'])->name('expenses');
+        Route::get('expenses.pdf', [ReportExportController::class, 'expensesPdf'])->name('expenses.pdf');
+        Route::get('expenses.xlsx', [ReportExportController::class, 'expensesExcel'])->name('expenses.xlsx');
+
         Route::get('payments', [ReportController::class, 'payments'])->name('payments');
+        Route::get('payments.pdf', [ReportExportController::class, 'paymentsPdf'])->name('payments.pdf');
+        Route::get('payments.xlsx', [ReportExportController::class, 'paymentsExcel'])->name('payments.xlsx');
     });
 
     // Month-close: trigger + closings list/show + corrections + due reminders (Plan 03.4)
@@ -165,11 +178,17 @@ Route::middleware(['auth', 'role:user'])->group(function () {
     Route::get('my/payments', [MyPaymentController::class, 'index'])->name('my.payments');
     Route::get('my/bill-preview', [MyBillPreviewController::class, 'index'])->name('my.bill-preview');
 
-    // Member-side reports (RPT-05 own statement, RPT-06 aggregates-only monthly).
+    // Member-side reports (RPT-05 own statement, RPT-06 aggregates-only monthly)
+    // + Plan 04-03 exports (D-33 own statement, D-34 aggregates-only monthly).
     // SECURITY: NO `{member}` URL param — MyReportController derives the member
     // from $request->user()->getMemberOrNull(); ?member_id= query params are ignored.
     Route::prefix('my/reports')->name('my.reports.')->group(function () {
         Route::get('statement', [MyReportController::class, 'statement'])->name('statement');
+        Route::get('statement.pdf', [MyReportExportController::class, 'statementPdf'])->name('statement.pdf');
+        Route::get('statement.xlsx', [MyReportExportController::class, 'statementExcel'])->name('statement.xlsx');
+
         Route::get('monthly', [MyReportController::class, 'monthly'])->name('monthly');
+        Route::get('monthly.pdf', [MyReportExportController::class, 'monthlyPdf'])->name('monthly.pdf');
+        Route::get('monthly.xlsx', [MyReportExportController::class, 'monthlyExcel'])->name('monthly.xlsx');
     });
 });

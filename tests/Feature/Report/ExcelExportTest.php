@@ -19,6 +19,11 @@ class ExcelExportTest extends TestCase
 {
     use RefreshDatabase;
 
+    /** @var Member|null Backing fields populated by seedData() per-test. */
+    private ?Member $member = null;
+
+    private ?ExpenseCategory $category = null;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -92,8 +97,15 @@ class ExcelExportTest extends TestCase
 
         $response->assertOk();
         $response->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        // Maatwebsite emits `filename=...` (no quotes). Assert on the
+        // sanitized basename ending with .xlsx.
         $disposition = $response->headers->get('Content-Disposition', '');
-        $this->assertStringEndsWith('.xlsx"', array_slice(explode('filename=', $disposition), -1)[0] ?? '');
+        $this->assertStringContainsString(
+            'monthly-report-',
+            $disposition,
+            'Content-Disposition must contain the sanitized monthly Excel filename'
+        );
+        $this->assertStringEndsWith('.xlsx', $disposition);
     }
 
     public function test_expenses_excel_with_filters(): void
