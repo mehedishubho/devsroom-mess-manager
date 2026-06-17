@@ -10,8 +10,12 @@ class BillPreviewInvalidator
 {
     public function __construct(private readonly BillPreviewService $service) {}
 
-    public function forDate(string $date): void
+    public function forDate(?string $date): void
     {
+        if ($date === null || $date === '') {
+            return;
+        }
+
         $messId = Mess::activeId();
         if ($messId === null) {
             return;
