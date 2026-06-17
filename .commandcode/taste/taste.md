@@ -1,10 +1,17 @@
 # Stack
-- Use Laravel 13 for this project. Confidence: 0.50
-- Use MySQL as the database. Confidence: 0.50
+
+- Use Laravel 13 for this project. Confidence: 0.80
+- Use MySQL as the database. Confidence: 0.80
+- Disable 2FA in development environment (email system is not configured for sending 2FA codes). Confidence: 0.75
 
 # Naming
+
 - Use snake_case for database names (e.g. `devsroom_mess_management`, not `devsroom-mess-management`). Confidence: 0.60
 
 # Workflow
-- Do not assume default local DB credentials (e.g. `root`/no password) without verifying with the user. Confidence: 0.55
-- Offer proactive recommendations and suggestions for project features/architecture rather than just executing on answers. Confidence: 0.60
+
+See [workflow/taste.md](workflow/taste.md)
+
+# Architecture
+
+- Never use `config('mess.active_mess_id')` directly as the integer for `mess_id` columns. Use the `Mess::activeId()` helper which resolves the id at runtime from the `messes` table (with config as override only). Confidence: 0.85

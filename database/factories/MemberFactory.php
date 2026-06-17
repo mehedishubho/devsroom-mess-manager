@@ -23,4 +23,17 @@ class MemberFactory extends Factory
             'status' => 'active',
         ];
     }
+
+    public function inactive(): static
+    {
+        return $this->state(['status' => 'inactive']);
+    }
+
+    public function former(): static
+    {
+        return $this->state([
+            'status' => 'former',
+            'leaving_date' => now()->subDays(30)->toDateString(),
+        ]);
+    }
 }

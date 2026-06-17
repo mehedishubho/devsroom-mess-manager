@@ -1,0 +1,118 @@
+<?php
+
+namespace App\Http\Controllers\Mess;
+
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Mess\StoreMemberRequest;
+use App\Http\Requests\Mess\UpdateMemberRequest;
+use App\Models\Member;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\View\View;
+
+class MemberController extends Controller
+{
+    public function index(Request $request): View
+    {
+        $query = Member::query()
+            ->orderByRaw("CASE status WHEN 'active' THEN 0 WHEN 'inactive' THEN 1 WHEN 'former' THEN 2 ELSE 3 END")
+            ->orderBy('name');
+
+        if ($search = trim((string) $request->query('q', ''))) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('mobile', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('room_or_seat', 'like', "%{$search}%");
+            });
+        }
+
+        $members = $query->paginate(50)->withQueryString();
+        $activeCount = Member::where('status', 'active')->count();
+        $search = (string) $request->query('q', '');
+
+        return view('mess.members.index', compact('members', 'activeCount', 'search'));
+    }
+
+    public function create(): View
+    {
+        return view('mess.members.create', ['member' => new Member()]);
+    }
+
+    public function store(StoreMemberRequest $request): RedirectResponse
+    {
+        $data = $request->validated();
+        $photo = $data['photo'] ?? null;
+        unset($data['photo']);
+
+        $member = Member::create($data);
+
+        if ($photo) {
+            $this->storePhoto($member, $photo);
+        }
+
+        return redirect()
+            ->route('mess.members.show', $member)
+            ->with('success', __('Member :name added.', ['name' => $member->name]));
+    }
+
+    public function show(Member $member): View
+    {
+        $member->load(['mealEntries' => fn ($q) => $q->latest('date')->limit(30)]);
+        $member->load(['mealOffRequests' => fn ($q) => $q->latest('requested_at')->limit(10)]);
+        $member->load(['guestMeals' => fn ($q) => $q->latest('date')->limit(10)]);
+
+        return view('mess.members.show', compact('member'));
+    }
+
+    public function edit(Member $member): View
+    {
+        return view('mess.members.edit', compact('member'));
+    }
+
+    public function update(UpdateMemberRequest $request, Member $member): RedirectResponse
+    {
+        $data = $request->validated();
+        $photo = $data['photo'] ?? null;
+        unset($data['photo']);
+
+        $member->update($data);
+
+        if ($photo) {
+            $this->storePhoto($member, $photo);
+        }
+
+        return redirect()
+            ->route('mess.members.show', $member)
+            ->with('success', __('Member :name updated.', ['name' => $member->name]));
+    }
+
+    public function destroy(Member $member): RedirectResponse
+    {
+        $member->update(['status' => 'inactive']);
+
+        return redirect()
+            ->route('mess.members.index')
+            ->with('success', __('Member :name marked as inactive.', ['name' => $member->name]));
+    }
+
+    private function storePhoto(Member $member, UploadedFile $photo): void
+    {
+        $ext = $photo->getClientOriginalExtension();
+        $path = "photos/{$member->id}.{$ext}";
+
+        if ($member->photo_path) {
+            Storage::disk('public')->delete($member->photo_path);
+        }
+
+        Storage::disk('public')->putFileAs(
+            dirname($path),
+            $photo,
+            basename($path),
+        );
+
+        $member->update(['photo_path' => $path]);
+    }
+}

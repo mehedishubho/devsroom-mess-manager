@@ -1165,16 +1165,16 @@
         },
         {
             "name": "hasinhayder/tyro",
-            "version": "v1.8.0",
+            "version": "v1.9.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/hasinhayder/tyro.git",
-                "reference": "b94a264541beb971374f41ecfcf04cc10a656724"
+                "reference": "61b28c4248623c0c52589f08cf7f2d341ec5c4ca"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/hasinhayder/tyro/zipball/b94a264541beb971374f41ecfcf04cc10a656724",
-                "reference": "b94a264541beb971374f41ecfcf04cc10a656724",
+                "url": "https://api.github.com/repos/hasinhayder/tyro/zipball/61b28c4248623c0c52589f08cf7f2d341ec5c4ca",
+                "reference": "61b28c4248623c0c52589f08cf7f2d341ec5c4ca",
                 "shasum": ""
             },
             "require": {
@@ -1231,9 +1231,9 @@
             ],
             "support": {
                 "issues": "https://github.com/hasinhayder/tyro/issues",
-                "source": "https://github.com/hasinhayder/tyro/tree/v1.8.0"
+                "source": "https://github.com/hasinhayder/tyro/tree/v1.9.0"
             },
-            "time": "2026-06-15T10:10:20+00:00"
+            "time": "2026-06-16T11:30:16+00:00"
         },
         {
             "name": "hasinhayder/tyro-dashboard",

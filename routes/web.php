@@ -2,7 +2,9 @@
 
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Mess\AuditController;
+use App\Http\Controllers\Mess\MemberController;
 use App\Http\Controllers\Mess\MemberInviteController;
+use App\Http\Controllers\Mess\MemberSearchController;
 use App\Http\Controllers\Mess\MessConfigController;
 use App\Http\Controllers\MyController;
 use App\Http\Controllers\OnboardingController;
@@ -33,6 +35,23 @@ Route::middleware(['auth', 'role:admin', EnsureMessExists::class])->group(functi
 
     Route::get('/mess/members/invite', [MemberInviteController::class, 'create'])->name('mess.members.invite.create');
     Route::post('/mess/members/invite', [MemberInviteController::class, 'store'])->name('mess.members.invite.store');
+
+    Route::resource('mess/members', MemberController::class)
+        ->except(['destroy'])
+        ->names([
+            'index' => 'mess.members.index',
+            'create' => 'mess.members.create',
+            'store' => 'mess.members.store',
+            'show' => 'mess.members.show',
+            'edit' => 'mess.members.edit',
+            'update' => 'mess.members.update',
+        ]);
+
+    Route::patch('mess/members/{member}/deactivate', [MemberController::class, 'destroy'])
+        ->name('mess.members.deactivate');
+
+    Route::get('mess/members-search', MemberSearchController::class)
+        ->name('mess.members.search');
 });
 
 // Member (user role) home
