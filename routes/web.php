@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Mess\AdvanceBalanceController;
+use App\Http\Controllers\Mess\BillPreviewController;
 use App\Http\Controllers\Mess\AuditController;
 use App\Http\Controllers\Mess\ExpenseCategoryController;
 use App\Http\Controllers\Mess\ExpenseController;
@@ -15,6 +16,7 @@ use App\Http\Controllers\Mess\MemberSearchController;
 use App\Http\Controllers\Mess\MessConfigController;
 use App\Http\Controllers\Mess\PaymentController;
 use App\Http\Controllers\My\MyPaymentController;
+use App\Http\Controllers\My\MyBillPreviewController;
 use App\Http\Controllers\MyController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\SetPasswordController;
@@ -102,6 +104,8 @@ Route::middleware(['auth', 'role:admin', EnsureMessExists::class])->group(functi
     Route::get('mess/advance-balances', [AdvanceBalanceController::class, 'index'])->name('mess.advance-balances.index');
     Route::get('mess/advance-balances/{member}/adjust', [AdvanceBalanceController::class, 'adjust'])->name('mess.advance-balances.adjust');
     Route::post('mess/advance-balances/{member}/adjust', [AdvanceBalanceController::class, 'storeAdjust'])->name('mess.advance-balances.storeAdjust');
+
+    Route::get('mess/bill-preview', [BillPreviewController::class, 'index'])->name('mess.bill-preview.index');
 });
 
 // Member (user role) home
@@ -110,4 +114,5 @@ Route::middleware(['auth', 'role:user'])->group(function () {
     Route::patch('my/profile', [MyController::class, 'updateProfile'])->name('my.profile.update');
     Route::post('my/meal-off', [MyController::class, 'storeMealOff'])->name('my.meal-off.store');
     Route::get('my/payments', [MyPaymentController::class, 'index'])->name('my.payments');
+    Route::get('my/bill-preview', [MyBillPreviewController::class, 'index'])->name('my.bill-preview');
 });

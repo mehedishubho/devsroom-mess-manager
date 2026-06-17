@@ -16,7 +16,7 @@ class ExpenseCategoryFactory extends Factory
         $name = $this->faker->unique()->words(2, true);
 
         return [
-            'mess_id' => Mess::factory(),
+            'mess_id' => Mess::activeId() ?? Mess::factory(),
             'name' => ucwords($name),
             'slug' => Str::slug($name),
             'is_default' => false,

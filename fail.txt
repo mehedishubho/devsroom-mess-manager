@@ -1,0 +1,25 @@
+
+  [39;41;1m FAIL [39;49;22m[39m Tests\Feature\Mess\BillPreviewTest[39m
+  [31;1m⨯[39;22m[90m [39m[90mpreview computes meal rate[39m[90m                                                                                  [39m [90m2.31s[39m  
+  [31m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\Mess\BillPreviewTest[22m [90m>[39m preview computes meal rate                                              
+[39;1m  ExpenseCategory should exist in scope
+Failed asserting that 0 is greater than 0.[39;22m
+
+  at [32mtests\Feature\Mess\BillPreviewTest.php[39m:[32m74[39m
+     70▕ 
+     71▕         \Illuminate\Support\Facades\Cache::flush();
+     72▕         $service = app(\App\Services\BillPreviewService::class);
+     73▕ 
+  ➜  74▕         $this->assertGreaterThan(0, \App\Models\ExpenseCategory::query()->count(), 'ExpenseCategory should exist in scope');
+     75▕         $this->assertGreaterThan(0, \App\Models\ExpenseCategory::query()->where('kind', ExpenseKind::BAZAR)->count(), 'Bazar category should exist in scope');
+     76▕ 
+     77▕         $preview = $service->preview($year, $month);
+     78▕
+
+  [33m1   [39m[39;1mtests\Feature\Mess\BillPreviewTest.php[39;22m:[39;1m74[39;22m
+
+
+  [90mTests:[39m    [31;1m1 failed[39;22m[90m (1 assertions)[39m
+  [90mDuration:[39m [39m2.50s[39m
+

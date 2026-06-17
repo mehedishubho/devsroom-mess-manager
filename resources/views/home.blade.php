@@ -38,5 +38,10 @@
             <h2 class="text-lg font-semibold leading-tight text-slate-900">{{ __('Advance balances') }}</h2>
             <p class="mt-1 text-sm text-slate-600">{{ __('View and adjust member credit and debt.') }}</p>
         </a>
+
+        <a href="{{ route('mess.bill-preview.index') }}" class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:bg-slate-50 md:p-6">
+            <h2 class="text-lg font-semibold leading-tight text-slate-900">{{ __('Bill preview') }}</h2>
+            <p class="mt-1 text-sm text-slate-600">{{ __('See this month\'s per-member bill before closing.') }}</p>
+        </a>
     </div>
 @endsection

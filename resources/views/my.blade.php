@@ -31,6 +31,12 @@
                 @include('my._payments', ['payments' => $payments ?? collect()])
             @elseif ($tab === 'balance')
                 @include('my._advance-balance', ['member' => $member])
+            @elseif ($tab === 'bill-preview')
+                @php
+                    $billPreview = app(\App\Services\BillPreviewService::class);
+                    $billRow = $billPreview->forMember($member->id, (int) now()->year, (int) now()->month);
+                @endphp
+                @include('my._bill-preview', ['row' => $billRow, 'member' => $member, 'year' => (int) now()->year, 'month' => (int) now()->month])
             @endif
         </div>
     @endif
