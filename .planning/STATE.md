@@ -4,8 +4,8 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 3
 current_plan: Not started
-status: unknown
-last_updated: "2026-06-17T03:20:21.549Z"
+status: context-gathered
+last_updated: "2026-06-17T03:45:00.000Z"
 progress:
   total_phases: 5
   completed_phases: 1
@@ -86,6 +86,15 @@ None.
 - `02-DISCUSSION-LOG.md` written (full audit trail of all 12 discussion areas)
 - Key decisions: local photo storage + mobile-first camera UI, single "Save all" meal grid, deduct meal off on approval, single `room_or_seat` field, live AJAX member search, kind-on-category schema reconciliation, guest charge uses configured meal_value
 - Next: `/gsd-plan-phase 2` to break Phase 2 into executable PLAN.md files
+
+**2026-06-17** — Phase 3: context gathered.
+
+- `03-CONTEXT.md` written (34 locked decisions across 7 areas: payment recording, advance balance math, live bill preview + caching, month-close job + corrections + notifications, manager close UX, audit + tests strategy, currency/date display)
+- `03-DISCUSSION-LOG.md` written (full audit trail of all 7 discussion areas)
+- Key decisions: single payment form with type toggle, separate due_balance column on advance_balances, mid-month joiners excluded from meal rate denominator, prorated fixed cost share by days, single shared cache key per (mess, year, month) with manual invalidation, firstOrCreate + unique index for idempotency, EnsureMonthIsOpen middleware for hard-lock, corrections apply immediately to balances (snapshot stays immutable), comprehensive MonthCloseService unit tests (10+ scenarios), bdt() helper + per-mess date_format
+- One new migration: add `due_balance` column to `advance_balances` (all other schema already shipped in Phase 1)
+- Resume file: `.planning/phases/03-payments-month-close/03-CONTEXT.md`
+- Next: `/gsd-plan-phase 3` to break Phase 3 into executable PLAN.md files
 
 ## Open Questions for User
 
