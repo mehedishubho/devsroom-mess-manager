@@ -7,14 +7,16 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use OwenIt\Auditing\Auditable;
+use OwenIt\Auditing\Contracts\Auditable as AuditableContract;
 
 #[Fillable([
     'mess_id', 'monthly_closing_id', 'member_id',
     'applied_to_year', 'applied_to_month', 'amount', 'reason', 'entered_by',
 ])]
-class MonthlyCorrection extends Model
+class MonthlyCorrection extends Model implements AuditableContract
 {
-    use BelongsToActiveMess, HasFactory;
+    use Auditable, BelongsToActiveMess, HasFactory;
 
     protected function casts(): array
     {
