@@ -8,6 +8,7 @@ use App\Models\MealEntry;
 use App\Models\MealOffRequest;
 use App\Models\MonthlyClosing;
 use App\Models\Payment;
+use Carbon\Carbon;
 use Closure;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -63,11 +64,17 @@ class EnsureMonthIsOpen
             foreach (['date', 'from_date'] as $field) {
                 $value = $request->input($field);
                 if ($value) {
-                    $ts = strtotime((string) $value);
-
-                    if ($ts !== false) {
-                        return [(int) date('Y', $ts), (int) date('n', $ts)];
+                    // WR-04: reject anything that isn't a strict Y-m-d date so
+                    // strtotime's lax parsing (e.g. "2026-02-31" -> March 3)
+                    // cannot escape a closed-month lock. On a malformed value,
+                    // defer to the form request validator (return null).
+                    try {
+                        $carbon = Carbon::createFromFormat('!Y-m-d', (string) $value);
+                    } catch (\Throwable) {
+                        return null;
                     }
+
+                    return [$carbon->year, $carbon->month];
                 }
             }
         }
