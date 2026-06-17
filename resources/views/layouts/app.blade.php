@@ -113,6 +113,34 @@
                         </svg>
                         <span>{{ __('Bill preview') }}</span>
                     </a>
+                    @php
+                        $reportsActive = request()->routeIs('mess.reports.*');
+                    @endphp
+                    <div class="px-3 pt-4 pb-1 text-xs font-semibold uppercase tracking-wide {{ $reportsActive ? 'text-emerald-700' : 'text-slate-500' }}">{{ __('Reports') }}</div>
+                    <a href="{{ route('mess.reports.monthly') }}" class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition min-h-[44px] {{ request()->routeIs('mess.reports.monthly') ? 'bg-emerald-50 text-emerald-700 border-l-2 border-emerald-600' : 'text-slate-700 hover:bg-slate-100 border-l-2 border-transparent' }}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"/>
+                        </svg>
+                        <span>{{ __('Monthly Report') }}</span>
+                    </a>
+                    <a href="{{ route('mess.reports.member-statement') }}" class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition min-h-[44px] {{ request()->routeIs('mess.reports.member-statement*') ? 'bg-emerald-50 text-emerald-700 border-l-2 border-emerald-600' : 'text-slate-700 hover:bg-slate-100 border-l-2 border-transparent' }}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/>
+                        </svg>
+                        <span>{{ __('Member Statement') }}</span>
+                    </a>
+                    <a href="{{ route('mess.reports.expenses') }}" class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition min-h-[44px] {{ request()->routeIs('mess.reports.expenses*') ? 'bg-emerald-50 text-emerald-700 border-l-2 border-emerald-600' : 'text-slate-700 hover:bg-slate-100 border-l-2 border-transparent' }}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
+                        </svg>
+                        <span>{{ __('Expense Report') }}</span>
+                    </a>
+                    <a href="{{ route('mess.reports.payments') }}" class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition min-h-[44px] {{ request()->routeIs('mess.reports.payments*') ? 'bg-emerald-50 text-emerald-700 border-l-2 border-emerald-600' : 'text-slate-700 hover:bg-slate-100 border-l-2 border-transparent' }}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h15a2.25 2.25 0 0 1 2.25 2.25H2.25V8.25ZM2.25 12h15a2.25 2.25 0 0 1 2.25 2.25H2.25V12Zm0 3.75h15a2.25 2.25 0 0 1 2.25 2.25H2.25v-2.25Z"/>
+                        </svg>
+                        <span>{{ __('Payment Report') }}</span>
+                    </a>
                     <a href="{{ route('mess.close.index') }}" class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition min-h-[44px] {{ request()->routeIs('mess.close.*') ? 'bg-emerald-50 text-emerald-700 border-l-2 border-emerald-600' : 'text-slate-700 hover:bg-slate-100 border-l-2 border-transparent' }}">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/>
