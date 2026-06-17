@@ -38,7 +38,36 @@ class AdvanceBalanceService
                 ]);
             }
 
-            $row->balance = (float) $row->balance + (float) $payment->amount;
+            $row->balance = bcadd((string) $row->balance, (string) $payment->amount, 2);
+            $row->last_updated_at = now();
+            $row->save();
+        });
+    }
+
+    /**
+     * Reverse the prior impact of a Payment on the member's advance/due balance
+     * (WR-01). Used by PaymentService::update before re-applying the new values:
+     * subtracts the original amount for ADVANCE_DEPOSIT (the mirror of applyPayment).
+     * No-op for BILL_PAYMENT (matches applyPayment's no-op).
+     */
+    public function reversePayment(Payment $payment): void
+    {
+        if ($payment->type !== PaymentType::ADVANCE_DEPOSIT) {
+            return;
+        }
+
+        DB::transaction(function () use ($payment) {
+            $row = AdvanceBalance::query()
+                ->where('member_id', $payment->member_id)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $row) {
+                // Nothing to reverse — the member never had a balance row.
+                return;
+            }
+
+            $row->balance = bcsub((string) $row->balance, (string) $payment->amount, 2);
             $row->last_updated_at = now();
             $row->save();
         });
@@ -49,11 +78,12 @@ class AdvanceBalanceService
      */
     public function adjust(int $memberId, float $amount, string $reason, int $enteredBy): AdvanceBalance
     {
-        if ($amount === 0.0) {
+        $amountStr = number_format($amount, 2, '.', '');
+        if (bccomp($amountStr, '0', 2) === 0) {
             throw new RuntimeException('Adjustment amount cannot be zero.');
         }
 
-        return DB::transaction(function () use ($memberId, $amount, $reason, $enteredBy) {
+        return DB::transaction(function () use ($memberId, $amountStr, $reason, $enteredBy) {
             $row = AdvanceBalance::query()
                 ->where('member_id', $memberId)
                 ->lockForUpdate()
@@ -62,17 +92,17 @@ class AdvanceBalanceService
                     ['balance' => 0, 'due_balance' => 0, 'last_updated_at' => now()]
                 );
 
-            if ($amount > 0) {
-                $row->balance = (float) $row->balance + $amount;
+            if (bccomp($amountStr, '0', 2) > 0) {
+                $row->balance = bcadd((string) $row->balance, $amountStr, 2);
             } else {
-                $row->due_balance = (float) $row->due_balance + abs($amount);
+                $row->due_balance = bcadd((string) $row->due_balance, ltrim($amountStr, '-'), 2);
             }
             $row->last_updated_at = now();
             $row->save();
 
             Log::info('manual_balance_adjustment', [
                 'member_id' => $memberId,
-                'amount' => $amount,
+                'amount' => $amountStr,
                 'reason' => $reason,
                 'entered_by' => $enteredBy,
                 'new_balance' => $row->balance,
@@ -88,7 +118,9 @@ class AdvanceBalanceService
      */
     public function carryForward(int $memberId, float $amount): AdvanceBalance
     {
-        return DB::transaction(function () use ($memberId, $amount) {
+        $amountStr = number_format($amount, 2, '.', '');
+
+        return DB::transaction(function () use ($memberId, $amountStr) {
             $row = AdvanceBalance::query()
                 ->where('member_id', $memberId)
                 ->lockForUpdate()
@@ -97,10 +129,10 @@ class AdvanceBalanceService
                     ['balance' => 0, 'due_balance' => 0, 'last_updated_at' => now()]
                 );
 
-            if ($amount > 0) {
-                $row->balance = (float) $row->balance + $amount;
-            } elseif ($amount < 0) {
-                $row->due_balance = (float) $row->due_balance + abs($amount);
+            if (bccomp($amountStr, '0', 2) > 0) {
+                $row->balance = bcadd((string) $row->balance, $amountStr, 2);
+            } elseif (bccomp($amountStr, '0', 2) < 0) {
+                $row->due_balance = bcadd((string) $row->due_balance, ltrim($amountStr, '-'), 2);
             }
             $row->last_updated_at = now();
             $row->save();

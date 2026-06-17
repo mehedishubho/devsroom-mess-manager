@@ -9,6 +9,7 @@ use App\Support\NotificationType;
 use App\Support\PaymentType;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PaymentService
 {
@@ -86,15 +87,29 @@ class PaymentService
 
     public function update(Payment $payment, array $data): Payment
     {
-        $payment->update([
-            'member_id' => $data['member_id'],
-            'date' => $data['date'],
-            'amount' => $data['amount'],
-            'method' => $data['method'],
-            'reference' => $data['reference'] ?? null,
-            'notes' => $data['notes'] ?? null,
-            'type' => $data['type'] ?? $payment->type,
-        ]);
+        // WR-01: reverse the ORIGINAL payment's balance impact before mutating,
+        // then apply the new values. Without reversal, editing an ADVANCE_DEPOSIT
+        // from 1000 -> 500 would leave the balance inflated by the stale 1000.
+        DB::transaction(function () use ($payment, $data) {
+            // Snapshot the original state (type/amount/member) so reversal
+            // reflects what was actually applied last time, not the new values.
+            $original = $payment->replicate();
+
+            $payment->update([
+                'member_id' => $data['member_id'],
+                'date' => $data['date'],
+                'amount' => $data['amount'],
+                'method' => $data['method'],
+                'reference' => $data['reference'] ?? null,
+                'notes' => $data['notes'] ?? null,
+                'type' => $data['type'] ?? $payment->type,
+            ]);
+
+            // Reverse the original impact (operates on the pre-update snapshot),
+            // then apply the new impact (operates on the refreshed payment).
+            $this->balances->reversePayment($original);
+            $this->balances->applyPayment($payment->refresh());
+        });
 
         return $payment->refresh();
     }
