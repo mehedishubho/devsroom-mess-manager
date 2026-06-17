@@ -2,8 +2,8 @@
 
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Mess\AdvanceBalanceController;
-use App\Http\Controllers\Mess\BillPreviewController;
 use App\Http\Controllers\Mess\AuditController;
+use App\Http\Controllers\Mess\BillPreviewController;
 use App\Http\Controllers\Mess\ExpenseCategoryController;
 use App\Http\Controllers\Mess\ExpenseController;
 use App\Http\Controllers\Mess\GuestMealController;
@@ -15,8 +15,8 @@ use App\Http\Controllers\Mess\MemberInviteController;
 use App\Http\Controllers\Mess\MemberSearchController;
 use App\Http\Controllers\Mess\MessConfigController;
 use App\Http\Controllers\Mess\PaymentController;
-use App\Http\Controllers\My\MyPaymentController;
 use App\Http\Controllers\My\MyBillPreviewController;
+use App\Http\Controllers\My\MyPaymentController;
 use App\Http\Controllers\MyController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\SetPasswordController;
@@ -65,41 +65,54 @@ Route::middleware(['auth', 'role:admin', EnsureMessExists::class])->group(functi
         ->name('mess.members.search');
 
     Route::post('mess/members/{member}/meal-off', [ManagerMealOffController::class, 'store'])
-        ->name('mess.members.meal-off.store');
+        ->name('mess.members.meal-off.store')
+        ->middleware('month.open');
 
     Route::get('mess/meals', [MealGridController::class, 'index'])->name('mess.meals.index');
-    Route::post('mess/meals', [MealGridController::class, 'save'])->name('mess.meals.save');
+    Route::post('mess/meals', [MealGridController::class, 'save'])->name('mess.meals.save')
+        ->middleware('month.open');
 
     Route::get('mess/guest-meals', [GuestMealController::class, 'index'])->name('mess.guest-meals.index');
     Route::get('mess/guest-meals/create', [GuestMealController::class, 'create'])->name('mess.guest-meals.create');
-    Route::post('mess/guest-meals', [GuestMealController::class, 'store'])->name('mess.guest-meals.store');
+    Route::post('mess/guest-meals', [GuestMealController::class, 'store'])->name('mess.guest-meals.store')
+        ->middleware('month.open');
     Route::get('mess/guest-meals/{guestMeal}/edit', [GuestMealController::class, 'edit'])->name('mess.guest-meals.edit');
-    Route::patch('mess/guest-meals/{guestMeal}', [GuestMealController::class, 'update'])->name('mess.guest-meals.update');
+    Route::patch('mess/guest-meals/{guestMeal}', [GuestMealController::class, 'update'])->name('mess.guest-meals.update')
+        ->middleware('month.open');
 
     Route::get('mess/meal-off', [MealOffApprovalController::class, 'index'])->name('mess.meal-off.index');
-    Route::patch('mess/meal-off/{mealOffRequest}/approve', [MealOffApprovalController::class, 'approve'])->name('mess.meal-off.approve');
-    Route::patch('mess/meal-off/{mealOffRequest}/reject', [MealOffApprovalController::class, 'reject'])->name('mess.meal-off.reject');
+    Route::patch('mess/meal-off/{mealOffRequest}/approve', [MealOffApprovalController::class, 'approve'])->name('mess.meal-off.approve')
+        ->middleware('month.open');
+    Route::patch('mess/meal-off/{mealOffRequest}/reject', [MealOffApprovalController::class, 'reject'])->name('mess.meal-off.reject')
+        ->middleware('month.open');
 
     Route::get('mess/expenses', [ExpenseController::class, 'index'])->name('mess.expenses.index');
     Route::get('mess/expenses/bazar/create', [ExpenseController::class, 'createBazar'])->name('mess.expenses.bazar.create');
-    Route::post('mess/expenses/bazar', [ExpenseController::class, 'storeBazar'])->name('mess.expenses.bazar.store');
+    Route::post('mess/expenses/bazar', [ExpenseController::class, 'storeBazar'])->name('mess.expenses.bazar.store')
+        ->middleware('month.open');
     Route::get('mess/expenses/fixed/create', [ExpenseController::class, 'createFixed'])->name('mess.expenses.fixed.create');
-    Route::post('mess/expenses/fixed', [ExpenseController::class, 'storeFixed'])->name('mess.expenses.fixed.store');
+    Route::post('mess/expenses/fixed', [ExpenseController::class, 'storeFixed'])->name('mess.expenses.fixed.store')
+        ->middleware('month.open');
 
     Route::get('mess/categories', [ExpenseCategoryController::class, 'index'])->name('mess.categories.index');
     Route::post('mess/categories', [ExpenseCategoryController::class, 'store'])->name('mess.categories.store');
     Route::delete('mess/categories/{category}', [ExpenseCategoryController::class, 'destroy'])->name('mess.categories.destroy');
 
     Route::resource('mess/payments', PaymentController::class)
+        ->only(['index', 'create', 'show', 'edit'])
         ->names([
             'index' => 'mess.payments.index',
             'create' => 'mess.payments.create',
-            'store' => 'mess.payments.store',
             'show' => 'mess.payments.show',
             'edit' => 'mess.payments.edit',
-            'update' => 'mess.payments.update',
-            'destroy' => 'mess.payments.destroy',
         ]);
+
+    Route::post('mess/payments', [PaymentController::class, 'store'])->name('mess.payments.store')
+        ->middleware('month.open');
+    Route::patch('mess/payments/{payment}', [PaymentController::class, 'update'])->name('mess.payments.update')
+        ->middleware('month.open');
+    Route::delete('mess/payments/{payment}', [PaymentController::class, 'destroy'])->name('mess.payments.destroy')
+        ->middleware('month.open');
 
     Route::get('mess/advance-balances', [AdvanceBalanceController::class, 'index'])->name('mess.advance-balances.index');
     Route::get('mess/advance-balances/{member}/adjust', [AdvanceBalanceController::class, 'adjust'])->name('mess.advance-balances.adjust');
