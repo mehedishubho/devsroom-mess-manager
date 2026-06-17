@@ -135,10 +135,10 @@
 
 ### Reports
 
-- [ ] **RPT-01**: Manager can view Monthly Report (total members, total meals, meal rate, total bazar, fixed expenses, total due, total advance)
-- [ ] **RPT-02**: Manager can view Member Statement (meals, guest meals, payments, due, advance) for any member, any month
-- [ ] **RPT-03**: Manager can view Expense Report (filter by date range, category, month)
-- [ ] **RPT-04**: Manager can view Payment Report (filter by member, method, date range)
+- [x] **RPT-01**: Manager can view Monthly Report (total members, total meals, meal rate, total bazar, fixed expenses, total due, total advance)
+- [x] **RPT-02**: Manager can view Member Statement (meals, guest meals, payments, due, advance) for any member, any month
+- [x] **RPT-03**: Manager can view Expense Report (filter by date range, category, month)
+- [x] **RPT-04**: Manager can view Payment Report (filter by member, method, date range)
 - [ ] **RPT-05**: Member can view their own Member Statement
 - [ ] **RPT-06**: Member can view the Monthly Report for the mess
 - [ ] **RPT-07**: Reports support PDF export (Dompdf)

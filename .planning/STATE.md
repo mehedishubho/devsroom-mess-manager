@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 04
-current_plan: 1
+current_plan: 2
 status: Executing Phase 04
-last_updated: "2026-06-17T18:06:10.708Z"
+last_updated: "2026-06-17T18:30:00.000Z"
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 13
-  completed_plans: 13
+  completed_plans: 15
   percent: 100
 ---
 
@@ -19,7 +19,7 @@ progress:
 **Initialized:** 2026-06-16
 **Project:** Devsroom Mess Management
 **Current Phase:** 04
-**Current Plan:** 1
+**Current Plan:** 2
 
 ## Project Reference
 
@@ -36,7 +36,7 @@ See: `.planning/PROJECT.md` (updated 2026-06-16)
 | 1. Foundation | Complete | Auth + mess config + schema + audit | 3 | 2026-06-16 | 2026-06-16 |
 | 2. Members + Daily Operations | In progress | Member CRUD, meal grid, meal off, bazar, fixed expenses | 5 | 2026-06-17 | — |
 | 3. Payments + Month-Close | In progress (3 of 4 plans done) | Payments, advance, close, notifications | 4 | 2026-06-17 | — |
-| 4. Reports + Dashboard | In progress (1 of 4 plans done) | 4 reports, dashboard cards/charts, PDF/Excel | 4 | 2026-06-17 | — |
+| 4. Reports + Dashboard | In progress (2 of 4 plans done) | 4 reports, dashboard cards/charts, PDF/Excel | 4 | 2026-06-17 | — |
 | 5. Polish + Pilot | Not started | Mobile UX, performance, documentation, real-mess pilot | 3 | — | — |
 
 ## Decisions Validated
@@ -153,6 +153,24 @@ None.
 - Decisions validated this plan: `Money::taka()` canonical (Gap 1 resolution); Chart.js bundled in global app.js (research A6).
 - Resume file: `.planning/phases/04-reports-dashboard/04-00-SUMMARY.md`
 - Next: Plan 04-01 (Wave 1 — Monthly + Member Statement + Expense + Payment report routes, controllers, views, services). When 04-01 lands, the sidebar Reports group will automatically become visible.
+
+**2026-06-17** — Phase 4 Plan 04.1: Manager reports (Monthly + Member Statement + Expense + Payment) — COMPLETE.
+
+- Built the 4 manager-side reports (RPT-01..RPT-04) as HTML-only (PDF/Excel exports deferred to Plan 04-03 — the `<x-report-toolbar>` has disabled placeholder buttons for them).
+- Created `app/Services/ReportService.php` with the D-26 closed/open switch centralized: `MonthlyClosing` lookup → snapshot path (reads `MonthlyMemberSummary`, maps columns to `BillPreviewService::preview()` shape verbatim, tags `'source' => 'snapshot'`); absence → live compute via `BillPreviewService::preview()` (tags `'source' => 'live'`). Also exposes `expenseReport(filters)` + `paymentReport(filters)` paginated (50/page) filtered queries.
+- Created `app/Services/MemberStatementService.php` wrapping `BillPreviewService::forMember()` + adding the daily meal breakdown (D-23, `MealEntry` B/L/D booleans → `MealType::value` sum), guest meals, payments, D-24 period label ("As of today" vs "{Month Year}"), `is_closed`, `source`.
+- 4 Form Requests under `app/Http/Requests/Report/` (MonthNavigation, MemberStatement, ExpenseReport, PaymentReport). PaymentReportRequest's `method` enum sourced from `App\Support\PaymentMethod::ALL` — single source of truth matches the migration's stored values.
+- `<x-month-nav>` component (D-20 — ◀ Month ▶ + dropdown of last 24 months + This-month link), mirroring `<x-mess-date-nav>` structure. Carries an `extra` prop so member_id stays sticky across month navigation on the Member Statement.
+- `<x-report-toolbar>` with month-nav + disabled PDF/Excel placeholders.
+- 4 views: `monthly.blade.php` (totals grid with D-29 zero-bazar hint + per-member table + closed-month badge + D-28 empty state), `member-statement.blade.php` (D-25 meal-rate math + daily breakdown + payments split into bill payments vs advance deposits + closing summary; **`advance_applied` is NEVER displayed — Pitfall 3**), `expenses.blade.php` + `_filters/expenses.blade.php`, `payments.blade.php` + `_filters/payments.blade.php`. All money via `App\Support\Money::taka()` (no `bdt()`).
+- 4 routes inside `role:admin` + `EnsureMessExists`: `mess.reports.{monthly,member-statement,expenses,payments}`. Cross-mess member access → 404 via `Member::where('id', $id)->firstOrFail()` + MessScope.
+- 26 new feature tests (6 + 5 + 7 + 8) covering role enforcement (admin/user/guest), D-26 snapshot path, cross-mess 404, advance_applied pitfall guard, sticky filters in URL, totals math (100+200.50+300.25 = ৳600.75), presets, empty states.
+- Deviations: (1) [Rule 1] Login route is named `tyro-login.login` (not `login`) — guest-redirect tests use the path `/login` directly, matching `tests/Feature/Auth/RouteAccessTest.php`. (2) [Rule 1] `PaymentReportTest::test_member_filter` initially asserted `assertDontSee('Beta Member')` but Beta legitimately appears in the filter dropdown; changed to assert on the data table + totals (Alpha's ৳100.00 appears, Beta's ৳200.00 doesn't, combined ৳300.00 doesn't).
+- Tests: 162 → 188 passed (+26 new); `vendor/bin/pint --test app/ tests/` clean.
+- Commits this session: `e22113e` (services + form requests + month-nav + Monthly/MemberStatement tests), `300eadc` (controller + routes + 4 views + filter partials + report-toolbar), `6d7d45b` (Expense/Payment report tests).
+- Decisions validated this plan: D-26 closed/open switch (MonthlyClosing snapshot vs BillPreviewService live compute); MonthlyMemberSummary.advance_applied column surfaced as bill_payments (Pitfall 3); closed-month badge next to period label.
+- Resume file: `.planning/phases/04-reports-dashboard/04-01-manager-reports-SUMMARY.md`
+- Next: Plan 04-02 (member views — reuses ReportService + MemberStatementService; member routes derive member_id from session, not URL).
 
 ## Open Questions for User
 
