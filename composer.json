@@ -7,10 +7,12 @@
     "license": "MIT",
     "require": {
         "php": "^8.3",
+        "barryvdh/laravel-dompdf": "^3.1",
         "hasinhayder/tyro-dashboard": "^1.36",
         "laravel/framework": "^13.0",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^3.0",
+        "maatwebsite/excel": "^3.1",
         "owen-it/laravel-auditing": "^14.0"
     },
     "require-dev": {
