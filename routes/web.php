@@ -22,6 +22,7 @@ use App\Http\Controllers\Mess\PaymentController;
 use App\Http\Controllers\Mess\ReportController;
 use App\Http\Controllers\My\MyBillPreviewController;
 use App\Http\Controllers\My\MyPaymentController;
+use App\Http\Controllers\My\MyReportController;
 use App\Http\Controllers\MyController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OnboardingController;
@@ -163,4 +164,12 @@ Route::middleware(['auth', 'role:user'])->group(function () {
     Route::post('my/meal-off', [MyController::class, 'storeMealOff'])->name('my.meal-off.store');
     Route::get('my/payments', [MyPaymentController::class, 'index'])->name('my.payments');
     Route::get('my/bill-preview', [MyBillPreviewController::class, 'index'])->name('my.bill-preview');
+
+    // Member-side reports (RPT-05 own statement, RPT-06 aggregates-only monthly).
+    // SECURITY: NO `{member}` URL param — MyReportController derives the member
+    // from $request->user()->getMemberOrNull(); ?member_id= query params are ignored.
+    Route::prefix('my/reports')->name('my.reports.')->group(function () {
+        Route::get('statement', [MyReportController::class, 'statement'])->name('statement');
+        Route::get('monthly', [MyReportController::class, 'monthly'])->name('monthly');
+    });
 });

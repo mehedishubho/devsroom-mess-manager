@@ -7,6 +7,7 @@ use App\Http\Requests\My\UpdateMyProfileRequest;
 use App\Models\MealOffRequest;
 use App\Models\Mess;
 use App\Models\Payment;
+use App\Services\MemberDashboardService;
 use App\Support\MealOffStatus;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
@@ -16,16 +17,24 @@ use Illuminate\View\View;
 
 class MyController extends Controller
 {
+    public function __construct(
+        private readonly MemberDashboardService $dashboards,
+    ) {}
+
     public function index(Request $request): View
     {
         $member = $request->user()->getMemberOrNull();
-        $tab = $request->query('tab', 'profile');
+        $tab = $request->query('tab', 'overview');
 
         if (! $member) {
             return view('my.no-member');
         }
 
         $data = ['member' => $member, 'tab' => $tab];
+
+        if ($tab === 'overview') {
+            $data['overview'] = $this->dashboards->overviewCards($request->user());
+        }
 
         if ($tab === 'meals') {
             $data['mealEntries'] = $member->mealEntries()
