@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Mess\AuditController;
+use App\Http\Controllers\Mess\ManagerMealOffController;
 use App\Http\Controllers\Mess\MemberController;
 use App\Http\Controllers\Mess\MemberInviteController;
 use App\Http\Controllers\Mess\MemberSearchController;
@@ -52,9 +53,14 @@ Route::middleware(['auth', 'role:admin', EnsureMessExists::class])->group(functi
 
     Route::get('mess/members-search', MemberSearchController::class)
         ->name('mess.members.search');
+
+    Route::post('mess/members/{member}/meal-off', [ManagerMealOffController::class, 'store'])
+        ->name('mess.members.meal-off.store');
 });
 
 // Member (user role) home
 Route::middleware(['auth', 'role:user'])->group(function () {
     Route::get('/my', [MyController::class, 'index'])->name('my');
+    Route::patch('my/profile', [MyController::class, 'updateProfile'])->name('my.profile.update');
+    Route::post('my/meal-off', [MyController::class, 'storeMealOff'])->name('my.meal-off.store');
 });

@@ -92,4 +92,33 @@
             @endif
         </div>
     </section>
+
+    <section class="mt-6">
+        <h2 class="text-lg font-semibold leading-tight text-slate-900">{{ __('Request meal off for :name', ['name' => $member->name]) }}</h2>
+        <form method="POST" action="{{ route('mess.members.meal-off.store', $member) }}" class="mt-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm md:p-6">
+            @csrf
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div class="flex flex-col gap-1">
+                    <label for="from_date" class="text-sm font-medium text-slate-900">{{ __('From date') }}<span class="text-red-600" aria-hidden="true">*</span></label>
+                    <input type="date" name="from_date" id="from_date" required
+                        class="min-h-[44px] w-full rounded-md border border-slate-300 px-3 py-2 text-base text-slate-900 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label for="to_date" class="text-sm font-medium text-slate-900">{{ __('To date') }}<span class="text-red-600" aria-hidden="true">*</span></label>
+                    <input type="date" name="to_date" id="to_date" required
+                        class="min-h-[44px] w-full rounded-md border border-slate-300 px-3 py-2 text-base text-slate-900 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600">
+                </div>
+            </div>
+            <div class="mt-3 flex flex-col gap-1">
+                <label for="reason" class="text-sm font-medium text-slate-900">{{ __('Reason') }}<span class="text-red-600" aria-hidden="true">*</span></label>
+                <textarea name="reason" id="reason" rows="2" required minlength="3" maxlength="500"
+                    class="min-h-[60px] w-full rounded-md border border-slate-300 px-3 py-2 text-base text-slate-900 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600"></textarea>
+            </div>
+            <div class="mt-3">
+                <button type="submit" class="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+                    {{ __('Submit request') }}
+                </button>
+            </div>
+        </form>
+    </section>
 @endsection
