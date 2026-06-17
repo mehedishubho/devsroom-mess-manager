@@ -2,9 +2,9 @@
 
 namespace Tests\Feature\Mess;
 
-use App\Models\MealEntry;
 use App\Models\Mess;
 use App\Models\Payment;
+use App\Services\BillPreviewService;
 use App\Support\PaymentMethod;
 use App\Support\PaymentType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -25,7 +25,7 @@ class BillPreviewCacheTest extends TestCase
 
     public function test_cache_hits_are_returned_for_same_month(): void
     {
-        $service = app(\App\Services\BillPreviewService::class);
+        $service = app(BillPreviewService::class);
         $year = now()->year;
         $month = now()->month;
 
@@ -37,7 +37,7 @@ class BillPreviewCacheTest extends TestCase
 
     public function test_payment_creation_invalidates_cache(): void
     {
-        $service = app(\App\Services\BillPreviewService::class);
+        $service = app(BillPreviewService::class);
         $year = now()->year;
         $month = now()->month;
 

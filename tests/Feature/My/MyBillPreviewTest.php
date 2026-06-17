@@ -37,9 +37,11 @@ class MyBillPreviewTest extends TestCase
         $user = User::factory()->create();
         $user->assignRole(Role::where('slug', 'user')->first());
 
+        // A user with no Member record (no mess linkage) lands on the
+        // no-member screen — bill preview is unreachable in that state.
         $this->actingAs($user)
             ->get(route('my', ['tab' => 'bill-preview']))
             ->assertOk()
-            ->assertSee('No data for this month yet');
+            ->assertSee('Your mess account is not set up');
     }
 }

@@ -7,15 +7,14 @@ use App\Models\ExpenseCategory;
 use App\Models\MealEntry;
 use App\Models\Member;
 use App\Models\Mess;
-use App\Models\Payment;
 use App\Models\User;
+use App\Services\BillPreviewService;
 use App\Support\ExpenseKind;
 use App\Support\MemberStatus;
-use App\Support\PaymentMethod;
-use App\Support\PaymentType;
 use Carbon\Carbon;
 use HasinHayder\Tyro\Models\Role;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
 class BillPreviewTest extends TestCase
@@ -68,15 +67,15 @@ class BillPreviewTest extends TestCase
             'dinner' => true,
         ]);
 
-        \Illuminate\Support\Facades\Cache::flush();
-        $service = app(\App\Services\BillPreviewService::class);
+        Cache::flush();
+        $service = app(BillPreviewService::class);
 
-        $this->assertGreaterThan(0, \App\Models\ExpenseCategory::query()->count(), 'ExpenseCategory should exist in scope');
-        $this->assertGreaterThan(0, \App\Models\ExpenseCategory::query()->where('kind', ExpenseKind::BAZAR)->count(), 'Bazar category should exist in scope');
+        $this->assertGreaterThan(0, ExpenseCategory::query()->count(), 'ExpenseCategory should exist in scope');
+        $this->assertGreaterThan(0, ExpenseCategory::query()->where('kind', ExpenseKind::BAZAR)->count(), 'Bazar category should exist in scope');
 
         $preview = $service->preview($year, $month);
 
-        $this->assertGreaterThan(0, \App\Models\Expense::count(), 'Expense should exist');
+        $this->assertGreaterThan(0, Expense::count(), 'Expense should exist');
         $this->assertSame($messId, $expense->mess_id, 'Expense mess_id mismatch');
         $this->assertSame($bazar->id, $expense->expense_category_id, 'Expense category mismatch');
 
