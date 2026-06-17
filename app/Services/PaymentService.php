@@ -2,15 +2,20 @@
 
 namespace App\Services;
 
+use App\Models\Member;
 use App\Models\Mess;
 use App\Models\Payment;
+use App\Support\NotificationType;
 use App\Support\PaymentType;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
 
 class PaymentService
 {
-    public function __construct(private readonly AdvanceBalanceService $balances) {}
+    public function __construct(
+        private readonly AdvanceBalanceService $balances,
+        private readonly NotificationService $notifications,
+    ) {}
 
     public function list(Request $request): LengthAwarePaginator
     {
@@ -63,6 +68,18 @@ class PaymentService
         ]);
 
         $this->balances->applyPayment($payment);
+
+        // NOTIF-03: notify the member that a payment was recorded for them.
+        $member = Member::find($payment->member_id);
+        if ($member?->user_id) {
+            $this->notifications->send($member->user, NotificationType::PAYMENT_RECORDED, [
+                'payment_id' => $payment->id,
+                'type' => $payment->type,
+                'amount' => (float) $payment->amount,
+                'method' => $payment->method,
+                'date' => $payment->date,
+            ]);
+        }
 
         return $payment;
     }

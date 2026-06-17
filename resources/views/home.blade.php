@@ -9,6 +9,25 @@
         </p>
     </header>
 
+    @php
+        $now = \Carbon\Carbon::now();
+        $currentClosing = \App\Models\MonthlyClosing::query()
+            ->where('year', $now->year)
+            ->where('month', $now->month)
+            ->first();
+    @endphp
+    @if ($currentClosing)
+        <div class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+            <div>
+                <p class="font-semibold">{{ __('MONTH CLOSED — :label is locked.', ['label' => $now->format('F Y')]) }}</p>
+                <p class="mt-1 text-amber-800">{{ __('Meal/expense/payment writes for this month are disabled. Use corrections to adjust a closed month.') }}</p>
+            </div>
+            <a href="{{ route('mess.closings.show', $currentClosing) }}" class="inline-flex items-center rounded-md border border-amber-400 bg-white px-3 py-2 text-sm font-medium text-amber-900 hover:bg-amber-100">
+                {{ __('View closing') }}
+            </a>
+        </div>
+    @endif
+
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <a href="{{ route('mess.members.index') }}" class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:bg-slate-50 md:p-6">
             <h2 class="text-lg font-semibold leading-tight text-slate-900">{{ __('Members') }}</h2>

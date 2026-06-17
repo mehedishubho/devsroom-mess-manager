@@ -4,6 +4,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Mess\AdvanceBalanceController;
 use App\Http\Controllers\Mess\AuditController;
 use App\Http\Controllers\Mess\BillPreviewController;
+use App\Http\Controllers\Mess\DueReminderController;
 use App\Http\Controllers\Mess\ExpenseCategoryController;
 use App\Http\Controllers\Mess\ExpenseController;
 use App\Http\Controllers\Mess\GuestMealController;
@@ -14,10 +15,14 @@ use App\Http\Controllers\Mess\MemberController;
 use App\Http\Controllers\Mess\MemberInviteController;
 use App\Http\Controllers\Mess\MemberSearchController;
 use App\Http\Controllers\Mess\MessConfigController;
+use App\Http\Controllers\Mess\MonthCloseController;
+use App\Http\Controllers\Mess\MonthlyClosingController;
+use App\Http\Controllers\Mess\MonthlyCorrectionController;
 use App\Http\Controllers\Mess\PaymentController;
 use App\Http\Controllers\My\MyBillPreviewController;
 use App\Http\Controllers\My\MyPaymentController;
 use App\Http\Controllers\MyController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\SetPasswordController;
 use App\Http\Middleware\EnsureMessExists;
@@ -119,6 +124,27 @@ Route::middleware(['auth', 'role:admin', EnsureMessExists::class])->group(functi
     Route::post('mess/advance-balances/{member}/adjust', [AdvanceBalanceController::class, 'storeAdjust'])->name('mess.advance-balances.storeAdjust');
 
     Route::get('mess/bill-preview', [BillPreviewController::class, 'index'])->name('mess.bill-preview.index');
+
+    // Month-close: trigger + closings list/show + corrections + due reminders (Plan 03.4)
+    Route::get('mess/close', [MonthCloseController::class, 'index'])->name('mess.close.index');
+    Route::post('mess/close', [MonthCloseController::class, 'trigger'])->name('mess.close.trigger');
+
+    Route::get('mess/closings', [MonthlyClosingController::class, 'index'])->name('mess.closings.index');
+    Route::get('mess/closings/{closing}', [MonthlyClosingController::class, 'show'])->name('mess.closings.show');
+
+    // Corrections target a closed month, so they must NOT be locked by month.open
+    Route::get('mess/closings/{closing}/corrections', [MonthlyCorrectionController::class, 'index'])->name('mess.closings.corrections.index');
+    Route::get('mess/closings/{closing}/corrections/create', [MonthlyCorrectionController::class, 'create'])->name('mess.closings.corrections.create');
+    Route::post('mess/closings/{closing}/corrections', [MonthlyCorrectionController::class, 'store'])->name('mess.closings.corrections.store');
+
+    Route::get('mess/due-reminder', [DueReminderController::class, 'index'])->name('mess.due-reminder.index');
+    Route::post('mess/due-reminder', [DueReminderController::class, 'send'])->name('mess.due-reminder.send');
+});
+
+// Notifications — both managers (admin) and members (user) read their own
+Route::middleware(['auth', EnsureMessExists::class])->group(function () {
+    Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.mark-read');
 });
 
 // Member (user role) home
