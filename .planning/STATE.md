@@ -99,6 +99,16 @@ None.
 - Resume file: `.planning/phases/03-payments-month-close/03-CONTEXT.md`
 - Next: `/gsd-plan-phase 3` to break Phase 3 into executable PLAN.md files
 
+**2026-06-17** — Phase 4: context gathered.
+
+- `04-CONTEXT.md` written (34 locked decisions across 8 areas: charts, chart data semantics, exports, dashboard layout, filters & member visibility, member statement content, report data source, empty states, report nav & export perms)
+- `04-DISCUSSION-LOG.md` written (full audit trail of all 8 discussion areas)
+- Key decisions: Chart.js via Vite (line for Meal 30d + bar for Expense/Payment 6mo, fully-selectable range, auto-bucket by range, full responsive on mobile); Maatwebsite/Excel (.xlsx) + Dompdf PDF on all 4 reports (portrait A4 branded); manager `/home` becomes the dashboard (6 stat cards + 3 charts + pending-meal-off alert banner, nav → sidebar); member `/my` Overview landing (4 cards) + new "My reports" tab; reuse bill-preview cache key + targeted short-TTL keys for counts; GET + sticky query-string + This/Last-month presets on Expense/Payment reports; member Monthly Report = aggregates only (privacy); month picker ◀ ▶; member statement = full ledger with daily breakdown + rate math, full history; empty/first-run states = placeholder + hint; pre-first-close works off live compute (no gate); member can export own statement + aggregates-only monthly report (PDF + Excel)
+- **⚠️ Pre-existing issue flagged:** `app/Services/BillPreviewService.php:92` has a leftover `throw new \RuntimeException('DBG:...')` from Phase 3.3 WIP that breaks bill preview — Phase 4 reports reuse this service, so this Phase 3.3 fix must land before Phase 4 reports work
+- New dependencies Phase 4 will add: `chart.js` (npm), `maatwebsite/excel` + a Dompdf wrapper (composer)
+- Resume file: `.planning/phases/04-reports-dashboard/04-CONTEXT.md`
+- Next: `/gsd-plan-phase 4` to break Phase 4 into executable PLAN.md files
+
 **2026-06-17** — Phase 3 Plan 03.3: Live bill preview + 1-hour cache — COMPLETE.
 
 - Finalized a pre-existing implementation that had arrived as commit `7bc68f8` (single commit by prior session). All 11 plan tasks/must_haves verified satisfied by code inspection.
