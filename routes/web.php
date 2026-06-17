@@ -19,6 +19,7 @@ use App\Http\Controllers\Mess\MonthCloseController;
 use App\Http\Controllers\Mess\MonthlyClosingController;
 use App\Http\Controllers\Mess\MonthlyCorrectionController;
 use App\Http\Controllers\Mess\PaymentController;
+use App\Http\Controllers\Mess\ReportController;
 use App\Http\Controllers\My\MyBillPreviewController;
 use App\Http\Controllers\My\MyPaymentController;
 use App\Http\Controllers\MyController;
@@ -124,6 +125,14 @@ Route::middleware(['auth', 'role:admin', EnsureMessExists::class])->group(functi
     Route::post('mess/advance-balances/{member}/adjust', [AdvanceBalanceController::class, 'storeAdjust'])->name('mess.advance-balances.storeAdjust');
 
     Route::get('mess/bill-preview', [BillPreviewController::class, 'index'])->name('mess.bill-preview.index');
+
+    // Reports — Plan 04-01 (HTML only; PDF/Excel exports land in Plan 04-03)
+    Route::prefix('mess/reports')->name('mess.reports.')->group(function () {
+        Route::get('monthly', [ReportController::class, 'monthly'])->name('monthly');
+        Route::get('member-statement', [ReportController::class, 'memberStatement'])->name('member-statement');
+        Route::get('expenses', [ReportController::class, 'expenses'])->name('expenses');
+        Route::get('payments', [ReportController::class, 'payments'])->name('payments');
+    });
 
     // Month-close: trigger + closings list/show + corrections + due reminders (Plan 03.4)
     Route::get('mess/close', [MonthCloseController::class, 'index'])->name('mess.close.index');
