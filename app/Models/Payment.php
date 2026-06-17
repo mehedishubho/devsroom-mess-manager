@@ -8,14 +8,16 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use OwenIt\Auditing\Auditable;
+use OwenIt\Auditing\Contracts\Auditable as AuditableContract;
 
 #[Fillable([
     'mess_id', 'member_id', 'date', 'amount', 'method',
     'reference', 'notes', 'type', 'entered_by',
 ])]
-class Payment extends Model
+class Payment extends Model implements AuditableContract
 {
-    use BelongsToActiveMess, HasFactory, SoftDeletes;
+    use Auditable, BelongsToActiveMess, HasFactory, SoftDeletes;
 
     protected function casts(): array
     {

@@ -6,6 +6,7 @@ use App\Http\Requests\My\StoreMealOffRequest;
 use App\Http\Requests\My\UpdateMyProfileRequest;
 use App\Models\MealOffRequest;
 use App\Models\Mess;
+use App\Models\Payment;
 use App\Support\MealOffStatus;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
@@ -38,6 +39,15 @@ class MyController extends Controller
                 ->orderBy('requested_at', 'desc')
                 ->limit(20)
                 ->get();
+        }
+
+        if ($tab === 'payments') {
+            $data['payments'] = Payment::query()
+                ->where('member_id', $member->id)
+                ->with('enteredBy')
+                ->latest('date')
+                ->latest('id')
+                ->paginate(30);
         }
 
         return view('my', $data);

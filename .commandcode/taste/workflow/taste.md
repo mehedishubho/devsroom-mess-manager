@@ -6,3 +6,4 @@
 - Use `php artisan test` to run the test suite and `php vendor/bin/pint` for code style after making code changes. Confidence: 0.75
 - Write commit messages to a temp file (e.g. `.git_commit_msg.txt`) and use `git commit -F` so multi-line messages don't get mangled by shell escaping. Confidence: 0.70
 - Clean up temporary verification scripts (e.g. `verify_fix.php`, `reseed.php`) after running them. Confidence: 0.70
+- In Copilot (VS Code), use `vscode_askquestions` wherever the GSD workflow calls `AskUserQuestion` — they are equivalent and `vscode_askquestions` is the VS Code Copilot implementation of the same interactive question API. Do not skip questioning steps because `AskUserQuestion` appears unavailable. Confidence: 0.80

@@ -26,5 +26,12 @@
             <h2 class="text-lg font-semibold leading-tight text-slate-900">{{ __('Audit log') }}</h2>
             <p class="mt-1 text-sm text-slate-600">{{ __('Every change to mess data, recorded with the user, timestamp, and before/after values.') }}</p>
         </a>
+
+        <a href="{{ route('mess.payments.index') }}" class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:bg-slate-50 md:p-6">
+            <h2 class="text-lg font-semibold leading-tight text-slate-900">{{ __('Payments') }}</h2>
+            <p class="mt-1 text-sm text-slate-600">{{ __('Record a bill payment or advance deposit.') }}</p>
+            <p class="mt-3 text-2xl font-semibold text-emerald-700">{{ \App\Models\Payment::count() }}</p>
+            <p class="text-xs text-slate-500">{{ __('Total payments recorded') }}</p>
+        </a>
     </div>
 @endsection

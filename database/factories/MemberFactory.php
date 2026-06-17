@@ -13,7 +13,7 @@ class MemberFactory extends Factory
     public function definition(): array
     {
         return [
-            'mess_id' => Mess::factory(),
+            'mess_id' => Mess::activeId() ?? Mess::factory(),
             'name' => $this->faker->name(),
             'mobile' => $this->faker->phoneNumber(),
             'email' => $this->faker->unique()->safeEmail(),

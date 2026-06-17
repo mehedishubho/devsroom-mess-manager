@@ -12,6 +12,8 @@ use App\Http\Controllers\Mess\MemberController;
 use App\Http\Controllers\Mess\MemberInviteController;
 use App\Http\Controllers\Mess\MemberSearchController;
 use App\Http\Controllers\Mess\MessConfigController;
+use App\Http\Controllers\Mess\PaymentController;
+use App\Http\Controllers\My\MyPaymentController;
 use App\Http\Controllers\MyController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\SetPasswordController;
@@ -84,6 +86,17 @@ Route::middleware(['auth', 'role:admin', EnsureMessExists::class])->group(functi
     Route::get('mess/categories', [ExpenseCategoryController::class, 'index'])->name('mess.categories.index');
     Route::post('mess/categories', [ExpenseCategoryController::class, 'store'])->name('mess.categories.store');
     Route::delete('mess/categories/{category}', [ExpenseCategoryController::class, 'destroy'])->name('mess.categories.destroy');
+
+    Route::resource('mess/payments', PaymentController::class)
+        ->names([
+            'index' => 'mess.payments.index',
+            'create' => 'mess.payments.create',
+            'store' => 'mess.payments.store',
+            'show' => 'mess.payments.show',
+            'edit' => 'mess.payments.edit',
+            'update' => 'mess.payments.update',
+            'destroy' => 'mess.payments.destroy',
+        ]);
 });
 
 // Member (user role) home
@@ -91,4 +104,5 @@ Route::middleware(['auth', 'role:user'])->group(function () {
     Route::get('/my', [MyController::class, 'index'])->name('my');
     Route::patch('my/profile', [MyController::class, 'updateProfile'])->name('my.profile.update');
     Route::post('my/meal-off', [MyController::class, 'storeMealOff'])->name('my.meal-off.store');
+    Route::get('my/payments', [MyPaymentController::class, 'index'])->name('my.payments');
 });

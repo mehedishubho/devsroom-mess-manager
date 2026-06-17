@@ -14,6 +14,7 @@
                 ['key' => 'profile', 'label' => __('Profile'), 'url' => route('my', ['tab' => 'profile'])],
                 ['key' => 'meal-off', 'label' => __('Meal off'), 'url' => route('my', ['tab' => 'meal-off'])],
                 ['key' => 'meals', 'label' => __('My meals'), 'url' => route('my', ['tab' => 'meals'])],
+                ['key' => 'payments', 'label' => __('Payments'), 'url' => route('my', ['tab' => 'payments'])],
             ];
         @endphp
 
@@ -26,6 +27,8 @@
                 @include('my._meal-off', ['member' => $member, 'mealOffRequests' => $mealOffRequests ?? collect()])
             @elseif ($tab === 'meals')
                 @include('my._meals', ['member' => $member, 'mealEntries' => $mealEntries ?? collect()])
+            @elseif ($tab === 'payments')
+                @include('my._payments', ['payments' => $payments ?? collect()])
             @endif
         </div>
     @endif
