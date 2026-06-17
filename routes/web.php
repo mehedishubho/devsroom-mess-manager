@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\Mess\AdvanceBalanceController;
 use App\Http\Controllers\Mess\AuditController;
 use App\Http\Controllers\Mess\ExpenseCategoryController;
 use App\Http\Controllers\Mess\ExpenseController;
@@ -97,6 +98,10 @@ Route::middleware(['auth', 'role:admin', EnsureMessExists::class])->group(functi
             'update' => 'mess.payments.update',
             'destroy' => 'mess.payments.destroy',
         ]);
+
+    Route::get('mess/advance-balances', [AdvanceBalanceController::class, 'index'])->name('mess.advance-balances.index');
+    Route::get('mess/advance-balances/{member}/adjust', [AdvanceBalanceController::class, 'adjust'])->name('mess.advance-balances.adjust');
+    Route::post('mess/advance-balances/{member}/adjust', [AdvanceBalanceController::class, 'storeAdjust'])->name('mess.advance-balances.storeAdjust');
 });
 
 // Member (user role) home

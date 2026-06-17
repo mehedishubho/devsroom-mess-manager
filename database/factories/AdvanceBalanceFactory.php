@@ -14,10 +14,21 @@ class AdvanceBalanceFactory extends Factory
     public function definition(): array
     {
         return [
-            'mess_id' => Mess::factory(),
+            'mess_id' => Mess::activeId() ?? Mess::factory(),
             'member_id' => Member::factory(),
-            'balance' => $this->faker->randomFloat(2, 0, 5000),
+            'balance' => 0,
+            'due_balance' => 0,
             'last_updated_at' => now(),
         ];
+    }
+
+    public function withAdvance(float $amount): self
+    {
+        return $this->state(['balance' => $amount, 'due_balance' => 0]);
+    }
+
+    public function withDue(float $amount): self
+    {
+        return $this->state(['balance' => 0, 'due_balance' => $amount]);
     }
 }

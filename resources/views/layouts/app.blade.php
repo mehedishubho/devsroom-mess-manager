@@ -100,6 +100,12 @@
                         </svg>
                         <span>{{ __('Payments') }}</span>
                     </a>
+                    <a href="{{ route('mess.advance-balances.index') }}" class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition min-h-[44px] {{ request()->routeIs('mess.advance-balances.*') ? 'bg-emerald-50 text-emerald-700 border-l-2 border-emerald-600' : 'text-slate-700 hover:bg-slate-100 border-l-2 border-transparent' }}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h15a2.25 2.25 0 0 1 2.25 2.25H2.25V8.25ZM2.25 12h15a2.25 2.25 0 0 1 2.25 2.25H2.25V12Zm0 3.75h15a2.25 2.25 0 0 1 2.25 2.25H2.25v-2.25Z"/>
+                        </svg>
+                        <span>{{ __('Advance balances') }}</span>
+                    </a>
                 </nav>
             </aside>
 

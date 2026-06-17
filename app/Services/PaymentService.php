@@ -10,9 +10,8 @@ use Illuminate\Http\Request;
 
 class PaymentService
 {
-    /**
-     * Manager-side paginated list with filters by member, method, and date range.
-     */
+    public function __construct(private readonly AdvanceBalanceService $balances) {}
+
     public function list(Request $request): LengthAwarePaginator
     {
         $query = Payment::query()
@@ -39,9 +38,6 @@ class PaymentService
         return $query->paginate(50)->withQueryString();
     }
 
-    /**
-     * Member-side paginated list of their own payments, latest first.
-     */
     public function listForMember(int $memberId, int $perPage = 30): LengthAwarePaginator
     {
         return Payment::query()
@@ -54,7 +50,7 @@ class PaymentService
 
     public function create(array $data): Payment
     {
-        $payload = [
+        $payment = Payment::create([
             'mess_id' => Mess::activeId(),
             'member_id' => $data['member_id'],
             'date' => $data['date'],
@@ -64,9 +60,11 @@ class PaymentService
             'notes' => $data['notes'] ?? null,
             'type' => $data['type'] ?? PaymentType::BILL_PAYMENT,
             'entered_by' => auth()->id(),
-        ];
+        ]);
 
-        return Payment::create($payload);
+        $this->balances->applyPayment($payment);
+
+        return $payment;
     }
 
     public function update(Payment $payment, array $data): Payment

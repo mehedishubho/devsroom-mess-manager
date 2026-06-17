@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['mess_id', 'member_id', 'balance', 'last_updated_at'])]
+#[Fillable(['mess_id', 'member_id', 'balance', 'due_balance', 'last_updated_at'])]
 class AdvanceBalance extends Model
 {
     use BelongsToActiveMess, HasFactory;
@@ -17,6 +17,7 @@ class AdvanceBalance extends Model
     {
         return [
             'balance' => 'decimal:2',
+            'due_balance' => 'decimal:2',
             'last_updated_at' => 'datetime',
         ];
     }

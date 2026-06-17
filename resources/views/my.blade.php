@@ -29,7 +29,10 @@
                 @include('my._meals', ['member' => $member, 'mealEntries' => $mealEntries ?? collect()])
             @elseif ($tab === 'payments')
                 @include('my._payments', ['payments' => $payments ?? collect()])
+            @elseif ($tab === 'balance')
+                @include('my._advance-balance', ['member' => $member])
             @endif
         </div>
     @endif
 @endsection
+ion
