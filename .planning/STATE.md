@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 04
-current_plan: Not started
-status: Ready to plan
-last_updated: "2026-06-17T16:13:55.113Z"
+current_plan: 1
+status: Executing Phase 04
+last_updated: "2026-06-17T18:06:10.708Z"
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 9
-  completed_plans: 12
+  total_plans: 13
+  completed_plans: 13
   percent: 100
 ---
 
@@ -19,7 +19,7 @@ progress:
 **Initialized:** 2026-06-16
 **Project:** Devsroom Mess Management
 **Current Phase:** 04
-**Current Plan:** Not started
+**Current Plan:** 1
 
 ## Project Reference
 
@@ -27,7 +27,7 @@ See: `.planning/PROJECT.md` (updated 2026-06-16)
 
 **Core value:** A mess manager can run a full month end-to-end on a phone — enter meals, log bazar, take payments, close the month, and produce a correct member bill — without spreadsheets and without arguing about who owes what.
 
-**Current focus:** Phase 03 — payments-month-close
+**Current focus:** Phase 04 — reports-dashboard
 
 ## Phase Status
 
@@ -36,7 +36,7 @@ See: `.planning/PROJECT.md` (updated 2026-06-16)
 | 1. Foundation | Complete | Auth + mess config + schema + audit | 3 | 2026-06-16 | 2026-06-16 |
 | 2. Members + Daily Operations | In progress | Member CRUD, meal grid, meal off, bazar, fixed expenses | 5 | 2026-06-17 | — |
 | 3. Payments + Month-Close | In progress (3 of 4 plans done) | Payments, advance, close, notifications | 4 | 2026-06-17 | — |
-| 4. Reports + Dashboard | Not started | 4 reports, dashboard cards/charts, PDF/Excel | 3 | — | — |
+| 4. Reports + Dashboard | In progress (1 of 4 plans done) | 4 reports, dashboard cards/charts, PDF/Excel | 4 | 2026-06-17 | — |
 | 5. Polish + Pilot | Not started | Mobile UX, performance, documentation, real-mess pilot | 3 | — | — |
 
 ## Decisions Validated
@@ -138,6 +138,21 @@ None.
 - Decisions validated: Hard-lock via EnsureMonthIsOpen (D-19) and Idempotent month-close via UNIQUE (D-18) moved Pending → Validated.
 - Resume file: `.planning/phases/03-payments-month-close/03.4-month-close-job-corrections-notifications-SUMMARY.md`
 - Next: Phase 03 is feature-complete (4/4 plans). Orchestrator owns phase-completion (VERIFICATION + marking phase done). Phase 4 (Reports + Dashboard) is the next phase.
+
+**2026-06-17** — Phase 4 Plan 04.0: Wave 0 prerequisites — COMPLETE.
+
+- Installed the 3 packages verified compatible with Laravel 13.15 in research: `barryvdh/laravel-dompdf` v3.1.2 (PDF), `maatwebsite/excel` 3.1.69 (.xlsx, bundles phpspreadsheet), `chart.js` 4.5.1 (npm, charts). All auto-discovered — no manual provider registration needed.
+- Confirmed `App\Support\Money::taka()` is the canonical money helper for Phase 4 (used in 14 blade views). **Did NOT create `bdt()` or `app/helpers.php`** — resolves Gap 1 from research. `composer.json` keeps no `autoload.files` entry.
+- Exposed `window.initDashboardChart(canvasId, config)` in `resources/js/app.js` with destroy-before-recreate guard (`if (el.__chart) el.__chart.destroy()`) to prevent the canvas memory leak (research Pitfall 2). Vite build: 252.98 KB JS bundle (88.22 KB gzipped), 731 ms.
+- Added Reports sidebar group (D-31) between "Bill preview" and "Close month" — 4 sub-entries: Monthly Report, Member Statement, Expense Report, Payment Report. Same Tailwind classes, `min-h-[44px]` touch targets, `routeIs()` active highlighting as existing entries.
+- Created `tests/Feature/Report/.gitkeep` + `tests/Feature/Dashboard/.gitkeep` for Plans 04-01/02/03.
+- Verified `ext-zip` is loaded (Excel .xlsx runtime will not fail).
+- Deviation [Rule 3 - Blocking]: initial sidebar implementation used literal `route('mess.reports.*')` calls which broke 32 existing tests (`RouteNotFoundException`) because the routes are defined in Plan 04-01. Threat model T-04-00-02 accepted this for users but the plan also requires "no regression". Fixed by wrapping the entire Reports group in `@if (Route::has('mess.reports.monthly'))`. Once Plan 04-01 registers the routes, the guard passes through automatically.
+- Tests: 162 passed (no regression). `vendor/bin/pint --test app/ tests/` clean.
+- Commits this session: `098ab7e` (packages + Chart.js bootstrap), `94ac982` (sidebar + test dirs), `ec63e6b` (Route::has guard fix).
+- Decisions validated this plan: `Money::taka()` canonical (Gap 1 resolution); Chart.js bundled in global app.js (research A6).
+- Resume file: `.planning/phases/04-reports-dashboard/04-00-SUMMARY.md`
+- Next: Plan 04-01 (Wave 1 — Monthly + Member Statement + Expense + Payment report routes, controllers, views, services). When 04-01 lands, the sidebar Reports group will automatically become visible.
 
 ## Open Questions for User
 
