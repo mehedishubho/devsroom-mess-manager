@@ -9,6 +9,7 @@ use HasinHayder\TyroLogin\Traits\HasTwoFactorAuth;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -39,6 +40,17 @@ class User extends Authenticatable
     public function member(): HasOne
     {
         return $this->hasOne(Member::class, 'user_id');
+    }
+
+    /**
+     * All mess memberships for this user (WR-08). A user is generally a member
+     * of at most one mess per row in `members`, but historically a user may have
+     * rows in multiple messes (FORMER status etc.) — query membership of a
+     * specific mess via ->members()->where('mess_id', $id).
+     */
+    public function members(): HasMany
+    {
+        return $this->hasMany(Member::class, 'user_id');
     }
 
     public function getMemberOrNull(): ?Member

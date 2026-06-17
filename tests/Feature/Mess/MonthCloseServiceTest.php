@@ -258,6 +258,14 @@ class MonthCloseServiceTest extends TestCase
         $this->seedBazar(1000);
         $admin = User::factory()->create();
         $admin->assignRole(Role::where('slug', 'admin')->first());
+        // The admin must belong to the active mess (WR-08: broadcastToManagers
+        // now scopes admins by Member.mess_id == Mess::activeId()).
+        Member::factory()->create([
+            'mess_id' => Mess::activeId(),
+            'user_id' => $admin->id,
+            'status' => MemberStatus::ACTIVE,
+        ]);
+
         $superAdmin = User::factory()->create();
         $superAdmin->assignRole(Role::where('slug', 'super-admin')->first());
         $user = User::factory()->create();

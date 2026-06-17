@@ -25,16 +25,30 @@ class NotificationService
     }
 
     /**
-     * Broadcast a notification type to all manager users in the mess (admin + super-admin).
-     * Used for close_complete and other manager-targeted events.
+     * Broadcast a notification type to the manager users of the ACTIVE mess:
+     *  - super-admin (cross-mess role — always notified when any mess closes), AND
+     *  - admins whose Member row belongs to the active mess (WR-08).
+     *
+     * Without this scoping the previous query selected every admin across every
+     * mess, leaking close-complete notifications cross-tenant.
      *
      * @param  array<string, mixed>  $data
      * @return Collection<int, Notification>
      */
     public function broadcastToManagers(string $type, array $data = []): Collection
     {
+        $activeMessId = Mess::activeId();
+
         $recipients = User::query()
             ->whereHas('roles', fn ($q) => $q->whereIn('slug', ['admin', 'super-admin']))
+            ->when($activeMessId !== null, function ($q) use ($activeMessId) {
+                // Super-admins are always included (cross-mess role). Admins must
+                // belong to the active mess via a Member row whose mess_id matches.
+                $q->where(function ($inner) use ($activeMessId) {
+                    $inner->whereHas('roles', fn ($r) => $r->where('slug', 'super-admin'))
+                        ->orWhereHas('members', fn ($m) => $m->where('members.mess_id', $activeMessId));
+                });
+            })
             ->get();
 
         return $recipients->map(fn (User $u) => $this->send($u, $type, $data));

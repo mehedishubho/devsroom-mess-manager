@@ -2,10 +2,12 @@
 
 namespace Tests\Feature\Mess;
 
+use App\Models\Member;
 use App\Models\Mess;
 use App\Models\Notification;
 use App\Models\User;
 use App\Services\NotificationService;
+use App\Support\MemberStatus;
 use App\Support\NotificationType;
 use HasinHayder\Tyro\Models\Role;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -33,12 +35,19 @@ class NotificationTest extends TestCase
         $this->assertSame(3, $count);
     }
 
-    public function test_broadcast_to_managers_sends_to_all_admins_and_super_admins(): void
+    public function test_broadcast_to_managers_sends_to_super_admins_and_active_mess_admins(): void
     {
+        // Two admins belong to the active mess via a Member row.
+        $activeMessId = Mess::activeId();
         $a1 = User::factory()->create();
         $a1->assignRole(Role::where('slug', 'admin')->first());
+        Member::factory()->create(['mess_id' => $activeMessId, 'user_id' => $a1->id, 'status' => MemberStatus::ACTIVE]);
+
         $a2 = User::factory()->create();
         $a2->assignRole(Role::where('slug', 'admin')->first());
+        Member::factory()->create(['mess_id' => $activeMessId, 'user_id' => $a2->id, 'status' => MemberStatus::ACTIVE]);
+
+        // Super-admins are cross-mess — they get notified even without a Member row.
         $super = User::factory()->create();
         $super->assignRole(Role::where('slug', 'super-admin')->first());
 
@@ -49,7 +58,49 @@ class NotificationTest extends TestCase
 
         $this->assertSame(3, Notification::where('type', 'close_complete')->count());
         $this->assertDatabaseHas('notifications', ['user_id' => $a1->id]);
+        $this->assertDatabaseHas('notifications', ['user_id' => $a2->id]);
         $this->assertDatabaseHas('notifications', ['user_id' => $super->id]);
+    }
+
+    /**
+     * WR-08 regression: closing a month in mess A must NOT notify admins of
+     * mess B. Privacy / cross-tenant leak check.
+     */
+    public function test_broadcast_to_managers_does_not_leak_across_messes(): void
+    {
+        $activeMessId = Mess::activeId();
+
+        // Mess A's admin — has a Member row in the active mess.
+        $messAAdmin = User::factory()->create();
+        $messAAdmin->assignRole(Role::where('slug', 'admin')->first());
+        Member::factory()->create([
+            'mess_id' => $activeMessId,
+            'user_id' => $messAAdmin->id,
+            'status' => MemberStatus::ACTIVE,
+        ]);
+
+        // Mess B — separate mess with its own admin. NO Member row in the active mess.
+        $messB = Mess::factory()->create();
+        $messBAdmin = User::factory()->create();
+        $messBAdmin->assignRole(Role::where('slug', 'admin')->first());
+        Member::factory()->create([
+            'mess_id' => $messB->id,
+            'user_id' => $messBAdmin->id,
+            'status' => MemberStatus::ACTIVE,
+        ]);
+
+        app(NotificationService::class)->broadcastToManagers(NotificationType::CLOSE_COMPLETE, [
+            'year' => 2026,
+            'month' => 6,
+        ]);
+
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $messAAdmin->id,
+            'type' => 'close_complete',
+        ]);
+        $this->assertDatabaseMissing('notifications', [
+            'user_id' => $messBAdmin->id,
+        ]);
     }
 
     public function test_mark_read_sets_read_at_timestamp(): void
