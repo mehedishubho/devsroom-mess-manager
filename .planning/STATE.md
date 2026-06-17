@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 04
-current_plan: 2
-status: Executing Phase 04
-last_updated: "2026-06-17T18:30:00.000Z"
+current_plan: 3
+status: Executing Phase 04 (Plan 04-02 complete; 04-03 next)
+last_updated: "2026-06-17T18:40:00.000Z"
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 13
-  completed_plans: 15
+  completed_plans: 16
   percent: 100
 ---
 
@@ -36,7 +36,7 @@ See: `.planning/PROJECT.md` (updated 2026-06-16)
 | 1. Foundation | Complete | Auth + mess config + schema + audit | 3 | 2026-06-16 | 2026-06-16 |
 | 2. Members + Daily Operations | In progress | Member CRUD, meal grid, meal off, bazar, fixed expenses | 5 | 2026-06-17 | — |
 | 3. Payments + Month-Close | In progress (3 of 4 plans done) | Payments, advance, close, notifications | 4 | 2026-06-17 | — |
-| 4. Reports + Dashboard | In progress (2 of 4 plans done) | 4 reports, dashboard cards/charts, PDF/Excel | 4 | 2026-06-17 | — |
+| 4. Reports + Dashboard | In progress (3 of 4 plans done) | 4 reports, dashboard cards/charts, PDF/Excel | 4 | 2026-06-17 | — |
 | 5. Polish + Pilot | Not started | Mobile UX, performance, documentation, real-mess pilot | 3 | — | — |
 
 ## Decisions Validated
@@ -50,6 +50,14 @@ See: `.planning/PROJECT.md` (updated 2026-06-16)
 - owen-it/laravel-auditing for domain audit log — VALIDATED
 - Service layer (no Repository pattern) — to be validated in Phase 2+
 - PHPUnit 12 (not Pest) — VALIDATED
+
+## Decisions Validated in Phase 4 (so far)
+
+- D-16 Member `/my` Overview landing shown first (4 DASH-04 cards before existing tabs) — VALIDATED in Plan 04.2 (test_member_sees_overview_landing_by_default; MyController default tab flipped 'profile' → 'overview')
+- D-19 Member Monthly Report is aggregates-only (NO per-member table) — VALIDATED in Plan 04.2 (test_member_monthly_has_no_per_member_table + test_member_cannot_view_per_member_dues; my/reports/monthly.blade.php never iterates $data['members'] for display)
+- D-32 "My reports" tab on /my links to own statement + aggregates-only monthly — VALIDATED in Plan 04.2 (test_member_sees_reports_tab; tab added to my.blade.php)
+- Open Question #3 LOCKED: My Meals / Today's Meals EXCLUDE guest meals — VALIDATED in Plan 04.2 (test_my_meals_excludes_guest_meals; MemberDashboardService::myMealsThisMonth mirrors BillPreviewService::mealTotals via MealType::value(), not guest_meals.charge_amount)
+- T-04-02-01 IDOR prevention: role:user routes have NO `{member}` URL param — VALIDATED in Plan 04.2 (test_member_cannot_view_other_member_statement; MyReportController::statement/monthly derive member from $request->user()->getMemberOrNull())
 
 ## Decisions Still Pending
 
@@ -153,6 +161,23 @@ None.
 - Decisions validated this plan: `Money::taka()` canonical (Gap 1 resolution); Chart.js bundled in global app.js (research A6).
 - Resume file: `.planning/phases/04-reports-dashboard/04-00-SUMMARY.md`
 - Next: Plan 04-01 (Wave 1 — Monthly + Member Statement + Expense + Payment report routes, controllers, views, services). When 04-01 lands, the sidebar Reports group will automatically become visible.
+
+**2026-06-17** — Phase 4 Plan 04.2: Member self-view + member dashboard — COMPLETE.
+
+- Built the member-side read surface: RPT-05 (own Member Statement) + RPT-06 (aggregates-only Monthly Report) + DASH-04 (member Overview landing with 4 cards). Member routes are `role:user` with NO `{member}` URL parameter — `MyReportController::statement()` + `::monthly()` derive `$member` from `$request->user()->getMemberOrNull()`. IDOR is structurally impossible (T-04-02-01).
+- Reuses Plan 4.1's services verbatim — no report logic was re-implemented. `MyReportController` delegates to `MemberStatementService::forMember()` and `ReportService::monthlyReport()` unchanged.
+- D-19 enforcement: the member Monthly Report reuses `ReportService::monthlyReport()` (which returns the full shape incl. members[]) but the member-side `monthly.blade.php` view OMITS the per-member table. Only aggregate sums (total_due, total_advance) are exposed. Verified by `test_member_monthly_has_no_per_member_table` + `test_member_cannot_view_per_member_dues`.
+- New `MemberDashboardService::overviewCards(user)` produces the 4 DASH-04 cards: My Meals (this month, EXCLUDES guest meals per Open Question #3 LOCKED — mirrors `BillPreviewService::mealTotals()` via `MealType::value()`), My Bill (cached via BillPreviewService), My Advance (AdvanceBalance), recent 5 payments for the Payment History card.
+- `<x-stat-card>` reusable dashboard card component (label/value/hint/icon) — will be reused by 04-03's manager dashboard.
+- `MyController::index()` default tab flipped `'profile'` → `'overview'` (D-16). `my.blade.php` tab order is now [Overview, Profile, Meals, Meal off, Payments, My reports]. Overview renders `_overview` partial; My reports renders 2 link cards (Member Statement + Mess Monthly Report).
+- 2 member statement/monthly views: full 8-section ledger (NO member picker, NO advance_applied display — Pitfall 3) + aggregates-only monthly.
+- 17 new tests (6 MyStatement + 5 MyMonthlyReport + 6 MyDashboard) covering IDOR, role enforcement, month picker, D-19 no-per-member-table, Pitfall 3, My Meals excludes guest meals (Q3 LOCKED), no-member empty state.
+- Deviations: (1) [Rule 1] test fixture violated meal_entries UNIQUE(mess_id, member_id, date) — fixed by using 3 distinct dates; (2) [Rule 1] test asserted on reference field that the dashboard card intentionally hides — fixed to assert on amount + View-all link.
+- Tests: 188 → 205 passed (+17 new); `vendor/bin/pint --test` clean.
+- Commits this session: `a062fe3` (RED tests), `a576c66` (controllers + service + routes + stubs), `bd95fd2` (full views + dashboard tests).
+- Decisions validated this plan: D-16 (Overview landing first), D-19 (member monthly aggregates-only), D-32 (My reports tab), Open Question #3 LOCKED (My Meals excludes guest meals).
+- Resume file: `.planning/phases/04-reports-dashboard/04-02-member-views-SUMMARY.md`
+- Next: Plan 04-03 (Wave 4 — PDF/Excel exports for all 4 reports + manager dashboard with charts; reuses `<x-stat-card>` + wires the report-toolbar's disabled PDF/Excel buttons to real routes).
 
 **2026-06-17** — Phase 4 Plan 04.1: Manager reports (Monthly + Member Statement + Expense + Payment) — COMPLETE.
 

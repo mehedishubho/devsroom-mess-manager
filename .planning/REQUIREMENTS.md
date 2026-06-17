@@ -139,8 +139,8 @@
 - [x] **RPT-02**: Manager can view Member Statement (meals, guest meals, payments, due, advance) for any member, any month
 - [x] **RPT-03**: Manager can view Expense Report (filter by date range, category, month)
 - [x] **RPT-04**: Manager can view Payment Report (filter by member, method, date range)
-- [ ] **RPT-05**: Member can view their own Member Statement
-- [ ] **RPT-06**: Member can view the Monthly Report for the mess
+- [x] **RPT-05**: Member can view their own Member Statement
+- [x] **RPT-06**: Member can view the Monthly Report for the mess
 - [ ] **RPT-07**: Reports support PDF export (Dompdf)
 - [ ] **RPT-08**: Reports support Excel/CSV export (Maatwebsite/Excel)
 
@@ -149,7 +149,7 @@
 - [ ] **DASH-01**: Manager dashboard shows cards: Total Members, Today's Meals, Current Meal Rate, Monthly Expenses, Total Due, Total Advance
 - [ ] **DASH-02**: Manager dashboard shows charts: Expense Trend (last 6 months), Meal Trend (last 30 days), Payment Trend (last 6 months)
 - [ ] **DASH-03**: Manager dashboard shows "Pending meal off requests" count
-- [ ] **DASH-04**: Member dashboard shows: My Meals (this month), My Bill (this month), My Advance, My Payment History
+- [x] **DASH-04**: Member dashboard shows: My Meals (this month), My Bill (this month), My Advance, My Payment History
 - [ ] **DASH-05**: Dashboard cards refresh on page load, cached for 1 hour
 - [ ] **DASH-06**: Dashboard supports date range filtering for trend charts
 
