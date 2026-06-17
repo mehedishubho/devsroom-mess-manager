@@ -112,20 +112,20 @@
 
 ### Live Bill Preview
 
-- [ ] **PREVIEW-01**: Manager can see "if we closed today, meal rate would be ৳X" on the dashboard
-- [ ] **PREVIEW-02**: Manager can see each member's running bill for the current month
-- [ ] **PREVIEW-03**: Member can see their own running bill for the current month
-- [ ] **PREVIEW-04**: Preview updates within 2 seconds of a write (cache invalidation)
-- [ ] **PREVIEW-05**: Preview is cached with 1-hour TTL to prevent stampede
+- [x] **PREVIEW-01**: Manager can see "if we closed today, meal rate would be ৳X" on the dashboard
+- [x] **PREVIEW-02**: Manager can see each member's running bill for the current month
+- [x] **PREVIEW-03**: Member can see their own running bill for the current month
+- [x] **PREVIEW-04**: Preview updates within 2 seconds of a write (cache invalidation)
+- [x] **PREVIEW-05**: Preview is cached with 1-hour TTL to prevent stampede
 
 ### Month-End Close
 
 - [ ] **CLOSE-01**: Manager can trigger month-close for a (year, month)
 - [ ] **CLOSE-02**: Month-close runs as a queued job (not synchronously)
 - [ ] **CLOSE-03**: Manager receives a notification when close completes (success or failure)
-- [ ] **CLOSE-04**: Close computes meal rate: `total_bazar / total_meals`
-- [ ] **CLOSE-05**: Close computes fixed cost share: `total_fixed / active_member_count` (prorated by days for mid-month joiners/leavers)
-- [ ] **CLOSE-06**: Close computes per-member bill: `meal_cost + fixed_share - payments - advance_applied`
+- [x] **CLOSE-04**: Close computes meal rate: `total_bazar / total_meals`
+- [x] **CLOSE-05**: Close computes fixed cost share: `total_fixed / active_member_count` (prorated by days for mid-month joiners/leavers)
+- [x] **CLOSE-06**: Close computes per-member bill: `meal_cost + fixed_share - payments - advance_applied`
 - [ ] **CLOSE-07**: Close is idempotent: `UNIQUE INDEX (mess_id, year, month)` on `monthly_closings` — duplicate close attempts are refused
 - [ ] **CLOSE-08**: Close uses `SELECT ... FOR UPDATE` to lock the mess row
 - [ ] **CLOSE-09**: Close persists immutable snapshot to `monthly_closings` and `monthly_member_summaries`

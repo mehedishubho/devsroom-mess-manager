@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 03
-current_plan: 1
-status: Executing Phase 03
-last_updated: "2026-06-17T07:50:43.118Z"
+current_plan: 4
+status: Executing Phase 03 (Plan 03.3 complete; 03.4 next)
+last_updated: "2026-06-17T10:30:00.000Z"
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 9
-  completed_plans: 8
-  percent: 89
+  completed_plans: 11
+  percent: 100
 ---
 
 # Project State
@@ -19,7 +19,7 @@ progress:
 **Initialized:** 2026-06-16
 **Project:** Devsroom Mess Management
 **Current Phase:** 03
-**Current Plan:** 1
+**Current Plan:** 4 (Plan 03.3 — Live bill preview + 1-hour cache — complete; Plan 03.4 next)
 
 ## Project Reference
 
@@ -35,7 +35,7 @@ See: `.planning/PROJECT.md` (updated 2026-06-16)
 |-------|--------|------|-------|---------|-----------|
 | 1. Foundation | Complete | Auth + mess config + schema + audit | 3 | 2026-06-16 | 2026-06-16 |
 | 2. Members + Daily Operations | In progress | Member CRUD, meal grid, meal off, bazar, fixed expenses | 5 | 2026-06-17 | — |
-| 3. Payments + Month-Close | Not started | Payments, advance, close, notifications | 4 | — | — |
+| 3. Payments + Month-Close | In progress (3 of 4 plans done) | Payments, advance, close, notifications | 4 | 2026-06-17 | — |
 | 4. Reports + Dashboard | Not started | 4 reports, dashboard cards/charts, PDF/Excel | 3 | — | — |
 | 5. Polish + Pilot | Not started | Mobile UX, performance, documentation, real-mess pilot | 3 | — | — |
 
@@ -53,9 +53,12 @@ See: `.planning/PROJECT.md` (updated 2026-06-16)
 
 ## Decisions Still Pending
 
-- Hard-lock on month close (Phase 3)
-- 1-hour cache TTL on current-month aggregates (Phase 3)
-- Idempotent month-close via `UNIQUE (mess_id, year, month)` (Phase 3)
+- Hard-lock on month close (Phase 3, Plan 3.4)
+- Idempotent month-close via `UNIQUE (mess_id, year, month)` (Phase 3, Plan 3.4)
+
+## Decisions Validated in Phase 3 (so far)
+
+- 1-hour cache TTL on current-month aggregates — VALIDATED in Plan 03.3 (`Cache::remember($key, now()->addHour(), …)`, single shared key `bill-preview:{mess_id}:{year}-{MM}`, manual invalidation via Eloquent `saved`/`deleted` events on MealEntry, MealOffRequest, GuestMeal, Expense, Payment per D-14/D-15)
 
 ## Blockers
 
@@ -95,6 +98,18 @@ None.
 - One new migration: add `due_balance` column to `advance_balances` (all other schema already shipped in Phase 1)
 - Resume file: `.planning/phases/03-payments-month-close/03-CONTEXT.md`
 - Next: `/gsd-plan-phase 3` to break Phase 3 into executable PLAN.md files
+
+**2026-06-17** — Phase 3 Plan 03.3: Live bill preview + 1-hour cache — COMPLETE.
+
+- Finalized a pre-existing implementation that had arrived as commit `7bc68f8` (single commit by prior session). All 11 plan tasks/must_haves verified satisfied by code inspection.
+- Fixed 3 bugs in the pre-existing code that made every BillPreview* test fail with ParseError / RuntimeException: (a) stray `throw new \RuntimeException('DBG:…')` in `BillPreviewService::compute`, (b) malformed trailing `}erEnd) + 1; } }` causing `Unmatched ')'` parse error at line 312, (c) broken Blade tail `ion` after `@endsection` in `my.blade.php`.
+- Fixed the test environment: switched `phpunit.xml` from `sqlite :memory:` (no `pdo_sqlite` extension available) to a dedicated `devsroom_mess_management_testing` MySQL database per the PROJECT.md "MySQL only" constraint, and added the missing `APP_KEY`. This unblocked the entire suite, not just 03.3.
+- Corrected a wrong test assertion in `MyBillPreviewTest::test_member_without_mess_sees_placeholder` (was asserting "No data for this month yet" but the controller correctly returns the no-member screen for users without a Member record).
+- Verified cache invalidation hooks wired in `AppServiceProvider::boot()` for all 5 models (MealEntry, MealOffRequest, GuestMeal, Expense, Payment) on both `saved` + `deleted` events (D-15). Verified cache key `bill-preview:{mess_id}:{year}-{MM}` and 1-hour TTL via `Cache::remember($key, now()->addHour(), …)` (D-14, PREVIEW-05).
+- Tests: 03.3 suite 7/7 green (incl. the previously-failing `test_preview_computes_meal_rate`); full suite 116/116 green (was 0 runnable before the env fix); `vendor/bin/pint --test app/ tests/` clean.
+- Commits: `b4ce6ee` (bug fixes), `35b42ae` (test env), `fe931b1` (pint + test fix). Docs commit pending.
+- Resume file: `.planning/phases/03-payments-month-close/03.3-live-bill-preview-caching-SUMMARY.md`
+- Next: Plan 03.4 — Month-close job (queued, idempotent, hard-locked) + corrections + notifications.
 
 ## Open Questions for User
 
