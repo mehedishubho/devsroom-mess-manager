@@ -56,6 +56,20 @@ class BillPreviewService
         return "bill-preview:{$messId}:{$year}-".str_pad((string) $month, 2, '0', STR_PAD_LEFT);
     }
 
+    /**
+     * Forget the cached preview for a given (year, month) for the active mess.
+     * Used by month-close and corrections so the next read recomputes.
+     */
+    public function invalidate(int $year, int $month): void
+    {
+        $messId = Mess::activeId();
+        if ($messId === null) {
+            return;
+        }
+
+        Cache::forget($this->cacheKey($messId, $year, $month));
+    }
+
     private function emptyPreview(int $year, int $month): array
     {
         return [
