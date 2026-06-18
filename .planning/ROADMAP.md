@@ -184,10 +184,12 @@ Plans:
 
 **Out of scope for this phase:** v2 features (multi-mess, bKash API, PWA, Bengali).
 
-**Estimated plans:** 3
-- Plan 5.1: Mobile UX polish (review all manager screens at 375px)
-- Plan 5.2: Performance audit (N+1, caching, query optimization)
-- Plan 5.3: Documentation, deployment guide, real-mess pilot
+**Plans:** 3 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — Wave 0: mechanical audits (.env/.env.example parity, APP_TIMEZONE, Pint, __() scan) + Debugbar/Telescope require-dev with three-layer prod gating + guarded ~50-member PerfDemoSeeder (keystone for perf measurement + demo creds)
+- [ ] 05-02-PLAN.md — Wave 2: mobile UX audit at 320/375/768/1024 + meal-grid touch/density pass + 4 perf budgets measured via Debugbar/Telescope (hard gate, fix dont relax) + coverage >70% targeted gap-fill
+- [ ] 05-03-PLAN.md — Wave 3: README rewrite + AGENTS.md Domain Walkthrough + DEPLOYMENT.md prod checklist + clear 4 Phase 4 HUMAN-UAT items + run the one-mess pilot (human/manual, autonomous: false) — v1 milestone ship
 
 **UI hint:** yes (mobile polish review)
 
