@@ -210,4 +210,107 @@ The 890 KB response is a valid PDF (`%PDF-1.7` magic), opens cleanly in any PDF 
 
 **Post-verification cleanup:** `.env` `DEBUGBAR_ENABLED` reset to `false`; `php artisan config:clear`; dev server stopped.
 
+---
+
+## Task 4 — Coverage driver install (D-22 prerequisite)
+
+**The gap (confirmed by `php -m`):** PHP 8.4.15 (ZTS, x64, VS17) loaded neither pcov nor xdebug. `vendor/bin/phpunit --coverage-text` would error with "No code coverage driver available." This blocked D-22 / success #9 (coverage measurement + targeted-fill).
+
+**Approach:** Per Pitfall 3 (pcov is 2-3× faster than xdebug for coverage-only use and doesn't slow normal test runs), tried pcov FIRST. A matching DLL exists for this exact PHP build, so the xdebug fallback was NOT needed.
+
+### Driver chosen: **pcov 1.0.12**
+
+**Why pcov (not xdebug):**
+- Pitfall 3 (05-RESEARCH.md): pcov is purpose-built for line coverage only — no breakpoints, no stack instrumentation. It is 2-3× faster than xdebug for coverage-only workloads and does not slow normal test runs.
+- PHPUnit docs recommend pcov as the coverage driver.
+- Assumption A2 ("pcov DLL availability for PHP 8.4 ZTS Windows is the one uncertainty") is RESOLVED: a DLL exists for the exact dev build.
+
+**Source URL (verified download):**
+```
+https://windows.php.net/downloads/pecl/releases/pcov/1.0.12/php_pcov-1.0.12-8.4-ts-vs17-x64.zip
+```
+
+The filename encodes the PHP ABI: `8.4-ts-vs17-x64` — matches `PHP Extension Build => API20240924,TS,VS17` and `Architecture => x64` reported by `php -i`. The zip ships `php_pcov.dll` (27 KB) + `php_pcov.pdb` (debug symbols) + LICENSE + README.
+
+**Install steps:**
+1. Downloaded the zip to a scratch dir.
+2. Extracted `php_pcov.dll` to `C:\Program Files\php-8.4.15\ext\php_pcov.dll` (matches `extension_dir => ext` from `php --ini`).
+3. Edited the loaded `php.ini` (path: `C:\Program Files\php-8.4.15\php.ini` — confirmed via `php --ini` as the "Loaded Configuration File"). Appended at the end of the extensions block (after `extension=zip`, before `;zend_extension=opcache`):
+   ```ini
+   ; Phase 5 D-22 prerequisite: code coverage driver for PHPUnit --coverage-text.
+   ; pcov is purpose-built for line coverage only (faster than xdebug for this use).
+   ; Source: https://windows.php.net/downloads/pecl/releases/pcov/1.0.12/php_pcov-1.0.12-8.4-ts-vs17-x64.zip
+   [pcov]
+   extension=pcov
+   pcov.enabled=1
+   ```
+
+**Verification — driver loads for the CLI runtime (T-05-01-11 mitigate):**
+```
+$ php -m | grep -iE "pcov|xdebug"
+pcov
+
+$ php -r "echo extension_loaded('pcov') ? 'pcov loaded' : 'pcov NOT loaded';"
+pcov loaded
+
+$ php --ri pcov
+pcov
+PCOV support => Enabled
+PCOV version => 1.0.12
+pcov.directory => D:\Devsroom-Work\devsroom-mess-management\app
+pcov.exclude => none
+pcov.initial.memory => 65336 bytes
+pcov.initial.files => 64
+```
+
+### Coverage baseline (Plan 02 Task 3 measures + improves this)
+
+```
+$ vendor/bin/phpunit --coverage-text
+PHPUnit 12.5.30 by Sebastian Bergmann.
+Runtime:       PHP 8.4.15 with PCOV 1.0.12
+
+...............................................................  234 / 234 (100%)
+OK (234 tests, 562 assertions)
+
+Code Coverage Report:
+  Summary:
+  Classes: 46.96% (54/115)
+  Methods: 67.75% (250/369)
+  Lines:   85.55% (2114/2471)
+```
+
+**Baseline:** Lines **85.55%** — already well above the >70% target in D-22. Plan 02 Task 3 can use this as the starting point and add targeted tests for the cold spots (e.g. `ExpenseCategoryController` at 21.43% lines, `AuditController` at 0% methods) rather than blanket test-writing.
+
+### Pitfall 3 sanity check (slowdown)
+
+```
+$ time vendor/bin/phpunit       # without coverage (pre-pcov baseline)
+real    0m12.877s
+
+$ time vendor/bin/phpunit --coverage-text
+Time: 00:16.449, Memory: 116.00 MB
+real    ~0m16.4s
+```
+
+Slowdown: ~27% (12.9s → 16.4s) when coverage is explicitly requested. Normal test runs (`vendor/bin/phpunit` without `--coverage-*`) are unaffected — pcov only instruments when PHPUnit asks for coverage. Pitfall 3 confirmed: pcov does not slow normal runs at all.
+
+### PHASE SPLIT escalation?
+
+**NOT triggered.** pcov installed cleanly on the first try with a matching DLL. Coverage measurement works. D-22 / success #9 (Plan 02 Task 3) is now unblocked — no escape hatch, no N/A branch needed.
+
+### Acceptance criteria
+
+- `php -m` lists `pcov` ✓ (verified above)
+- `vendor/bin/phpunit --coverage-text` produces a "Code Coverage Report" section with numeric totals ✓ (Lines 85.55%)
+- The loaded `php.ini` (`C:\Program Files\php-8.4.15\php.ini`) contains `extension=pcov` ✓
+- This section records: driver choice + reason, source URL, php.ini path, php.ini line, `php -m` proof, baseline coverage % ✓
+- `time vendor/bin/phpunit` recorded for Pitfall 3 slowdown check ✓ (12.9s → 16.4s with --coverage; ~27%, well under the 5× alarm threshold)
+- PHASE SPLIT only triggers if BOTH drivers fail — pcov succeeded, so no escalation ✓
+
+### Note on php.ini (system file, not tracked)
+
+`php.ini` lives in `C:\Program Files\php-8.4.15\` (system PHP install dir), NOT in the project repo. The `files_modified: php.ini` line in `05-01-PLAN.md` frontmatter is satisfied by the audit-doc record of the change — the literal `php.ini` file is environment state, not project source (per Pitfall 11 / threat T-05-01-11 — the loaded CLI php.ini is the only one that matters, and it's the dev's machine config). The audit-doc section above is the durable record. A fresh clone on a different machine would need to repeat the install recipe documented here (download the matching DLL, drop in ext/, add `extension=pcov` to its own php.ini).
+
+
 
