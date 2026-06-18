@@ -36,7 +36,7 @@ Plan 05-01, Task 1. Closes D-18, D-19, D-20, D-21.
 
 **Final state:**
 - `grep -E "^DB_CONNECTION=mysql" .env .env.example` matches both files.
-- `php artisan migrate:fresh --seed` runs cleanly against MySQL (all 14 migrations + ExpenseCategorySeeder).
+- `php artisan migrate:fresh --seed` runs cleanly against MySQL (37 migrations across Laravel skeleton + Tyro + domain + Telescope post-Task-2 — verified via `DB::table('migrations')->count() = 37` after Task 1 alone; ExpenseCategorySeeder seeds 13 categories: 7 bazar + 6 fixed).
 - T-05-01-08 disposition `mitigate`: phpunit was already MySQL; only dev runtime changed. No test regression (verified again in Task 2's full phpunit run).
 
 ## D-19 — Pint audit
@@ -78,7 +78,7 @@ EXIT: 0
 ## Migration re-run (Task 1E, Pitfall 8 mitigation)
 
 `php artisan config:clear && php artisan migrate:fresh --seed` ran cleanly against MySQL:
-- All 14 migrations applied (`create_*_table` + 4 `add_*`/`drop_*` alterations) — 0 errors.
+- 37 migrations applied (Laravel skeleton + Sanctum + Tyro + domain `create_*_table` + 4 `add_*`/`drop_*` alterations) — 0 errors.
 - `ExpenseCategorySeeder` ran (13 categories: 7 bazar + 6 fixed).
 - `User::factory()->create(['email' => 'test@example.com'])` recreated the default login user.
 - DB is now MySQL, Asia/Dhaka timezone, ready for Task 3's PerfDemoSeeder.
