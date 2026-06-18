@@ -94,3 +94,90 @@ EXIT: 0
 - `php artisan migrate:fresh --seed` exits 0 ✓
 - `config/app.php` UNCHANGED (`git diff config/app.php` empty — fix lives in `.env`) ✓
 - `__()` scan hit count (264 raw, 0 literals) + count wrapped (0) recorded ✓
+
+---
+
+## Task 2 — Debugbar + Telescope install + three-layer prod gating (D-06)
+
+**Packages installed (require-dev ONLY — Layer 1):**
+- `barryvdh/laravel-debugbar:^4.3` — composer.json `require-dev`
+- `laravel/telescope:^5.20` — composer.json `require-dev`
+
+Verified: `composer.json` lists both under `require-dev`. A `composer install --no-dev` on prod literally cannot load them.
+
+**Post-install artifacts created:**
+- `config/telescope.php` — published
+- `config/debugbar.php` — published
+- `app/Providers/TelescopeServiceProvider.php` — published (auto-registered via `bootstrap/providers.php`)
+- `database/migrations/2026_06_18_225802_create_telescope_entries_table.php` — published + migrated
+
+**Three-layer gate (verified end-to-end):**
+
+| Layer | Where | Verified |
+|---|---|---|
+| 1. require-dev | composer.json `require-dev` | both packages listed under require-dev |
+| 2. enabled closure + .env defaults | config/telescope.php `enabled => env('TELESCOPE_ENABLED', fn () => app()->environment('local'))` + .env.example ships `TELESCOPE_ENABLED=false` + `DEBUGBAR_ENABLED=false` | `config('telescope.enabled')` resolves to false when `TELESCOPE_ENABLED=false` |
+| 3. Gate::define viewTelescope | `TelescopeServiceProvider::gate()` → `hasRole('super-admin')` | Code present in app/Providers/TelescopeServiceProvider.php |
+
+**Layer 2 config spot-checks (post-publish):**
+- `config/telescope.php` — `enabled` closure defaults to `app()->environment('local')`; `'driver' => env('TELESCOPE_DRIVER', 'database')`; `'prune' => ['hours' => 24]`.
+- `config/debugbar.php` — `'enabled' => env('DEBUGBAR_ENABLED')`; `except` array includes `'*.pdf'`, `'*.xlsx'`, `'api/*'`; `capture_ajax=true`, `ajax_handler_auto_show=false`, `ajax_handler_enable_tab=false`.
+
+**Layer 3 gate (verbatim from `app/Providers/TelescopeServiceProvider.php`):**
+```php
+protected function gate(): void
+{
+    Gate::define('viewTelescope', function (User $user) {
+        return $user->hasRole('super-admin');
+    });
+}
+```
+
+**Pitfall 1 (telescope_entries unbounded growth):** `config('telescope.prune.hours')` = 24; `routes/console.php` schedules `telescope:prune` daily, wrapped in `class_exists(Telescope::class)` so prod (no Telescope via --no-dev) doesn't error.
+
+**Pitfall 2 (Debugbar corrupts PDF/JSON):** `*.pdf` + `*.xlsx` + `api/*` in `except`; `ajax_handler_enable_tab=false` + `ajax_handler_auto_show=false` so the bar cannot be injected into AJAX JSON bodies.
+
+**Pitfall 5 (capture_ajax):** kept `capture_ajax=true` for the meal-grid AJAX timing (we want the query count + duration on save), but the handler-tab disable + auto_show=false keeps the JSON body clean.
+
+**Verify config after `php artisan config:clear`:**
+```
+config('telescope.enabled')   → false   (TELESCOPE_ENABLED=false in .env)
+config('debugbar.enabled')    → false   (DEBUGBAR_ENABLED=false in .env after verification)
+config('debugbar.except')     → contains '*.pdf', '*.xlsx', 'api/*'
+```
+
+**Telescope tables (verified present):**
+```
+$ php artisan tinker --execute="foreach (DB::select('SHOW TABLES LIKE \"telescope%\"') as \$t) { echo array_values((array)\$t)[0] . ' '; }"
+telescope_entries telescope_entries_tags telescope_monitoring
+```
+
+### T-05-01-04 mitigation — PDF exclude path enforced end-to-end (NOT aspirational)
+
+**Method:** A dedicated PHPUnit regression test (`tests/Feature/Report/PdfDebugbarExclusionTest.php`) dispatches an authenticated GET to `/mess/reports/monthly.pdf` with Debugbar **explicitly enabled** (`config(['debugbar.enabled' => true])` inside the test) and asserts:
+
+1. Response status = 200
+2. `Content-Type: application/pdf`
+3. Body starts with literal `%PDF` magic bytes
+4. Body contains no `debugbar` (case-insensitive) anywhere
+5. Body contains no `phpdebugbar` anywhere
+6. Body contains no `<script>phpdebugbar` substring
+
+**Result:**
+```
+$ vendor/bin/phpunit --filter=test_monthly_pdf_body_contains_no_debugbar_payload_when_debugbar_enabled
+.
+OK (1 test, 10 assertions)
+```
+
+The exclude rule works end-to-end. The body is a valid PDF, no Debugbar payload injected. T-05-01-04 disposition `mitigate` is satisfied AND locked as a regression test (future changes that break the exclude rule fail this test).
+
+**Full test suite (no regression):**
+```
+$ vendor/bin/phpunit
+OK (234 tests, 562 assertions)   # was 233 → 234 (added the T-05-01-04 regression test)
+Time: 00:14.6, Memory: 108.00 MB
+```
+
+**Post-verification state:** `.env` reset to `DEBUGBAR_ENABLED=false` (default dev state — flip per-session for measurement). `TELESCOPE_ENABLED=false` likewise.
+
