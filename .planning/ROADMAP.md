@@ -195,13 +195,21 @@ Plans:
 
 ### Phase 6: Backup and restore system
 
-**Goal:** [To be planned]
-**Requirements**: TBD
-**Depends on:** Phase 5
-**Plans:** 0 plans
+**Goal:** A working backup + restore capability for the single-mess VPS deployment, so that a server loss, bad migration, or accidental/corrupt month-close never loses the mess's financial history. Backs up the MySQL DB + uploaded files to off-server S3-compatible object storage on a schedule, exposes a super-admin UI for safe operations plus a guarded full restore, runs a periodic restore-test that proves backups actually restore, and ships a restore runbook in DEPLOYMENT.md.
+
+**Why this phase now:** Post-v1 hardening that protects the v1 crown jewels (`monthly_closings` + `monthly_member_summaries` + `audit_logs`) without expanding v1 scope. Phase 6 is NOT in REQUIREMENTS.md (no REQ-IDs to map); success criteria derive from CONTEXT.md decisions D-01..D-08.
+
+**Decisions covered (D-01..D-08):** D-01 spatie/laravel-backup engine; D-02 S3-compatible DO Spaces destination + retention (daily 14d + monthly 12mo); D-03 super-admin UI with guarded one-click full restore (typed-mess-name + role gate + auto maintenance mode); D-04 periodic restore-test job (scratch MySQL DB + per-table COUNT(*) assertions + health badge); D-05 nightly schedule + on-demand + post-CloseMonthJob listener + notify-on-failure; D-06 custom restore orchestration (spatie ships NO restore command); D-07 coverage = mysqldump of all tables + storage/app/public, .env excluded; D-08 mock heavy process calls in tests.
+
+**Depends on:** Phase 5 (VPS + Forge + supervisor + MySQL deploy target — DEPLOYMENT.md §3.3/§4.3)
+
+**Plans:** 4 plans in 3 waves
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 6 to break down)
+- [ ] 06-01-PLAN.md — Wave 1 foundation: composer deps (spatie/laravel-backup ^10 + flysystem-aws-s3-v3 ^3) + config/backup.php (source DB+files, destination=backups disk, retention D-02, .env excluded D-07) + DO Spaces `backups` s3 disk + mysql_restore_test connection + DUMP_BINARY_PATH wiring + .env.example keys + smoke doc (D-01, D-02, D-06, D-07)
+- [ ] 06-02-PLAN.md — Wave 2 backend restore + tests + scheduling: BackupRestoreService (custom: maintenance-mode → queue:restart → unzip → glob db-dumps/*.sql → mysql Process restore → restore files to storage/app/public → up in finally) + RestoreTestService (scratch-DB + per-table COUNT(*) assertions) + restore_tests migration/model + RestoreTestRun artisan command + nightly schedule in routes/console.php + post-CloseMonthJob after()/failed() hooks + spatie BackupHasFailed/UnhealthyBackupWasFound → NotificationService listeners + 19 tests (heavy Process/Artisan mocked) (D-04, D-05, D-06, D-08)
+- [ ] 06-03-PLAN.md — Wave 3 super-admin UI: custom BackupController + RestoreController + RestoreRequest (typed-mess-name confirm against Mess::active()->name) + Blade views (index/restore/_health_badge/_restore_form) under role:super-admin + sidebar link + throttle:5,1 on restore POST + audit-log rows (event='backup.restore' + 'backup.download') + 14 tests (auth gating, typed-confirm, download-audit, maintenance-mode) (D-03, D-08)
+- [ ] 06-04-PLAN.md — Wave 3 docs/runbook: DEPLOYMENT.md §11 "Backup & restore runbook" (what/where/schedule/UI restore/CLI fallback/DO Spaces setup/SMTP for failure emails/optional host snapshot/troubleshooting) + §5 prod .env checklist extended with 11 Phase 6 keys + .env.example documentation pass (D-02, D-03, D-05, D-07)
 
 ---
 
