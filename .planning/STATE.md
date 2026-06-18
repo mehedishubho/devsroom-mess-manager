@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 06
-current_plan: 2
+current_plan: 3
 status: Executing Phase 06
 last_updated: "2026-06-19T00:00:00.000Z"
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 20
-  completed_plans: 19
-  percent: 95
+  completed_plans: 20
+  percent: 100
 ---
 
 # Project State
@@ -309,6 +309,21 @@ None.
 - Decisions implemented this plan: D-04 (restore-test scratch-DB + COUNT parity), D-05 (nightly schedule + post-close hook + spatie failure wiring), D-06 (custom restore orchestration), D-08 (mocked heavy processes).
 - Resume file: `.planning/phases/06-backup-and-restore-system/06-02-backend-restore-tests-SUMMARY.md`
 - Next: Plan 06-03 (Wave 2) — super-admin controller + Blade view under `role:super-admin` that surfaces this service layer (list backups, download, run-now, restore-test health badge, guarded full-restore form with typed mess-name confirm). Plan 06-03 must NOT contain any restore logic — the service layer is complete.
+
+**2026-06-19** — Phase 6 Plan 06.03: Super-admin Backups UI (controllers + Blade + tests) — COMPLETE.
+
+- Plan 06-03 = the super-admin-facing surface for the backup/restore system. NO restore logic in the controllers — they orchestrate `BackupRestoreService` (Plan 06-02) and write tamper-evident manual `Audit` rows.
+- **Task 1** (`bb33a21`): `BackupController` (research Pattern 3 — custom controller, NOT a Tyro dynamic resource) with `index()` (lists zips from `Storage::disk(config('backup.backup.destination.disks.0', 'backups'))` + reads the latest `RestoreTest` for the health badge), `runNow()` (`backup:run`), `runRestoreTest()` (`backup:restore-test`), `download()` (audit-logged via private `writeAudit` helper writing a manual OwenIt Audit row keyed by `event='backup.download'`), and a public static `activeMessName()` helper. `RestoreController` (mirrors `MonthCloseController`): `show()` renders the typed-confirm form, `store()` runs the service in try/catch — success writes `event='backup.restore'`, failure writes `event='backup.restore.failed'` (T-06-03-07), exception never escapes. `RestoreRequest`: `path` required + `mess_name in:<active mess name>` (D-03 typed-confirm; degrades to unmatchable sentinel when no active mess). `/dashboard/backups` route group (6 named routes) with `role:super-admin` + `throttle:5,1` on the restore POST. `errors/maintenance-backup-restore.blade.php` for the down-mode render.
+- **Task 2** (`4570d0d`): 4 Blade views (`index` = list table + Backup-now + Run-restore-test buttons + `_health_badge` partial; `restore` = typed-confirm form; `_restore_form` = @csrf + path hidden + mess_name input + __()-wrapped error messages; `_health_badge` = status color map reading RestoreTest.status). APPENDED a role:super-admin-guarded Backups link to the published `admin-sidebar.blade.php` override using `routeIs('dashboard.backups.*')`. `view:cache` succeeds.
+- **Task 3** (`4ac5642`, TDD RED→GREEN): 14 new tests — 6 `BackupControllerAuthTest` (super-admin 200 / admin 403 / user 403 / guest redirect / restore-test POST dispatches `backup:restore-test` via Artisan::swap spy / admin run 403) + 5 `RestoreConfirmationTest` (show typed-confirm / refuse without mess_name / refuse with wrong mess_name / correct mess_name runs service + writes `backup.restore` audit + redirects / service-throw writes `backup.restore.failed` + no escape) + 3 `BackupDownloadAccessLogTest` (download streams + `backup.download` audit / 404 missing / admin 403).
+- **Deviations [Rule 1/3]**: (1) Used `config('backup.backup.destination.disks.0', 'backups')` (NOT `config('backup.destination.disks.0')`) — spatie v10 nests under top-level `backup` key; matches the key Plan 06-02's `BackupRestoreService` already uses. (2) Used `Mess::find(Mess::activeId())?->name` (NOT `Mess::active()?->name`) — Mess has no `active()` accessor, only `activeId()`; typed-confirm target still the active mess `name` (Open Q #3 LOCKED). (3) Blade views extend `layouts.app` (NOT `tyro-dashboard::layouts.admin`) — every other project custom-admin page does the same; emerald palette + min-h-[44px] touch targets. (4) `BackupControllerAuthTest` fakes the `backups` disk in setUp so the s3 adapter doesn't crash on null `DO_SPACES_BUCKET`. (5) Test 12 asserts 200 + Content-Disposition + the audit row (NOT streamed bytes — Laravel's testing client doesn't execute the streamDownload closure).
+- **D-08 enforcement**: BackupRestoreService is a Mockery mock bound via `$this->app->instance()`; `backup:run` + `backup:restore-test` via `Artisan::swap($spy)` (Laravel 13 has no `Artisan::fake()` — confirmed in 06-02); `Storage::fake('backups')` for download + index tests; `withoutMiddleware(ThrottleRequests::class)` per-test so the restore POST validation tests don't rate-limit (production still enforces throttle:5,1).
+- **Threat mitigations verified by test**: T-06-03-01 (role gate) by 5 auth tests; T-06-03-02 (typed confirm) by 2 RestoreConfirmation tests; T-06-03-05 (PII-leak download audit) by 3 DownloadAudit tests; T-06-03-06 (path traversal 404) by the missing-path test; T-06-03-07 (audit trail on success AND failure) by 2 restore tests. T-06-03-08 (maintenance-mode flip) is owned by Plan 06-02's BackupRestoreService (verified there); T-06-03-09 (sidebar link visible to non-super-admins) is structural — `@if(auth()->user()?->hasRole('super-admin') && Route::has(...))`.
+- Tests: 264 → 278 passed (+14 new); `vendor/bin/pint --test` clean.
+- Commits this plan: `bb33a21` (Task 1 controllers + form request + routes + maintenance view), `4570d0d` (Task 2 Blade views + sidebar), `4ac5642` (Task 3 tests).
+- Decisions implemented this plan: D-03 (super-admin guarded one-click full-restore UI with typed-mess-name confirm + role gate + audit-log), D-08b/c (UI auth gating + restore confirmation flow tested with mocked heavy processes).
+- Resume file: `.planning/phases/06-backup-and-restore-system/06-03-super-admin-ui-SUMMARY.md`
+- Next: Plan 06-04 (Wave 3) — restore runbook in `DEPLOYMENT.md` (DR steps, maintenance-mode restore, `APP_KEY`/credential regeneration, DO Spaces provisioning).
 
 ## Open Questions for User
 
