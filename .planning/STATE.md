@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 05
+current_phase: 06
 current_plan: 1
-status: Ready to execute
-last_updated: "2026-06-18T21:06:22.126Z"
+status: Executing Phase 06
+last_updated: "2026-06-18T21:16:06.146Z"
 progress:
   total_phases: 6
   completed_phases: 3
@@ -18,7 +18,7 @@ progress:
 
 **Initialized:** 2026-06-16
 **Project:** Devsroom Mess Management
-**Current Phase:** 05
+**Current Phase:** 06
 **Current Plan:** 1
 
 ## Project Reference
@@ -27,7 +27,7 @@ See: `.planning/PROJECT.md` (updated 2026-06-16)
 
 **Core value:** A mess manager can run a full month end-to-end on a phone — enter meals, log bazar, take payments, close the month, and produce a correct member bill — without spreadsheets and without arguing about who owes what.
 
-**Current focus:** Phase 05 — polish-pilot
+**Current focus:** Phase 06 — backup-and-restore-system
 
 ## Phase Status
 
@@ -281,6 +281,20 @@ None.
 - Scope: Phase 6 is a **post-v1 hardening phase**, NOT in `REQUIREMENTS.md` (no REQ-xxx to map; success criteria defined in planning). Builds on Phase 5's locked VPS + Forge + supervisor + MySQL deploy target.
 - Resume file: `.planning/phases/06-backup-and-restore-system/06-CONTEXT.md`
 - Next: `/gsd-plan-phase 6` to break Phase 6 into executable PLAN.md files (or finish Phase 5 Plan 05-03 pilot first — Phase 6 depends on Phase 5).
+
+**2026-06-19** — Phase 6 Plan 06.01: Backup foundation (config + DO Spaces disk + DUMP_BINARY_PATH + smoke doc) — COMPLETE.
+
+- Plan 06-01 = engine + plumbing only. No restore code (D-06 — spatie is backup-only by design); restore + restore-test + UI land in Plans 06-02/03/04.
+- **Task 1**: `composer require spatie/laravel-backup:^10.0 league/flysystem-aws-s3-v3:^3.0` resolved cleanly to spatie **10.3.0** + flysystem-aws-s3-v3 3.x — research Assumption A1 held, no v9 fallback needed. Published + authored `config/backup.php`: `source.files.include=[storage/app/public)]`, `exclude` lists `base_path('.env')` (D-07), `follow_links=false` (Pitfall 4), `destination.disks=[env('BACKUP_DISK','backups')]`, retention keep_daily=14/keep_monthly=12 (D-02), 5000 MB growth guard (T-06-01-04), AES-256 zip encryption optional via `BACKUP_ARCHIVE_PASSWORD`. Verified via tinker: `config('backup.backup.destination.disks')=["backups"]`, `keep_monthly_backups_for_months=12`.
+- **Task 2**: Added dedicated `backups` s3 disk (DO Spaces — 5 `DO_SPACES_*` env keys, `throw=true`, separate from the general-purpose `s3` disk); `dump` block inside `mysql` connection (`DUMP_BINARY_PATH`, `use_single_transaction=true`, `--quick --single-transaction` — Pitfall 2); NEW `mysql_restore_test` connection byte-identical to `mysql` except database name (for Plan 06-02 RestoreTestService). `.env.example` + dev `.env` synced with Phase 6 blocks (empty dev values — no real DO secrets). `DB::connection()->getPdo()` = OK via tinker.
+- **Task 3**: Wrote `.planning/phases/06-backup-and-restore-system/06-01-SMOKE.md` (~135 lines): what shipped, prod validation steps, first-real-backup runbook, Windows-dev incompat note (spatie v10 docs verbatim), DO Spaces provisioning checklist, Plan 06-02 hand-off, known deviations.
+- **Deviations [Rule 1 — Bug]**: (1) spatie v10 renamed several config keys vs the plan's v9-based research — `relative_root`→`relative_path`, `zip.encryption_password/method`→flat `password`+`encryption` (string enum), `database_dump_filename_base` requires `'database'`/`'connection'` enum (NOT `'db'`). Rewrote `config/backup.php` to mirror v10's published structure. (2) `notifications.mail.to` empty-string-vs-null quirk — Laravel's `env()` returns `''` for `KEY=` (not null), short-circuiting the default; spatie v10 strictly validates emails at config-load. Wrapped the notifications block in a runtime closure that coerces empty→null. Verified via tinker: `backup.notifications.mail.to=hello@example.com`.
+- **Out-of-scope [logged to deferred-items.md]**: `php artisan config:cache` is pre-existing-broken (tyro-login's `redirects.after_login` Closure is non-serializable). Reproduced on a clean `git stash` of commit `c6dcc9c` (before this plan). Not introduced by 06-01; dev workflow uses `config:clear` per Plan 05-01 convention.
+- Tests: 243 passed / 576 assertions (NO regression — spatie auto-discovery clean); `vendor/bin/pint --test config/` clean.
+- Commits this plan: `ed76c31` (Task 1 — composer deps + config/backup.php), `0695661` (Task 2 — backups disk + mysql_restore_test + DUMP_BINARY_PATH + .env.example + v10 mail fallback fix), `c039eab` (Task 3 — smoke doc).
+- Decisions implemented this plan: D-01 (spatie engine), D-02 (DO Spaces + 14d/12mo retention), D-06 (restore deferred to Plan 06-02), D-07 (.env excluded). D-03/D-04/D-05 land in 06-02/03/04.
+- Resume file: `.planning/phases/06-backup-and-restore-system/06-01-foundation-SUMMARY.md`
+- Next: Plan 06-02 (Wave 2) — `BackupRestoreService` + `RestoreTestService` + `backup:restore-test` command + `routes/console.php` schedule + post-`CloseMonthJob` listener + tests (mocked heavy processes per D-08).
 
 ## Open Questions for User
 
