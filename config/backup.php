@@ -177,51 +177,67 @@ return [
      * You can get notified when specific events occur. Out of the box you can use 'mail'.
      *
      * D-05: notify super-admin on backup failure / unhealthy state.
+     *
+     * Note: env() returns '' (empty string, not null) when the .env line is `KEY=` with no
+     * value, which would short-circuit the default. We use env_nullable() to coerce empty
+     * strings to null so the MAIL_FROM_ADDRESS fallback engages when the operator leaves
+     * BACKUP_NOTIFICATION_EMAIL blank.
      */
-    'notifications' => [
-        'notifications' => [
-            BackupHasFailedNotification::class => ['mail'],
-            UnhealthyBackupWasFoundNotification::class => ['mail'],
-            CleanupHasFailedNotification::class => ['mail'],
-            HealthyBackupWasFoundNotification::class => ['mail'],
-            BackupWasSuccessfulNotification::class => ['mail'],
-            CleanupWasSuccessfulNotification::class => ['mail'],
-        ],
+    'notifications' => (function () {
+        $notificationEmail = env('BACKUP_NOTIFICATION_EMAIL');
+        $fromAddress = env('MAIL_FROM_ADDRESS');
+        $toEmail = ($notificationEmail !== '' && $notificationEmail !== null)
+            ? $notificationEmail
+            : ($fromAddress !== '' && $fromAddress !== null
+                ? $fromAddress
+                : 'backups@example.com');
+        $senderAddress = ($fromAddress !== '' && $fromAddress !== null)
+            ? $fromAddress
+            : 'backups@example.com';
+        $senderName = env('MAIL_FROM_NAME');
+        $senderName = ($senderName !== '' && $senderName !== null)
+            ? $senderName
+            : (env('APP_NAME', 'devsroom-mess'));
 
-        /*
-         * This class will be used to send all notifications.
-         */
-        'notifiable' => Notifiable::class,
-
-        'mail' => [
-            'to' => env('BACKUP_NOTIFICATION_EMAIL', env('MAIL_FROM_ADDRESS', 'backups@example.com')),
-
-            'from' => [
-                'address' => env('MAIL_FROM_ADDRESS', 'backups@example.com'),
-                'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'devsroom-mess')),
+        return [
+            'notifications' => [
+                BackupHasFailedNotification::class => ['mail'],
+                UnhealthyBackupWasFoundNotification::class => ['mail'],
+                CleanupHasFailedNotification::class => ['mail'],
+                HealthyBackupWasFoundNotification::class => ['mail'],
+                BackupWasSuccessfulNotification::class => ['mail'],
+                CleanupWasSuccessfulNotification::class => ['mail'],
             ],
-        ],
 
-        'slack' => [
-            'webhook_url' => '',
-            'channel' => null,
-            'username' => null,
-            'icon' => null,
-        ],
+            'notifiable' => Notifiable::class,
 
-        'discord' => [
-            'webhook_url' => '',
-            'username' => '',
-            'avatar_url' => '',
-        ],
+            'mail' => [
+                'to' => $toEmail,
 
-        /*
-         * A generic webhook channel that POSTs JSON to a URL.
-         */
-        'webhook' => [
-            'url' => '',
-        ],
-    ],
+                'from' => [
+                    'address' => $senderAddress,
+                    'name' => $senderName,
+                ],
+            ],
+
+            'slack' => [
+                'webhook_url' => '',
+                'channel' => null,
+                'username' => null,
+                'icon' => null,
+            ],
+
+            'discord' => [
+                'webhook_url' => '',
+                'username' => '',
+                'avatar_url' => '',
+            ],
+
+            'webhook' => [
+                'url' => '',
+            ],
+        ];
+    })(),
 
     /*
      * The log channel used for backup activity messages.

@@ -62,6 +62,39 @@ return [
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 (PHP_VERSION_ID >= 80500 ? Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
+
+            // D-06 + Pitfall 2: spatie/db-dumper mysqldump wiring.
+            // dump_binary_path is a DIRECTORY (not the executable). Prod Linux default = /usr/bin
+            // (installed via `apt install mysql-server` per DEPLOYMENT.md §2). Dev Windows must point
+            // at the MySQL Server bin dir (e.g. "C:\Program Files\MySQL\MySQL Server 8.0\bin").
+            'dump' => [
+                'dump_binary_path' => env('DUMP_BINARY_PATH', '/usr/bin'),
+                'use_single_transaction' => true,
+                'add_extra_option' => '--quick --single-transaction',
+            ],
+        ],
+
+        // D-04: scratch DB connection used by RestoreTestService (Plan 06-02) to load a
+        // backup dump and assert per-table COUNT(*) parity against the live mysql connection.
+        // Byte-identical to the mysql block above EXCEPT for the database name.
+        'mysql_restore_test' => [
+            'driver' => 'mysql',
+            'url' => env('DB_URL'),
+            'host' => env('DB_HOST', '127.0.0.1'),
+            'port' => env('DB_PORT', '3306'),
+            'database' => env('DB_RESTORE_TEST_DATABASE', 'devsroom_mess_restore_test'),
+            'username' => env('DB_USERNAME', 'root'),
+            'password' => env('DB_PASSWORD', ''),
+            'unix_socket' => env('DB_SOCKET', ''),
+            'charset' => env('DB_CHARSET', 'utf8mb4'),
+            'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                (PHP_VERSION_ID >= 80500 ? Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
         ],
 
         'mariadb' => [

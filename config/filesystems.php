@@ -60,6 +60,21 @@ return [
             'report' => false,
         ],
 
+        // D-02: dedicated backup destination = DigitalOcean Spaces (S3-compatible).
+        // Separate from the general-purpose `s3` disk so the spatie default is untouched.
+        // Pitfall 5: DO_SPACES_REGION MUST match the DO_SPACES_ENDPOINT subdomain (nyc3 + https://nyc3.digitaloceanspaces.com).
+        'backups' => [
+            'driver' => 's3',
+            'key' => env('DO_SPACES_KEY'),
+            'secret' => env('DO_SPACES_SECRET'),
+            'region' => env('DO_SPACES_REGION', 'nyc3'),
+            'bucket' => env('DO_SPACES_BUCKET'),
+            'endpoint' => env('DO_SPACES_ENDPOINT', 'https://nyc3.digitaloceanspaces.com'),
+            'use_path_style_endpoint' => env('DO_SPACES_USE_PATH_STYLE_ENDPOINT', false),
+            // Surface upload errors instead of silently swallowing them.
+            'throw' => true,
+        ],
+
     ],
 
     /*
