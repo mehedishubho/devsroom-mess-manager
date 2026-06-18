@@ -5,7 +5,7 @@ milestone_name: milestone
 current_phase: 05
 current_plan: 2
 status: Executing Phase 05 (Plans 01 + 02 complete; Plan 03 next)
-last_updated: "2026-06-18T19:05:00.000Z"
+last_updated: "2026-06-19T01:30:00.000Z"
 progress:
   total_phases: 5
   completed_phases: 3
@@ -272,6 +272,15 @@ None.
 - Decisions validated this plan: D-06 (Debugbar+Telescope require-dev three-layer gate), D-07 (PerfDemoSeeder 50 members <3s deterministic), D-18 (dev .env sqlite→MySQL), D-19 (Pint clean), D-20 (__() scan clean), D-21 (Asia/Dhaka everywhere via .env), D-22 PREREQUISITE (pcov loaded, baseline 85.55% lines).
 - Resume file: `.planning/phases/05-polish-pilot/05-01-mechanical-tooling-seeder-SUMMARY.md`
 - Next: Plan 05.02 — performance audit (Debugbar measurement against the 4 budgets: grid <100ms, dashboard <500ms, close <30s, cache hit >80%) + coverage measurement + targeted fill against the 85.55% baseline. The seeder + Debugbar/Telescope + pcov all landed here, so Plan 02 has no escape hatch.
+
+**2026-06-19** — Phase 6: context gathered (backup & restore). Note: gathered AHEAD of Phase 5 completion (Phase 5 Plan 05-03 pilot still pending); current_phase stays 05.
+
+- `06-CONTEXT.md` written (8 locked decisions D-01..D-08 across 5 areas: backup engine & mechanism, destination & retention, restore surface & validation, schedule/triggers/failure handling, test strategy) + `06-DISCUSSION-LOG.md` (full audit trail of 4 discussion areas + 2 follow-ups).
+- Key decisions: `spatie/laravel-backup` as the engine (mysqldump + files zip, scheduled, off-site push, cleanup, failure notification); destination = S3-compatible object storage (DigitalOcean Spaces default), DB + uploaded files, daily 14d + monthly 12mo retention; **super-admin dashboard UI with a guarded one-click FULL RESTORE** (type-the-mess-name + role gate + auto maintenance mode — user chose option A over the recommended "restore stays CLI"); **periodic restore-test job** (scratch MySQL DB, row-count assertions, health badge — user explicitly kept this); schedule = nightly via existing Laravel scheduler + on-demand + post-`CloseMonthJob` listener + notify-on-failure.
+- ⚠️ Critical planner note (D-06): `spatie/laravel-backup` ships NO restore command — the guarded full-restore UI + restore-test are bespoke application code (unzip + `mysql` import + file copy), not spatie features.
+- Scope: Phase 6 is a **post-v1 hardening phase**, NOT in `REQUIREMENTS.md` (no REQ-xxx to map; success criteria defined in planning). Builds on Phase 5's locked VPS + Forge + supervisor + MySQL deploy target.
+- Resume file: `.planning/phases/06-backup-and-restore-system/06-CONTEXT.md`
+- Next: `/gsd-plan-phase 6` to break Phase 6 into executable PLAN.md files (or finish Phase 5 Plan 05-03 pilot first — Phase 6 depends on Phase 5).
 
 ## Open Questions for User
 
