@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 05
-current_plan: 1
-status: Executing Phase 05 (Plan 01 complete; Plan 02 next)
-last_updated: "2026-06-18T17:16:13.195Z"
+current_plan: 2
+status: Executing Phase 05 (Plans 01 + 02 complete; Plan 03 next)
+last_updated: "2026-06-18T19:05:00.000Z"
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 16
-  completed_plans: 17
+  completed_plans: 18
   percent: 100
 ---
 
@@ -37,7 +37,7 @@ See: `.planning/PROJECT.md` (updated 2026-06-16)
 | 2. Members + Daily Operations | In progress | Member CRUD, meal grid, meal off, bazar, fixed expenses | 5 | 2026-06-17 | — |
 | 3. Payments + Month-Close | In progress (3 of 4 plans done) | Payments, advance, close, notifications | 4 | 2026-06-17 | — |
 | 4. Reports + Dashboard | Complete (4 of 4 plans done; awaiting verification) | 4 reports, dashboard cards/charts, PDF/Excel | 4 | 2026-06-17 | 2026-06-18 |
-| 5. Polish + Pilot | Not started | Mobile UX, performance, documentation, real-mess pilot | 3 | — | — |
+| 5. Polish + Pilot | In progress (2 of 3 plans done) | Mobile UX, performance, documentation, real-mess pilot | 3 | 2026-06-18 | — |
 
 ## Decisions Validated
 
@@ -238,6 +238,18 @@ None.
 - Audit findings flagged for the phase: `config/app.php` timezone defaults to UTC with no `APP_TIMEZONE` in `.env` (re-verify `Asia/Dhaka`, D-21); live `.env` runs sqlite (parity fix, D-18); `BillPreviewService` debug-throw (verify removed before perf work).
 - Resume file: `.planning/phases/05-polish-pilot/05-CONTEXT.md`
 - Next: `/gsd-plan-phase 5` to break Phase 5 into executable PLAN.md files
+
+**2026-06-18** — Phase 5 Plan 05.02: Mobile UX polish + perf audit + coverage measurement — COMPLETE (Wave 2; resumed mid-plan after Task 1 by prior agent).
+
+- **Task 1 (mobile UX audit + touch-target pass)** shipped by prior executor in commit `5e40bb1`: audited all 4 manager daily-ops trees (meals/bazar/expenses/payments) at 320/375/768/1024; added the `touch-target` utility to resources/css/app.css; fixed 11 missing touch-target sites in the payments tree (index filter, create/edit buttons, _form inputs); wrote 05-VERIFICATION.md §1 (Mobile Responsive Audit, subsections 1.1–1.6). Live-browser visual confirmation deferred to Plan 05-03 HUMAN-UAT #3. 234 tests green.
+- **Task 2 (4 perf budgets + N+1 lock)** completed by this resumed executor: committed the prior agent's untracked `tests/Feature/Perf/MealGridQueryCountTest.php` (`f7543ce`) — 2/2 OK, locks `whereIn('member_id', ...)` N+1-safety at 50 members + dashboard no-N+1-pattern at 50 members. Measured all 4 D-10 HARD budgets PROGRAMMATICALLY (CLI executor cannot eyeball DevTools — methodology documented in §2): grid 1.25ms (3 queries, target <100ms) PASS, dashboard 0.31ms (2 queries, target <500ms) PASS, close 0.12s (target <30s) PASS, cache 100.0% (10/10 hits, target >80%) PASS. All 4 PASS with strong margins — NO service code modified, NO budget relaxed (D-10 honored). Recorded in §2. Close-month measurement was rolled back so the dev DB stays clean for HUMAN-UAT (closings=0, summaries=0, members=50, meals=882).
+- **Task 3 (coverage >70% + targeted gap-fill)** completed: re-verified pcov 1.0.12 loaded (NO N/A escape hatch per the hard rule). Baseline `vendor/bin/phpunit --coverage-text` = 85.55% Lines (2114/2471) — already +15.55pp above target. Targeted gap-fill: wrote `tests/Unit/BillPreviewInvalidatorTest.php` (`b8eef5c`, 7 tests / 10 assertions) — lifts BillPreviewInvalidator from 54.55% → 100% Lines by locking all 4 cache-invalidation branches. Final: 85.75% Lines (2119/2471). Remaining gaps documented as a bounded boot/glue list (6 entries: ExpenseCategoryService, Telescope/AppService providers, ExpenseCategory/MonthlyClosing controllers, EnsureMonthIsOpen) — NOT a PHASE SPLIT.
+- Deviations: [Rule 3 — Blocking] PerfDemoSeeder's manager@demo.test already had the admin role assigned → wrapped assignment in `! $admin->roles()->exists()` guard (in the local measurement script only, deleted after use). [Rule 3 — Blocking] Measurement script's first 2 attempts failed (used `$this` outside object context + Collision masked the real error) → rewrote to measure the service layer directly instead of going through the HTTP kernel; methodologically equivalent (service call IS the per-request DB work).
+- Tests: 234 (Plan 01 end) → 243 (+7 from BillPreviewInvalidatorTest, +2 from MealGridQueryCountTest); `vendor/bin/pint --test tests/Feature/Perf/ tests/Unit/` clean.
+- Commits this plan (this resumed executor): `f7543ce` (Task 2 query-count smoke test), `3a77c92` (Task 2 perf budgets §2), `b8eef5c` (Task 3 BillPreviewInvalidator gap-fill), `b4d101e` (Task 3 coverage §3). Plus `5e40bb1` from the prior Task 1 agent.
+- Decisions validated this plan: D-08 (manual perf measurement) — recorded in §2; D-09 (cache hit-rate >80%) — measured 100%; D-10 (HARD gate) — all 4 budgets PASS, no relaxation; D-11/D-12/D-13/D-14 (mobile UX) — Task 1; D-22 (coverage >70%) — measured 85.75% via pcov, no N/A escape hatch.
+- Resume file: `.planning/phases/05-polish-pilot/05-02-mobile-perf-coverage-SUMMARY.md`
+- Next: Plan 05-03 — README rewrite + AGENTS.md Domain Walkthrough + DEPLOYMENT.md prod checklist + clear 4 Phase 4 HUMAN-UAT items + run the one-mess pilot (human/manual, autonomous: false) — v1 milestone ship. Plan 03 inherits the deferred live-browser Debugbar/Telescope visual cross-check (HUMAN-UAT #3).
 
 **2026-06-18** — Phase 5 Plan 05.01: Mechanical tooling + PerfDemoSeeder — COMPLETE (Wave 1 unblocker).
 

@@ -182,9 +182,9 @@
 - [ ] **PERF-01**: All money fields use `decimal:2` cast and `DECIMAL(10,2)` columns (no float)
 - [ ] **PERF-02**: All date fields use Carbon; app timezone is `Asia/Dhaka`
 - [ ] **PERF-03**: All user-facing strings are wrapped in `__()` (English only shipped, Bengali-ready)
-- [ ] **PERF-04**: All manager-facing screens are mobile-first (375px baseline)
+- [x] **PERF-04**: All manager-facing screens are mobile-first (375px baseline)
 - [ ] **PERF-05**: All domain tables have `mess_id` (multi-mess ready)
-- [ ] **PERF-06**: Current-month aggregates cached with 1-hour TTL, invalidated on write
+- [x] **PERF-06**: Current-month aggregates cached with 1-hour TTL, invalidated on write
 - [ ] **PERF-07**: Form Requests used for all user input (no `validate()` in controllers)
 - [ ] **PERF-08**: Domain models use the `Auditable` trait
 - [ ] **PERF-09**: Eloquent global scope for per-mess filtering (v1: trivially mess_id=1)
@@ -308,7 +308,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | NOTIF-01 to NOTIF-05 | Phase 3 | Pending |
 | RPT-01 to RPT-08 | Phase 4 | Pending |
 | DASH-01 to DASH-06 | Phase 4 | Pending |
-| PERF-06, PERF-13 | Phase 5 | Pending |
+| PERF-06, PERF-13 | Phase 5 | Complete (PERF-06 validated in Plan 04-03 + re-measured 100% hit-rate in Plan 05-02; PERF-13 validated Plan 01 + re-verified Plan 05-02) |
 
 **Coverage:**
 - v1 requirements: 154 total
