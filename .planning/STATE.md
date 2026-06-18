@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 06
-current_plan: 1
+current_plan: 2
 status: Executing Phase 06
-last_updated: "2026-06-18T21:16:06.146Z"
+last_updated: "2026-06-19T00:00:00.000Z"
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 20
-  completed_plans: 18
-  percent: 90
+  completed_plans: 19
+  percent: 95
 ---
 
 # Project State
@@ -295,6 +295,20 @@ None.
 - Decisions implemented this plan: D-01 (spatie engine), D-02 (DO Spaces + 14d/12mo retention), D-06 (restore deferred to Plan 06-02), D-07 (.env excluded). D-03/D-04/D-05 land in 06-02/03/04.
 - Resume file: `.planning/phases/06-backup-and-restore-system/06-01-foundation-SUMMARY.md`
 - Next: Plan 06-02 (Wave 2) — `BackupRestoreService` + `RestoreTestService` + `backup:restore-test` command + `routes/console.php` schedule + post-`CloseMonthJob` listener + tests (mocked heavy processes per D-08).
+
+**2026-06-19** — Phase 6 Plan 06.02: Backend restore services + restore-test + schedule + listeners — COMPLETE.
+
+- Plan 06-02 = the bespoke backend for Phase 6. No UI in this plan (Plan 06-03 owns the controller + Blade view); this plan ships the service layer + listeners + schedule that 06-03 surfaces.
+- **Task 1** (TDD RED→GREEN): `BackupPathResolver` (Finder-based recursive `db-dumps/*.sql` locator — **deviation: switched from PHP `glob()` because it does NOT walk `**` recursively**), `BackupRestoreService` (down → queue:restart → try { downloadAndExtract, locateSqlDump, restoreDatabase, restoreFiles, verifyRestore } → finally { up + cleanup }; restoreDatabase uses Symfony Process ARRAY args per Pattern 4a; restoreFiles copies into `storage_path('app/public')` NEVER `public_path('storage')` per Pitfall 4; public `buildMysqlProcess()` test seam), `RestoreTestService` (per-table COUNT(*) on mysql vs `mysql_restore_test` against 17 hard-coded domain tables — NO `information_schema` InnoDB estimate), `restore_tests` migration (NO mess_id — cross-mess infrastructure) + model + factory. 14 tests GREEN.
+- **Task 2** (TDD RED→GREEN): `CloseMonthJob::after()` + `failed()` hooks (research Pattern 6a — no listener file is created; `after()` calls `Artisan::call('backup:run', ['--only-db' => true])` in try/catch so a backup failure NEVER breaks the close path — T-06-02-07), `NotifyOnBackupFailure` listener (`BackupHasFailed|UnhealthyBackupWasFound` → `NotificationService::broadcastToManagers(NotificationType::BACKUP_FAILED, [...])`; **deviation: spatie v10 events have `$diskName` as a string, NOT a `BackupDestination` object as research Pattern 7 assumed**), `NotificationType::BACKUP_FAILED` constant added, `AppServiceProvider::registerBackupFailureListeners()` (class_exists-guarded Event::listen wiring), `RestoreTestRun` artisan command (`backup:restore-test`), `routes/console.php` appended with `backup:clean` (01:00) + `backup:run` (01:30, withoutOverlapping) + `backup:monitor` (02:00) + `backup:restore-test` (03:00, withoutOverlapping), all onOneServer. 7 tests GREEN.
+- **Deviations [Rule 1/3]**: (1) BackupPathResolver switched glob()→Finder (PHP `glob()` doesn't walk `**`); (2) spatie v10 event signatures differ from research Pattern 7 (flat `$diskName` string, no BackupDestination object); (3) `Artisan::fake()` does not exist in Laravel 13 → replaced with `Artisan::swap($mockerySpy)` that bypasses the facade's `resolvedInstance` cache; (4) spatie's own `EventHandler` mail path crashes in tests (needs the unconfigured `backups` s3 disk) → silenced via `EventHandler::disable()` / `enable()` toggle; (5) added `locateSqlDump()` protected seam on BOTH services so the suite can bypass the resolver via `shouldReceive('locateSqlDump')`.
+- **D-08 enforcement**: every Process + Artisan::call + DB::connection('mysql_restore_test') call is mocked via Mockery partial mocks + `shouldAllowMockingProtectedMethods()` + protected seams. Full suite runs in ~18s with NO real subprocess.
+- **Threat mitigations verified by test**: T-06-02-01 (down-first + always-up finally) by `test_up_is_called_in_finally_even_on_exception`; T-06-02-03 (Pitfall 4 symlink) by `test_restore_files_writes_into_storage_app_public_never_public_storage`; T-06-02-04 (path resolver multi-match) by `test_locate_sql_dump_throws_when_*_present`; T-06-02-07 (close-path isolation) by `test_after_hook_does_not_propagate_backup_failures`. T-06-02-08 (audit trail) is deferred to Plan 06-03 (the controller writes the audit row, not the service).
+- Tests: 243 → 264 passed (+21 new: 14 Task 1 + 7 Task 2; +1 NotificationType::ALL assertion updated); `vendor/bin/pint --test` clean.
+- Commits this plan: `8f5f897` (RED Task 1), `602cc1b` (GREEN Task 1), `31f4a02` (RED Task 2), `ab6dd3b` (GREEN Task 2).
+- Decisions implemented this plan: D-04 (restore-test scratch-DB + COUNT parity), D-05 (nightly schedule + post-close hook + spatie failure wiring), D-06 (custom restore orchestration), D-08 (mocked heavy processes).
+- Resume file: `.planning/phases/06-backup-and-restore-system/06-02-backend-restore-tests-SUMMARY.md`
+- Next: Plan 06-03 (Wave 2) — super-admin controller + Blade view under `role:super-admin` that surfaces this service layer (list backups, download, run-now, restore-test health badge, guarded full-restore form with typed mess-name confirm). Plan 06-03 must NOT contain any restore logic — the service layer is complete.
 
 ## Open Questions for User
 
