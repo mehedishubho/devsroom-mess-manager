@@ -181,3 +181,33 @@ Time: 00:14.6, Memory: 108.00 MB
 
 **Post-verification state:** `.env` reset to `DEBUGBAR_ENABLED=false` (default dev state — flip per-session for measurement). `TELESCOPE_ENABLED=false` likewise.
 
+### T-05-01-04 — Manual end-to-end verification (in addition to the PHPUnit regression test)
+
+Beyond the regression test above, the Task 2H manual recipe from the plan was executed end-to-end against a live `php artisan serve` worker:
+
+**Method (manual, end-to-end via curl + a logged-in Demo Manager session):**
+1. `DEBUGBAR_ENABLED=true` in `.env`; `php artisan config:clear`.
+2. `php artisan serve --port=8765` (background worker).
+3. `curl -c cookies.txt http://127.0.0.1:8765/login` → extracted `_token` from the form.
+4. `curl -b cookies.txt -X POST .../login` with `_token` + `email=manager@demo.test` + `password=password` → `302 → /home` (login OK; Demo Manager has the `admin` role).
+5. `curl -b cookies.txt -o monthly.pdf http://127.0.0.1:8765/mess/reports/monthly.pdf`.
+
+**Result:**
+```
+HTTP/1.1 200 OK
+Content-Type: application/pdf
+Size: 890040 bytes
+
+$ head -c 8 monthly.pdf | xxd
+00000000: 2550 4446 2d31 2e37                      %PDF-1.7
+
+$ grep -aic 'debugbar'     monthly.pdf   → 0
+$ grep -aic 'phpdebugbar'  monthly.pdf   → 0
+$ grep -aic '<script'      monthly.pdf   → 0
+```
+
+The 890 KB response is a valid PDF (`%PDF-1.7` magic), opens cleanly in any PDF reader, and contains zero Debugbar HTML payload. The `except: ['*.pdf']` rule in `config/debugbar.php` works end-to-end against a real HTTP request with Debugbar enabled.
+
+**Post-verification cleanup:** `.env` `DEBUGBAR_ENABLED` reset to `false`; `php artisan config:clear`; dev server stopped.
+
+
