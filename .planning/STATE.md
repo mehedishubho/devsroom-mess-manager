@@ -38,6 +38,13 @@ See: `.planning/PROJECT.md` (updated 2026-06-16)
 | 3. Payments + Month-Close | In progress (3 of 4 plans done) | Payments, advance, close, notifications | 4 | 2026-06-17 | — |
 | 4. Reports + Dashboard | Complete (4 of 4 plans done; awaiting verification) | 4 reports, dashboard cards/charts, PDF/Excel | 4 | 2026-06-17 | 2026-06-18 |
 | 5. Polish + Pilot | In progress (2 of 3 plans done) | Mobile UX, performance, documentation, real-mess pilot | 3 | 2026-06-18 | — |
+| 6. Backup and restore system | Not planned | Backup and restore system | 0 | — | — |
+
+## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 6 added: Backup and restore system
 
 ## Decisions Validated
 

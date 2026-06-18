@@ -193,6 +193,16 @@ Plans:
 
 **UI hint:** yes (mobile polish review)
 
+### Phase 6: Backup and restore system
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 5
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 6 to break down)
+
 ---
 
 ## Milestone Definition (v1)
