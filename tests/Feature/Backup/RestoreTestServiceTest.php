@@ -9,6 +9,7 @@ use App\Services\RestoreTestService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Mockery;
+use Mockery\MockInterface;
 use Tests\TestCase;
 
 /**
@@ -113,9 +114,12 @@ class RestoreTestServiceTest extends TestCase
      *
      * @param  array<string, array{live: int, test: int}>  $counts
      */
-    private function makeServiceWithCannedCounts(array $counts): RestoreTestService & \Mockery\MockInterface
+    private function makeServiceWithCannedCounts(array $counts): RestoreTestService&MockInterface
     {
         $mock = Mockery::mock(RestoreTestService::class)->makePartial();
+        // Required to mock the protected countOnConnection / downloadAndExtractLatest
+        // / wipeScratchDb / restoreDumpIntoScratch / cleanupTempDir seams per D-08.
+        $mock->shouldAllowMockingProtectedMethods();
         $mock->shouldReceive('countOnConnection')
             ->andReturnUsing(function (string $connection, string $table) use ($counts) {
                 $key = ($connection === 'mysql_restore_test') ? 'test' : 'live';
@@ -132,11 +136,12 @@ class RestoreTestServiceTest extends TestCase
      *
      * @param  array<string, array{live: int, test: int}>  $counts
      */
-    private function makeServiceForRunLatest(array $counts): RestoreTestService & \Mockery\MockInterface
+    private function makeServiceForRunLatest(array $counts): RestoreTestService&MockInterface
     {
         $mock = $this->makeServiceWithCannedCounts($counts);
 
         $mock->shouldReceive('downloadAndExtractLatest')->andReturn(sys_get_temp_dir().'/fake-restore-test');
+        $mock->shouldReceive('locateSqlDump')->andReturn('/fake/dump.sql');
         $mock->shouldReceive('wipeScratchDb');
         $mock->shouldReceive('restoreDumpIntoScratch');
         $mock->shouldReceive('cleanupTempDir');

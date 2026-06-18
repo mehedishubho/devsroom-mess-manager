@@ -27,12 +27,13 @@ class BackupPathResolverTest extends TestCase
             'db-dumps/live.sql' => 'SELECT 1;',
         ]);
 
-        $resolver = new BackupPathResolver(new Filesystem());
+        $resolver = new BackupPathResolver(new Filesystem);
 
-        $this->assertSame(
-            $root.'/db-dumps/live.sql',
-            $resolver->locateSqlDump($root),
-        );
+        // Compare normalized (forward-slash) paths — Symfony Finder returns
+        // backslash paths on Windows, but the entry must exist on disk.
+        $resolved = $resolver->locateSqlDump($root);
+        $this->assertSame($this->norm($root.'/db-dumps/live.sql'), $this->norm($resolved));
+        $this->assertFileExists($resolved);
     }
 
     /**
@@ -44,12 +45,14 @@ class BackupPathResolverTest extends TestCase
             'storage/app/db-dumps/devsroom_mess.sql' => 'SELECT 1;',
         ]);
 
-        $resolver = new BackupPathResolver(new Filesystem());
+        $resolver = new BackupPathResolver(new Filesystem);
 
+        $resolved = $resolver->locateSqlDump($root);
         $this->assertSame(
-            $root.'/storage/app/db-dumps/devsroom_mess.sql',
-            $resolver->locateSqlDump($root),
+            $this->norm($root.'/storage/app/db-dumps/devsroom_mess.sql'),
+            $this->norm($resolved),
         );
+        $this->assertFileExists($resolved);
     }
 
     public function test_locate_sql_dump_throws_when_no_dump_present(): void
@@ -58,7 +61,7 @@ class BackupPathResolverTest extends TestCase
             'storage/app/public/photo.jpg' => 'binary',
         ]);
 
-        $resolver = new BackupPathResolver(new Filesystem());
+        $resolver = new BackupPathResolver(new Filesystem);
 
         $this->expectException(\RuntimeException::class);
         $resolver->locateSqlDump($root);
@@ -71,7 +74,7 @@ class BackupPathResolverTest extends TestCase
             'nested/db-dumps/b.sql' => 'SELECT 2;',
         ]);
 
-        $resolver = new BackupPathResolver(new Filesystem());
+        $resolver = new BackupPathResolver(new Filesystem);
 
         $this->expectException(\RuntimeException::class);
         $resolver->locateSqlDump($root);
@@ -124,5 +127,14 @@ class BackupPathResolverTest extends TestCase
         }
 
         @rmdir($path);
+    }
+
+    /**
+     * Normalize a path to forward slashes for cross-platform comparisons.
+     * (Symfony Finder returns backslash paths on Windows.)
+     */
+    private function norm(string $path): string
+    {
+        return str_replace('\\', '/', $path);
     }
 }

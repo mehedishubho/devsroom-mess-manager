@@ -6,9 +6,11 @@ namespace Tests\Feature\Backup;
 
 use App\Services\BackupRestoreService;
 use App\Support\BackupPathResolver;
+use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Artisan;
 use Mockery;
+use Mockery\MockInterface;
 use Tests\TestCase;
 
 /**
@@ -20,26 +22,67 @@ use Tests\TestCase;
  *
  * Tests 5-10 pin the mandatory sequence:
  *   down FIRST -> queue:restart -> try { restore } -> finally { up + cleanup }
+ *
+ * Artisan mocking strategy: Laravel's Artisan facade does not ship a ::fake()
+ * method in this version. We instead swap the bound ConsoleKernel contract with
+ * a Mockery spy that records every call(command) invocation. The recorded calls
+ * are then asserted on with assertArtisanCalled() / assertArtisanNotCalled().
  */
 class BackupRestoreServiceTest extends TestCase
 {
+    /** @var array<int, string> */
+    private array $artisanCalls = [];
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Install a ConsoleKernel spy that records every call() invocation.
+        // Artisan::swap() replaces BOTH the container binding AND the facade's
+        // resolved-instance cache (Facade::$resolvedInstance), so calls to
+        // Artisan::call(...) reach our spy.
+        $this->artisanCalls = [];
+        $spy = Mockery::mock(Kernel::class);
+        $spy->shouldReceive('call')
+            ->andReturnUsing(function (string $command) {
+                $this->artisanCalls[] = $command;
+
+                return 0;
+            });
+        // Some Laravel code paths call handle() or terminate(); no-op them.
+        $spy->shouldReceive('handle', 'terminate', 'bootstrap', 'renderForConsole')->andReturn(0);
+        Artisan::swap($spy);
+    }
+
     protected function tearDown(): void
     {
         Mockery::close();
         parent::tearDown();
     }
 
+    private function assertArtisanCalled(string $command): void
+    {
+        $this->assertContains(
+            $command,
+            $this->artisanCalls,
+            "Expected Artisan::call('{$command}') to have been invoked. Calls seen: ".implode(', ', $this->artisanCalls ?: ['(none)']),
+        );
+    }
+
     /**
      * Helper: build a partial-mock of BackupRestoreService where the heavy
      * protected helpers (downloadAndExtract / restoreDatabase / restoreFiles /
-     * verifyRestore / cleanup) are stubbed.
+     * verifyRestore / cleanup / locateSqlDump) are stubbed.
      *
      * @param  array<string, mixed>  $expectations  method => return-value or 'throw'
      */
-    private function makeService(array $expectations = []): BackupRestoreService & \Mockery\MockInterface
+    private function makeService(array $expectations = []): BackupRestoreService&MockInterface
     {
-        $partial = Mockery::mock(BackupRestoreService::class, [new Filesystem(), new BackupPathResolver(new Filesystem())])
+        $partial = Mockery::mock(BackupRestoreService::class, [new Filesystem, new BackupPathResolver(new Filesystem)])
             ->makePartial();
+        // Required to mock the protected restore* / verifyRestore / cleanup
+        // / downloadAndExtract / locateSqlDump seams per D-08.
+        $partial->shouldAllowMockingProtectedMethods();
 
         foreach ($expectations as $method => $payload) {
             if ($payload === 'throw') {
@@ -61,8 +104,6 @@ class BackupRestoreServiceTest extends TestCase
      */
     public function test_down_is_called_before_any_restore_work(): void
     {
-        Artisan::fake(['down' => 0, 'up' => 0, 'queue:restart' => 0]);
-
         $service = $this->makeService([
             'downloadAndExtract' => sys_get_temp_dir().'/fake-restore',
             'restoreDatabase' => null,
@@ -74,7 +115,9 @@ class BackupRestoreServiceTest extends TestCase
 
         $service->restoreFromDisk('backups/test.zip');
 
-        Artisan::assertCalled('down');
+        $this->assertArtisanCalled('down');
+        // down MUST be the very FIRST Artisan call (before queue:restart).
+        $this->assertSame('down', $this->artisanCalls[0] ?? null);
     }
 
     /**
@@ -82,8 +125,6 @@ class BackupRestoreServiceTest extends TestCase
      */
     public function test_queue_restart_is_called_before_db_write(): void
     {
-        Artisan::fake(['down' => 0, 'up' => 0, 'queue:restart' => 0]);
-
         $service = $this->makeService([
             'downloadAndExtract' => sys_get_temp_dir().'/fake-restore',
             'restoreDatabase' => null,
@@ -95,7 +136,7 @@ class BackupRestoreServiceTest extends TestCase
 
         $service->restoreFromDisk('backups/test.zip');
 
-        Artisan::assertCalled('queue:restart');
+        $this->assertArtisanCalled('queue:restart');
     }
 
     /**
@@ -106,8 +147,6 @@ class BackupRestoreServiceTest extends TestCase
      */
     public function test_up_is_called_in_finally_even_on_exception(): void
     {
-        Artisan::fake(['down' => 0, 'up' => 0, 'queue:restart' => 0]);
-
         $service = $this->makeService();
         $service->shouldReceive('downloadAndExtract')
             ->andThrow(new \RuntimeException('mid-restore explosion'));
@@ -121,7 +160,7 @@ class BackupRestoreServiceTest extends TestCase
         }
 
         // The crown-jewel assertion: even though the restore threw, 'up' MUST have fired.
-        Artisan::assertCalled('up');
+        $this->assertArtisanCalled('up');
     }
 
     /**
@@ -132,29 +171,32 @@ class BackupRestoreServiceTest extends TestCase
      */
     public function test_restore_files_writes_into_storage_app_public_never_public_storage(): void
     {
-        Artisan::fake(['down' => 0, 'up' => 0, 'queue:restart' => 0]);
-
         // Replace Filesystem with a spy so we can capture the copyDirectory() dest.
         $filesSpy = Mockery::mock(Filesystem::class);
         $filesSpy->shouldReceive('glob')->andReturn([]);
-        $filesSpy->shouldReceive('exists')->andReturn(true);
-        $filesSpy->shouldReceive('isDirectory')->andReturn(true);
-        $filesSpy->shouldReceive('makeDirectory')->andReturn(true);
+        $filesSpy->shouldReceive('ensureDirectoryExists')->andReturn(true);
+        $filesSpy->shouldReceive('directories')->andReturn([]);
+        $filesSpy->shouldReceive('files')->andReturn([]);
         $filesSpy->shouldReceive('deleteDirectory')->andReturn(true);
 
         $capturedDestinations = [];
         $filesSpy->shouldReceive('copyDirectory')
-            ->with(\Mockery::on(fn ($src) => is_string($src)), \Mockery::on(function ($dest) use (&$capturedDestinations) {
+            ->with(Mockery::on(fn ($src) => is_string($src)), Mockery::on(function ($dest) use (&$capturedDestinations) {
                 $capturedDestinations[] = $dest;
 
                 return is_string($dest);
             }))
             ->andReturn(true);
+        $filesSpy->shouldReceive('copy')->andReturn(true);
 
         $this->app->instance(Filesystem::class, $filesSpy);
 
         // Build the service AFTER binding so DI resolves the spy.
-        $mock = Mockery::mock($this->app->make(BackupRestoreService::class))->makePartial();
+        // restoreFiles runs for real against the spy (so we capture the
+        // copyDirectory dest); everything else is stubbed.
+        $mock = Mockery::mock(BackupRestoreService::class, [$filesSpy, new BackupPathResolver(new Filesystem)])
+            ->makePartial();
+        $mock->shouldAllowMockingProtectedMethods();
         $mock->shouldReceive('downloadAndExtract')->andReturn(sys_get_temp_dir().'/fake-workdir');
         $mock->shouldReceive('locateSqlDump')->andReturn('/fake/dump.sql');
         $mock->shouldReceive('restoreDatabase');
@@ -195,7 +237,8 @@ class BackupRestoreServiceTest extends TestCase
      */
     public function test_build_mysql_process_uses_array_args_with_required_flags(): void
     {
-        $service = $this->app->make(BackupRestoreService::class);
+        // Build the service directly — bypassing the setUp() Artisan spy.
+        $service = new BackupRestoreService(new Filesystem, new BackupPathResolver(new Filesystem));
 
         $process = $service->buildMysqlProcess('/tmp/dump.sql');
 
@@ -210,12 +253,14 @@ class BackupRestoreServiceTest extends TestCase
         $this->assertStringContainsString('/tmp/dump.sql', $cmdline);
 
         // The Process was built from an ARRAY of args (not a single shell string)
-        // — confirmed by the existence of multiple quoted tokens. (When
-        // constructed from an array, getCommandLine() contains a quoted token
-        // per array element; from a string, the whole cmdline is one blob.)
+        // — confirmed by the existence of multiple quoted tokens. On Linux,
+        // Process uses single quotes; on Windows it uses double quotes. Count
+        // whichever kind appears in the rendered cmdline.
+        $singleQuoteCount = substr_count($cmdline, "'");
+        $doubleQuoteCount = substr_count($cmdline, '"');
         $this->assertGreaterThan(
             1,
-            substr_count($cmdline, "'"),
+            $singleQuoteCount + $doubleQuoteCount,
             'Expected Process to be constructed from an array of args (multiple quoted tokens), not a single shell string.',
         );
     }
@@ -226,9 +271,9 @@ class BackupRestoreServiceTest extends TestCase
      */
     public function test_exception_propagates_after_up_has_run(): void
     {
-        Artisan::fake(['down' => 0, 'up' => 0, 'queue:restart' => 0]);
-
-        $service = Mockery::mock(BackupRestoreService::class)->makePartial();
+        $service = Mockery::mock(BackupRestoreService::class, [new Filesystem, new BackupPathResolver(new Filesystem)])
+            ->makePartial();
+        $service->shouldAllowMockingProtectedMethods();
         $service->shouldReceive('downloadAndExtract')->andReturn(sys_get_temp_dir().'/fake-workdir');
         $service->shouldReceive('locateSqlDump')->andReturn('/fake/dump.sql');
         $service->shouldReceive('restoreDatabase')->andThrow(new \RuntimeException('mysql restore failed'));
@@ -245,7 +290,7 @@ class BackupRestoreServiceTest extends TestCase
 
         $this->assertNotNull($thrown, 'Exception must propagate.');
         $this->assertSame('mysql restore failed', $thrown->getMessage());
-        Artisan::assertCalled('up');
+        $this->assertArtisanCalled('up');
     }
 
     private function normalizeSlashes(string $path): string
