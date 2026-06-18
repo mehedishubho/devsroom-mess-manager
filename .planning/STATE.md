@@ -27,7 +27,7 @@ See: `.planning/PROJECT.md` (updated 2026-06-16)
 
 **Core value:** A mess manager can run a full month end-to-end on a phone — enter meals, log bazar, take payments, close the month, and produce a correct member bill — without spreadsheets and without arguing about who owes what.
 
-**Current focus:** Phase 04 — reports-dashboard
+**Current focus:** Phase 05 — polish-pilot
 
 ## Phase Status
 
@@ -230,6 +230,14 @@ None.
 - Decisions validated this plan: D-26 closed/open switch (MonthlyClosing snapshot vs BillPreviewService live compute); MonthlyMemberSummary.advance_applied column surfaced as bill_payments (Pitfall 3); closed-month badge next to period label.
 - Resume file: `.planning/phases/04-reports-dashboard/04-01-manager-reports-SUMMARY.md`
 - Next: Plan 04-02 (member views — reuses ReportService + MemberStatementService; member routes derive member_id from session, not URL).
+
+**2026-06-18** — Phase 5: context gathered.
+
+- `05-CONTEXT.md` written (23 locked decisions across 5 areas: pilot logistics, performance & N+1 tooling, mobile polish depth, docs + deployment, mechanical audits) + `05-DISCUSSION-LOG.md` (full audit trail of all 4 discussion areas, 15 questions).
+- Key decisions: pilot = dev's own/known mess, fresh-start current month (no importer), hybrid onboarding (dev configures, manager runs daily), success = one clean month-close + members see bills; perf = Debugbar + Telescope (dev-only) + reproducible ~50-member seeder (doubles as demo dataset) + manual measurement into `05-VERIFICATION.md` + Debugbar cache tab for hit-rate, budgets are a hard gate; mobile = DevTools audit now + real device in pilot, audit + meal-grid touch/density pass, 360px practical floor; docs/deploy = VPS (Forge/manual) for the queued close worker, full README + demo creds, AGENTS.md refresh + hand-written domain walkthrough, DEPLOYMENT.md + fix the `.env` sqlite→MySQL parity.
+- Audit findings flagged for the phase: `config/app.php` timezone defaults to UTC with no `APP_TIMEZONE` in `.env` (re-verify `Asia/Dhaka`, D-21); live `.env` runs sqlite (parity fix, D-18); `BillPreviewService` debug-throw (verify removed before perf work).
+- Resume file: `.planning/phases/05-polish-pilot/05-CONTEXT.md`
+- Next: `/gsd-plan-phase 5` to break Phase 5 into executable PLAN.md files
 
 ## Open Questions for User
 
