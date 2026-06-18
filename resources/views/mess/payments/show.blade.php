@@ -1,13 +1,13 @@
 @extends('layouts.app')
 @section('content')
-    <header class="mb-6 flex items-center justify-between">
+    <header class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <h1 class="text-2xl font-semibold leading-tight text-slate-900">{{ __('Payment') }}</h1>
             <p class="mt-1 text-sm text-slate-600">{{ $payment->date->format('d-m-Y') }} · {{ $payment->member?->name }}</p>
         </div>
-        <div class="flex gap-2">
-            <a href="{{ route('mess.payments.index') }}" class="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">{{ __('Back') }}</a>
-            <a href="{{ route('mess.payments.edit', $payment) }}" class="inline-flex items-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700">{{ __('Edit') }}</a>
+        <div class="flex flex-wrap gap-2">
+            <a href="{{ route('mess.payments.index') }}" class="inline-flex min-h-[44px] items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">{{ __('Back') }}</a>
+            <a href="{{ route('mess.payments.edit', $payment) }}" class="inline-flex min-h-[44px] items-center justify-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700">{{ __('Edit') }}</a>
         </div>
     </header>
     <dl class="grid grid-cols-1 gap-4 rounded-lg border border-slate-200 bg-white p-4 sm:grid-cols-2 sm:p-6">

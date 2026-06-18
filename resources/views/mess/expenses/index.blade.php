@@ -15,7 +15,29 @@
         </div>
     </header>
 
-    <div class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+    {{-- Mobile cards (touch-friendly summary) --}}
+    <div class="space-y-3 md:hidden">
+        @forelse ($expenses as $expense)
+            <div class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs text-slate-500">{{ $expense->date->format('d M Y') }}</span>
+                    <x-status-pill :variant="$expense->category?->kind ?? 'bazar'" />
+                </div>
+                <div class="mt-1 font-medium text-slate-900">{{ $expense->category?->name ?? '—' }}</div>
+                @if ($expense->description)
+                    <div class="mt-0.5 truncate text-sm text-slate-600">{{ $expense->description }}</div>
+                @endif
+                <div class="mt-1 text-right text-sm font-semibold text-slate-900">{{ number_format((float) $expense->amount, 2) }}</div>
+            </div>
+        @empty
+            <p class="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-600">
+                {{ __('No expenses recorded yet.') }}
+            </p>
+        @endforelse
+    </div>
+
+    {{-- Desktop table --}}
+    <div class="hidden overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm md:block">
         <table class="min-w-full divide-y divide-slate-200">
             <thead class="bg-slate-50">
                 <tr>

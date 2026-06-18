@@ -9,3 +9,14 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+/*
+ * Touch-target utility (01-UI-SPEC §2.3 — clickable elements ≥44×44px).
+ * Reused across manager daily-ops screens so they remain thumb-tappable at
+ * 360px (D-13). Plain composition of Tailwind utilities — no custom CSS
+ * properties, keeps the "no inline CSS, Tailwind only" PROJECT.md constraint.
+ */
+@utility touch-target {
+    min-height: 2.75rem; /* 44px */
+    min-width: 2.75rem; /* 44px */
+}
