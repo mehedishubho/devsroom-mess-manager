@@ -105,3 +105,93 @@ The following can only be confirmed by a human at a real browser DevTools device
 - Touch-target feel under thumb use (the 44px minimum is enforced in code; human confirms it FEELS tappable)
 
 ---
+
+## 2. Performance Budgets (D-08, D-09, D-10)
+
+**Measurement methodology (executor note):** A CLI executor cannot visually eyeball a browser DevTools session, so each budget below was measured PROGRAMMATICALLY at the same point in the request lifecycle that Debugbar/Telescope would measure it. Each budget's method is recorded in-line. Per research Pitfall 4, the **budget metric is DB query time + count, NOT total request time** (total includes 50-150ms Debugbar overhead which is irrelevant to whether the production code meets the budget). This isolates the actual work the service does against MySQL — the same work Debugbar's Queries tab would display.
+
+**Fixture:** `php artisan db:seed:perf-demo` — Demo Mess (id=1), 50 members (48 active + 1 former + 1 inactive), 882 meal entries. Dev env: PHP 8.4.15, MySQL 8, `CACHE_STORE=database`, `QUEUE_CONNECTION=database`.
+
+**Live-browser Debugbar/Telescope cross-check** (the visual confirmation of these same numbers via the actual UI): **deferred to Plan 05-03 HUMAN-UAT #3** per the same pattern as §1.6. The programmatic measurements below produce the SAME query counts + cache hits that Debugbar's Queries/Cache tabs and Telescope's Jobs tab would display, because they invoke the same service code paths the request triggers.
+
+### 2.1 Grid — `/mess/meals` at 50 members (D-10 success #2, target <100ms)
+
+| Metric | Value |
+|---|---|
+| **Measured query time** | **1.25 ms** |
+| Query count | 3 |
+| Total service time (informational) | 2.81 ms |
+| Members in grid | 48 (active only — 2 of 50 are non-active) |
+| **Verdict** | **PASS** (80× margin under <100ms budget) |
+
+**Method:** `DB::enableQueryLog()` → `MealGridService::buildGridData(now())` → `DB::getQueryLog()`. This is the EXACT service call the `/mess/meals` controller makes (`app/Http/Controllers/Mess/MealGridController.php` invokes it directly), so the query count + time match what Debugbar's Queries tab would show for `/mess/meals`.
+
+**Query shape verified:** 3 queries total — (1) `select * from members where status = 'active' order by name`, (2) `select * from meal_entries where date = ? and member_id in (...)` (whereIn, NOT a per-member loop), (3) `select * from meal_off_requests where status = 'approved' and ... and member_id in (...)` (whereIn). This matches research Example 1's verified N+1-safety. **No N+1 fix needed** — the `whereIn('member_id', $activeMembers->pluck('id'))` pattern is correct in both query #2 and query #3.
+
+**Locked by regression test:** `tests/Feature/Perf/MealGridQueryCountTest.php::test_meal_grid_loads_under_15_queries_at_50_members` (commit `f7543ce`). A future change that regresses to N+1 fails this test loudly.
+
+### 2.2 Dashboard — `/home` warm (D-10 success #3, target <500ms)
+
+| Metric | Value |
+|---|---|
+| **Measured query time** | **0.31 ms** |
+| Query count | 2 |
+| Total service time (informational) | 0.63 ms |
+| Cache keys HIT on warm path | `bill-preview:1:2026-06`, `dash:counts:1:2026-06` |
+| **Verdict** | **PASS** (1600× margin under <500ms budget) |
+
+**Method:** `Artisan::call('cache:clear')` → 2 warm-up invocations of `DashboardService::managerCards()` (prime both cache keys) → `DB::enableQueryLog()` → `managerCards()` (warm read) → `DB::getQueryLog()`. This is the EXACT service call `HomeController::index()` makes to build the 6 DASH-01 cards + 3 chart series; the query count + time match what Debugbar's Queries tab would show for the `/home` request body.
+
+**Query shape verified:** 2 queries on the warm path — both come from chart series population (`DashboardService::mealTrend/expenseTrend/paymentTrend`), NOT from the 6 stat cards. The bill-derived cards (meal_rate/total_due/total_advance) read `bill-preview:1:2026-06` from cache (HIT — 0 queries); the count cards (total_members/today_meals/monthly_expenses) read `dash:counts:1:2026-06` from cache (HIT — 0 queries). **No cache miss on warm path** — both keys HIT as designed.
+
+**Cards snapshot (sanity):** total_members=48, today_meals=0 (no meals logged for today's date), monthly_expenses=৳81,022.15, meal_rate=৳42.91, total_due=৳810,037.57, total_advance=৳0.
+
+### 2.3 Close month — `CloseMonthJob->handle()` @50 members (D-10 success #4, target <30s)
+
+| Metric | Value |
+|---|---|
+| **Measured handle time** | **0.12 s** |
+| Members snapshotted | 49 (active + former; 1 inactive excluded) |
+| Month closed | 2026-06 (the seeded month — rolled back after measurement) |
+| **Verdict** | **PASS** (250× margin under <30s budget) |
+
+**Method:** Instantiate `CloseMonthJob(2026, 6, \$admin->id)` → invoke `->handle(app(MonthCloseService::class))` in-process with a `microtime(true)` stopwatch around the call. This is the EXACT job handler Laravel's queue worker invokes when the manager clicks "Close month" — the handle-time excludes queue wait + serialization, which is what Telescope's Jobs tab records as the "Duration" field. **After measurement, the resulting `monthly_closings` + `monthly_member_summaries` rows were rolled back so the dev DB remains clean for Plan 05-03 HUMAN-UAT.**
+
+**Why it's so fast:** `MonthCloseService::close()` delegates the math to the cached `BillPreviewService::preview()` (D-18 — close math == bill-preview math), then writes one `monthly_closings` row + N `monthly_member_summaries` rows in a single transaction. No per-member loop with a nested query; the snapshot is materialized from the already-computed bill preview. Matches the D-14/D-15 cache reuse pattern.
+
+**Idempotency preserved:** the in-process invocation used the seeded month (2026-06) — the resulting close was rolled back to keep the dev DB clean. A future real close attempt for this month will re-snapshot cleanly (UNIQUE index on `(mess_id, year, month)` enforces idempotency).
+
+### 2.4 Cache hit-rate — warm pure-read loop (D-09, success #6, target >80%)
+
+| Metric | Value |
+|---|---|
+| **Measured hit-rate** | **100.0%** (10 reads / 10 hits / 0 misses) |
+| Keys probed | `bill-preview:1:2026-06`, `dash:counts:1:2026-06` |
+| Warm reads | 5 iterations × 2 keys = 10 probes |
+| Writes between reads | 0 (pure-read loop per Pitfall 5) |
+| **Verdict** | **PASS** (20 percentage points over >80% budget) |
+
+**Method:** `Artisan::call('cache:clear')` → 1 cold invocation of `DashboardService::managerCards()` (populates both keys) → loop 5 times: probe `Cache::has($billKey)` + `Cache::has($dashKey)` (count hit/miss) then re-invoke `managerCards()` (pure read — NO form submit, NO Cache::forget trigger). This is the EXACT steady-state hit pattern that Debugbar's Cache tab would display for repeat `/home` reloads. Per Pitfall 5, no writes were performed between reads — `AppServiceProvider::invalidateForModel()` (which calls `Cache::forget`) only fires on Eloquent `saved`/`deleted` events, none of which occurred during the loop.
+
+**Why 100% and not just >80%:** both cache keys are populated by a single warm `managerCards()` call and survive for the full 1-hour TTL (no write invalidates them in the pure-read loop). The >80% target exists to leave headroom for incidental writes in a real interactive session; in this measured steady-state the rate is naturally 100%.
+
+### 2.5 Overall verdict + code-fix outcome
+
+| Budget | Target | Measured | Verdict | Service fix? |
+|---|---|---|---|---|
+| Grid | <100ms | 1.25 ms | PASS | No — `whereIn('member_id', ...)` already N+1-safe |
+| Dashboard | <500ms | 0.31 ms | PASS | No — both cache keys HIT on warm path |
+| Close | <30s @50 | 0.12 s | PASS | No — snapshot materialized from cached bill preview |
+| Cache | >80% | 100.0% | PASS | No — pure-read loop has no invalidation |
+
+**Per D-10 (HARD gate):** NO budget missed, so NO service code was modified and NO budget was relaxed. The existing service layer (`MealGridService`, `DashboardService`, `BillPreviewService`, `MonthCloseService`, `CloseMonthJob`) already meets all 4 budgets with strong margins.
+
+**Pint + tests after Task 2:** `vendor/bin/pint --test tests/Feature/Perf/` exit 0; `vendor/bin/phpunit --filter=MealGridQueryCountTest` 2/2 OK; full `vendor/bin/phpunit` suite re-run in §3 below.
+
+**Live-browser / Telescope visual cross-check deferred to Plan 05-03 HUMAN-UAT #3:**
+- Debugbar Queries tab visual count for `/mess/meals` (should show 3 queries)
+- Debugbar Queries tab visual count + Timeline ms for `/home` warm
+- Debugbar Cache tab visual hit-rate display on repeat `/home` reloads
+- Telescope Jobs tab handle-time for a real dispatched `CloseMonthJob` (this measurement invoked the handler in-process; Telescope records the same handler execution when the job is dispatched through the queue worker)
+
+---
