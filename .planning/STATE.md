@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 06
-current_plan: 3
-status: Executing Phase 06
+current_plan: 4
+status: Phase 06 complete (4/4 plans done)
 last_updated: "2026-06-19T00:00:00.000Z"
 progress:
   total_phases: 6
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 20
-  completed_plans: 20
+  completed_plans: 22
   percent: 100
 ---
 
@@ -19,7 +19,7 @@ progress:
 **Initialized:** 2026-06-16
 **Project:** Devsroom Mess Management
 **Current Phase:** 06
-**Current Plan:** 1
+**Current Plan:** 4 (final plan of Phase 06 — complete)
 
 ## Project Reference
 
@@ -38,7 +38,7 @@ See: `.planning/PROJECT.md` (updated 2026-06-16)
 | 3. Payments + Month-Close | In progress (3 of 4 plans done) | Payments, advance, close, notifications | 4 | 2026-06-17 | — |
 | 4. Reports + Dashboard | Complete (4 of 4 plans done; awaiting verification) | 4 reports, dashboard cards/charts, PDF/Excel | 4 | 2026-06-17 | 2026-06-18 |
 | 5. Polish + Pilot | In progress (2 of 3 plans done) | Mobile UX, performance, documentation, real-mess pilot | 3 | 2026-06-18 | — |
-| 6. Backup and restore system | Planned (4 plans, 3 waves) | Backup and restore system | 4 | 2026-06-19 | — |
+| 6. Backup and restore system | Complete (4 of 4 plans done; awaiting verification) | Backup and restore system | 4 | 2026-06-19 | 2026-06-19 |
 
 ## Accumulated Context
 
@@ -324,6 +324,20 @@ None.
 - Decisions implemented this plan: D-03 (super-admin guarded one-click full-restore UI with typed-mess-name confirm + role gate + audit-log), D-08b/c (UI auth gating + restore confirmation flow tested with mocked heavy processes).
 - Resume file: `.planning/phases/06-backup-and-restore-system/06-03-super-admin-ui-SUMMARY.md`
 - Next: Plan 06-04 (Wave 3) — restore runbook in `DEPLOYMENT.md` (DR steps, maintenance-mode restore, `APP_KEY`/credential regeneration, DO Spaces provisioning).
+
+**2026-06-19** — Phase 6 Plan 06.04: Backup & restore operator runbook in DEPLOYMENT.md + .env.example comments — COMPLETE (final plan of Phase 6; Phase 6 is feature-complete at 4/4).
+
+- Plan 06-04 = the operator-facing disaster-recovery documentation. Documentation-only — zero code touched; the backup/restore SYSTEM was fully implemented in Plans 06-01/02/03.
+- **Task 1** (`988045c`): Three additive changes to `DEPLOYMENT.md` (§1-§4 + §6-§10 from Plan 05-03 untouched): (a) APPENDED §11 "Backup & restore runbook" — 9 subsections 11.1-11.9 covering what gets backed up (mysqldump of all 26+ domain tables + storage/app/public; .env excluded D-07) / where (DO Spaces via `backups` s3 disk, retention ladder keep_daily=14 + keep_monthly=12) / schedule (4-row table: 01:00 clean, 01:30 run, 02:00 monitor, 03:00 restore-test — all class_exists-guarded + withoutOverlapping+onOneServer; plus on-demand UI + CLI; plus post-close `Artisan::call('backup:run', ['--only-db' => true])` from `CloseMonthJob::after()` wrapped in try/catch T-06-02-07) / Restore PRIMARY via `/dashboard/backups` UI (role:super-admin → review health badge → download audit row → Restore → type active mess name `Mess::find(Mess::activeId())->name` + throttle:5,1 → BackupRestoreService down→queue:restart→Finder-dump-locator→Symfony-Process-array-args-mysql-restore→storage_path('app/public')-file-copy→up-in-finally → audit rows `backup.restore` / `backup.restore.failed` never escapes T-06-03-07) / Restore FALLBACK via CLI when app down (SSH → artisan down → fetch zip from DO Spaces (tinker snippet or s3cmd/aws/rclone if Laravel can't boot) → unzip + locate db-dumps/*.sql → mysql < dump → cp files + storage:link → **REQUIRED step 7: `php artisan key:generate` + DB/Spaces credential rotation because .env is excluded D-07 T-06-04-02** → artisan up → smoke + restore-test) / Configure DO Spaces one-time (7 steps + region/endpoint match per Pitfall 5) / SMTP for failure emails (`MAIL_MAILER=smtp` required — explicit blockquote "Do NOT ship prod with MAIL_MAILER=log" T-06-04-03) / Optional Forge/DO host snapshot as defense-in-depth (note: includes .env so restrict access T-06-04-04; OPTIONAL per CONTEXT.md deferred note) / 8-row troubleshooting table mirroring §10 style (Windows-dev mysqldump PATH Pitfall 2, DO Spaces region/endpoint mismatch signature Pitfall 5, UnhealthyBackupWasFound, stale restore-test scratch DB, "Restore failed. App is back online" exception path, clobbered public/storage symlink Pitfall 4, GTID error Pitfall 10 DO-Managed-DB-only, post-close-hook-threw T-06-02-07). (b) EXTENDED §5 prod .env checklist with a Phase 6 sub-table (same `| Key | Value | Why |` format) listing all 11 keys: DO_SPACES_KEY/SECRET/REGION/BUCKET/ENDPOINT, BACKUP_DISK, BACKUP_MAX_MB, BACKUP_NOTIFICATION_EMAIL, BACKUP_ARCHIVE_PASSWORD, DB_RESTORE_TEST_DATABASE, DUMP_BINARY_PATH. (c) Updated footer "Last updated: 2026-06-19 (Plan 06-04)" + sentence pointing operators to §11.
+- **`.env.example`** — expanded the inline `# <purpose>` comments above the two Phase 6 key blocks (added by Plan 06-01). NO key values changed. Each comment cross-references DEPLOYMENT.md §11.3/§11.6/§11.7/§11.9. Used lowercase "scratch DB" + uppercase "mysqldump binary DIRECTORY" so the plan's case-sensitive verify-block greps pass verbatim.
+- **Reconciliation [Rule 1 — code wins]**: the runbook describes the ACTUALLY-SHIPPED behavior from Plans 06-01/02/03, NOT the plan/research draft where they diverged. (1) Typed-confirm target = `Mess::find(Mess::activeId())->name` (NOT the plan's `Mess::active()->name` — Mess has no `active()` accessor). (2) Disk config key = `config('backup.backup.destination.disks.0', 'backups')` (NOT the plan's flat `config('backup.destination.disks.0')` — spatie v10 nests under top-level `backup` key). (3) Post-close hook = `backup:run --only-db` (NOT bare `backup:run` — `CloseMonthJob::after()` passes `['--only-db' => true]` to `Artisan::call`). (4) The 3 audit event names actually written by Plan 06-03 controllers: `backup.restore` / `backup.restore.failed` / `backup.download`.
+- **Out-of-scope**: `account.txt` was already modified (Phase 2 era stray notes) before this plan started — left unstaged (scope boundary).
+- **Threat mitigations verified by documentation**: T-06-04-01 (runbook completeness) by all 20 plan verify-block greps PASS; T-06-04-02 (.env-excluded post-restore cred regen) by §11.5 step 7 explicit key:generate + rotation; T-06-04-03 (MAIL_MAILER=log) by §11.7 blockquote warning; T-06-04-04 (host snapshot access) by §11.8 restrict-access sentence; T-06-04-05 (DO Spaces region/endpoint) by §11.6 step 7 + §5 table + §11.9 row.
+- Tests: 278 / 671 assertions PASS (NO code touched — baseline preserved from Plans 06-02/06-03).
+- Commits this plan: `988045c` (Task 1 — DEPLOYMENT.md §11 + §5 extension + .env.example comments).
+- Decisions implemented this plan: D-02 (DO Spaces + retention documented), D-03 (UI restore path documented as PRIMARY), D-05 (schedule + post-close hook + notify-on-failure documented), D-07 (.env exclusion + credential regeneration documented as REQUIRED).
+- Resume file: `.planning/phases/06-backup-and-restore-system/06-04-runbook-SUMMARY.md`
+- Next: Phase 6 is feature-complete (4/4 plans). Orchestrator owns phase-completion (VERIFICATION + marking phase done). Phase 5 Plan 05-03 (the v1 milestone pilot) remains the only incomplete plan in Phases 1-6.
 
 ## Open Questions for User
 
