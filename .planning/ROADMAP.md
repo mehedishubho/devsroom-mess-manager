@@ -184,7 +184,7 @@ Plans:
 
 **Out of scope for this phase:** v2 features (multi-mess, bKash API, PWA, Bengali).
 
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
 - [ ] 05-01-PLAN.md — Wave 0: mechanical audits (.env/.env.example parity, APP_TIMEZONE, Pint, __() scan) + Debugbar/Telescope require-dev with three-layer prod gating + guarded ~50-member PerfDemoSeeder (keystone for perf measurement + demo creds)

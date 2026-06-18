@@ -191,7 +191,7 @@
 - [ ] **PERF-10**: Service layer for business logic (no Repository pattern)
 - [ ] **PERF-11**: PHPUnit tests for all Form Requests and Service methods
 - [ ] **PERF-12**: Feature tests for all controller actions (happy path + auth check)
-- [ ] **PERF-13**: Laravel Pint runs clean on all committed code
+- [x] **PERF-13**: Laravel Pint runs clean on all committed code
 
 ## v2 Requirements
 
