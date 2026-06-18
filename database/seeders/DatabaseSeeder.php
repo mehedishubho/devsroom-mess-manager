@@ -23,5 +23,11 @@ class DatabaseSeeder extends Seeder
             'name' => 'Test User',
             'email' => 'test@example.com',
         ]);
+
+        // D-07: PerfDemoSeeder is intentionally NOT called here.
+        // Run explicitly via:
+        //   php artisan db:seed --class=PerfDemoSeeder
+        // OR the env-guarded `php artisan db:seed:perf-demo` command.
+        // NEVER run in production.
     }
 }
