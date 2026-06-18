@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Backup\BackupController;
+use App\Http\Controllers\Backup\RestoreController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Mess\AdvanceBalanceController;
 use App\Http\Controllers\Mess\AuditController;
@@ -39,6 +41,28 @@ Route::middleware(['auth', 'role:super-admin', EnsureMessExists::class])->group(
     Route::get('/onboarding', [OnboardingController::class, 'create'])->name('onboarding.create');
     Route::post('/onboarding', [OnboardingController::class, 'store'])->name('onboarding.store');
 });
+
+// Phase 6: Backup & Restore (super-admin only — D-03).
+// Custom controller + Blade views (research Pattern 3), NOT a Tyro dynamic
+// resource. The Backups UI is not CRUD over one model. Every route is
+// role:super-admin-gated (T-06-03-01); the destructive restore POST is also
+// throttled (T-06-03-04 — brute-force typed-confirm defense-in-depth).
+Route::middleware(['auth', 'role:super-admin'])
+    ->prefix('dashboard/backups')
+    ->name('dashboard.backups.')
+    ->group(function () {
+        Route::get('/', [BackupController::class, 'index'])->name('index');
+        Route::post('/run', [BackupController::class, 'runNow'])->name('run');
+        Route::post('/restore-test', [BackupController::class, 'runRestoreTest'])->name('restore-test.run');
+        Route::get('/{path}/download', [BackupController::class, 'download'])
+            ->where('path', '.*')->name('download');
+        Route::get('/restore/{path}', [RestoreController::class, 'show'])
+            ->where('path', '.*')->name('restore.show');
+        // Throttle the destructive POST: 5 attempts per minute.
+        Route::post('/restore', [RestoreController::class, 'store'])
+            ->middleware('throttle:5,1')
+            ->name('restore.store');
+    });
 
 // Public set-password (from invite link)
 Route::get('/set-password', [SetPasswordController::class, 'show'])->name('password.set.show');
