@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature\Backup;
 
 use App\Jobs\CloseMonthJob;
-use App\Services\MonthCloseService;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\Artisan;
 use Mockery;

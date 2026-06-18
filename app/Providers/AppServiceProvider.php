@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Listeners\NotifyOnBackupFailure;
 use App\Models\Expense;
 use App\Models\GuestMeal;
 use App\Models\MealEntry;
@@ -15,6 +16,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
+use Spatie\Backup\Events\BackupHasFailed;
+use Spatie\Backup\Events\UnhealthyBackupWasFound;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -53,6 +56,29 @@ class AppServiceProvider extends ServiceProvider
         ]);
 
         $this->registerBillPreviewInvalidation();
+        $this->registerBackupFailureListeners();
+    }
+
+    /**
+     * D-05: wire spatie backup failure events to the project's notification
+     * surface. class_exists-guarded so prod (composer install --no-dev with
+     * spatie present) wires the listeners, and any env without spatie does
+     * not error. Mirrors the telescope:prune pattern in routes/console.php.
+     */
+    private function registerBackupFailureListeners(): void
+    {
+        if (! class_exists(BackupHasFailed::class)) {
+            return;
+        }
+
+        Event::listen(
+            BackupHasFailed::class,
+            NotifyOnBackupFailure::class
+        );
+        Event::listen(
+            UnhealthyBackupWasFound::class,
+            NotifyOnBackupFailure::class
+        );
     }
 
     private function registerBillPreviewInvalidation(): void

@@ -12,11 +12,18 @@ final class NotificationType
 
     public const DUE_REMINDER = 'due_reminder';
 
+    /**
+     * Plan 06-02 D-05: spatie BackupHasFailed / UnhealthyBackupWasFound events
+     * route to NotificationService::broadcastToManagers with this type.
+     */
+    public const BACKUP_FAILED = 'backup_failed';
+
     public const ALL = [
         self::CLOSE_COMPLETE,
         self::MEAL_OFF_DECISION,
         self::PAYMENT_RECORDED,
         self::DUE_REMINDER,
+        self::BACKUP_FAILED,
     ];
 
     public const LABELS = [
@@ -24,5 +31,6 @@ final class NotificationType
         self::MEAL_OFF_DECISION => 'Meal off decision',
         self::PAYMENT_RECORDED => 'Payment recorded',
         self::DUE_REMINDER => 'Due reminder',
+        self::BACKUP_FAILED => 'Backup failed',
     ];
 }

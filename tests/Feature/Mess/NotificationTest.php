@@ -147,8 +147,8 @@ class NotificationTest extends TestCase
 
     public function test_notification_type_constants_are_complete(): void
     {
-        $this->assertSame(['close_complete', 'meal_off_decision', 'payment_recorded', 'due_reminder'], NotificationType::ALL);
-        $this->assertCount(4, NotificationType::LABELS);
+        $this->assertSame(['close_complete', 'meal_off_decision', 'payment_recorded', 'due_reminder', 'backup_failed'], NotificationType::ALL);
+        $this->assertCount(5, NotificationType::LABELS);
         foreach (NotificationType::ALL as $type) {
             $this->assertArrayHasKey($type, NotificationType::LABELS);
         }
