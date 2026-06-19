@@ -28,7 +28,9 @@ findings:
   warning: 7
   info: 5
   total: 15
-status: issues_found
+status: resolved
+resolved: 2026-06-19T00:00:00Z
+resolution: "All 3 criticals (CR-01/02/03) + 5 warnings (WR-01/03/05/06/07) fixed inline with non-mocked tests; see 06-VERIFICATION.md 'Re-Verification After Gap Closure'. WR-02 accepted (inherent to restore), WR-04 deferred (functional)."
 ---
 
 # Phase 6: Code Review Report
@@ -36,7 +38,7 @@ status: issues_found
 **Reviewed:** 2026-06-19
 **Depth:** standard
 **Files Reviewed:** 19
-**Status:** issues_found
+**Status:** resolved — 3 criticals + 5 warnings fixed inline (see 06-VERIFICATION.md "Re-Verification After Gap Closure"). Historical findings preserved below.
 
 ## Summary
 

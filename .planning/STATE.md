@@ -4,7 +4,7 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 06
 current_plan: 4
-status: Phase 06 complete (4/4 plans done)
+status: Phase 06 verified passed (4/4 plans; 3 review criticals fixed inline)
 last_updated: "2026-06-19T00:00:00.000Z"
 progress:
   total_phases: 6
@@ -38,7 +38,7 @@ See: `.planning/PROJECT.md` (updated 2026-06-16)
 | 3. Payments + Month-Close | In progress (3 of 4 plans done) | Payments, advance, close, notifications | 4 | 2026-06-17 | — |
 | 4. Reports + Dashboard | Complete (4 of 4 plans done; awaiting verification) | 4 reports, dashboard cards/charts, PDF/Excel | 4 | 2026-06-17 | 2026-06-18 |
 | 5. Polish + Pilot | In progress (2 of 3 plans done) | Mobile UX, performance, documentation, real-mess pilot | 3 | 2026-06-18 | — |
-| 6. Backup and restore system | Complete (4 of 4 plans done; awaiting verification) | Backup and restore system | 4 | 2026-06-19 | 2026-06-19 |
+| 6. Backup and restore system | Complete (4/4 plans; verified passed — 3 review criticals fixed inline; 6 prod human-verification items pending) | Backup and restore system | 4 | 2026-06-19 | 2026-06-19 |
 
 ## Accumulated Context
 
@@ -338,6 +338,15 @@ None.
 - Decisions implemented this plan: D-02 (DO Spaces + retention documented), D-03 (UI restore path documented as PRIMARY), D-05 (schedule + post-close hook + notify-on-failure documented), D-07 (.env exclusion + credential regeneration documented as REQUIRED).
 - Resume file: `.planning/phases/06-backup-and-restore-system/06-04-runbook-SUMMARY.md`
 - Next: Phase 6 is feature-complete (4/4 plans). Orchestrator owns phase-completion (VERIFICATION + marking phase done). Phase 5 Plan 05-03 (the v1 milestone pilot) remains the only incomplete plan in Phases 1-6.
+
+**2026-06-19** — Phase 6 execution + verification + gap closure — COMPLETE (verified passed).
+
+- Executed all 4 plans (3 waves): 06-01 foundation → 06-02 backend restore+tests → 06-03 super-admin UI → 06-04 runbook. 278 tests green after the 4 plans.
+- Code review (06-REVIEW.md) + goal-backward verification (06-VERIFICATION.md) found **3 Critical gaps** the green suite could NOT catch (Plan 06-02's D-08 mock strategy stubbed exactly the seams behind which they hid): **CR-01** silent file-loss on restore (spatie relative_path strip + wrong source path → copyDirectory no-op); **CR-02** dead post-close backup (Laravel has no `after()` job hook); **CR-03** audit new_values double-JSON-encoded.
+- Fixed inline (per user "Fix inline now") + 5 warnings (WR-01 stream, WR-03 stdin pipe, WR-05 path guard, WR-06 stack-leak, WR-07 spatie schedule guard) with NEW non-mocked/non-vacuous tests. Commits: `65cf87a` (CR-02), `26826fb` (CR-01+WR-01+WR-03), `5a370bd` (CR-03+WR-05+WR-06+WR-07). Full suite **279 tests / 683 assertions green**.
+- Re-verification: 06-VERIFICATION.md status → **passed** (8/8 must-haves). Pre-existing flakiness noted: the full suite intermittently OOM-crashes in the Phase 4 Dompdf/phpspreadsheet export tests under the default memory_limit (passes with `php -d memory_limit=1024M vendor/bin/phpunit`); NOT a Phase 6 regression.
+- **Still pending before v1 ship**: Phase 5 Plan 05-03 (real-mess pilot, human/manual) + Phase 6's 6 prod human-verification items (real DO Spaces provisioning + first backup:run, real scratch-DB restore-test, real SMTP failure email, end-to-end destructive restore on the prod VPS, real file-restore confirmation, down/queue:restart/up ordering under live supervisor). Advisory: `/gsd-secure-phase 6` (security_enforcement defaults on; no 06-SECURITY.md yet — Phase 6 plans carry STRIDE threat models with verified mitigations).
+- Resume file: `.planning/phases/06-backup-and-restore-system/06-VERIFICATION.md`
 
 ## Open Questions for User
 

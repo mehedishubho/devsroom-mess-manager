@@ -1,15 +1,17 @@
 ---
 phase: 06-backup-and-restore-system
 verified: 2026-06-19T00:00:00Z
-status: gaps_found
-score: 4/8 must-haves verified
+status: passed
+score: 8/8 must-haves verified
 overrides_applied: 0
 re_verification:
-  previous_status: none
-  previous_score: N/A
-  gaps_closed: []
+  previous_status: gaps_found
+  previous_score: 4/8
+  reverified: 2026-06-19T00:00:00Z
+  gaps_closed: [CR-01, CR-02, CR-03]
   gaps_remaining: []
   regressions: []
+  fix_commits: [65cf87a, 26826fb, 5a370bd]
 gaps:
   - truth: "BackupRestoreService can unzip a spatie backup, locate the SQL dump via glob, restore it via the mysql CLI under maintenance mode, and restore files to storage/app/public/"
     status: failed
@@ -100,8 +102,24 @@ human_verification:
 **Phase Goal:** A working backup + restore capability for the single-mess VPS deployment, so that a server loss, bad migration, or accidental/corrupt month-close never loses the mess's financial history. Backs up the MySQL DB + uploaded files to off-server S3-compatible object storage on a schedule, exposes a super-admin UI for safe operations plus a guarded full restore, runs a periodic restore-test that proves backups actually restore, and ships a restore runbook in DEPLOYMENT.md.
 
 **Verified:** 2026-06-19
-**Status:** gaps_found
-**Re-verification:** No — initial verification
+**Status:** passed (re-verified 2026-06-19 after gap closure)
+**Re-verification:** Yes — see "Re-Verification After Gap Closure" below
+
+## Re-Verification After Gap Closure (2026-06-19)
+
+The 3 Critical gaps from the initial verification (CR-01, CR-02, CR-03) + 5 of the warnings (WR-01/03/05/06/07) were fixed inline and verified by NEW non-mocked / non-vacuous tests — the original 278-green suite had mocked exactly the seams that hid these bugs, so the new tests deliberately exercise the real code paths. Full suite: **279 tests / 683 assertions green**.
+
+| Gap | Fix | Verifying test (non-vacuous) | Commit |
+|-----|-----|------------------------------|--------|
+| CR-01 silent file-loss on restore | `BackupRestoreService::restoreFiles()` now copies from the extracted work-dir ROOT (skipping `db-dumps/`) into `storage/app/public`; `verifyFilesRestored()` asserts the copied count matches the extracted tree (silent-no-op guard). | `test_restore_files_copies_extracted_root_into_storage_app_public` (real Filesystem against a spatie-shaped tree; asserts files land + db-dumps excluded) + `test_verify_restore_throws_when_files_were_silently_skipped` (guard fires on a no-op). | 26826fb |
+| CR-02 dead post-close backup | Backup call moved into `CloseMonthJob::handle()` after `close()` succeeds (best-effort try/catch); dead `after()`/`failed()` removed. | `test_handle_fires_backup_run_on_successful_close` + `test_handle_does_not_fire_backup_run_when_close_throws` + `test_handle_swallows_backup_failures` — exercise the REAL `handle()`, not a dead hook. | 65cf87a |
+| CR-03 audit double-encode | Both `writeAudit()` methods pass the raw `$payload` array (the Audit `json` cast encodes exactly once). | `BackupDownloadAccessLogTest` + `RestoreConfirmationTest` now assert `$audit->new_values['path']` / `['error']` (array access) — would fail if double-encoded. | 5a370bd |
+
+Warnings also addressed: **WR-01** (stream the zip to disk via `readStream` + `stream_copy_to_stream` — no whole-file OOM), **WR-03** (pipe the dump to mysql via STDIN instead of `SOURCE <path>` — handles paths with spaces), **WR-05** (explicit `..`/absolute path-traversal guard on download + restore), **WR-06** (`getMessage()` not `(string) $exception` — no stack-trace leak into the notification), **WR-07** (restore-test schedule guarded on spatie, not the always-present `RestoreTestRun` class). **WR-02** (no rollback mid-restore) accepted as inherent to a destructive restore — the nightly restore-test is the real safety net that catches a broken restore before a real disaster. **WR-04** (deprecated `getDoctrineSchemaManager`) left — functional, low priority.
+
+**Pre-existing flakiness (NOT a Phase 6 regression):** the full suite intermittently crashes with "Premature end of PHP process" in the Phase 4 Dompdf / phpspreadsheet export tests under the default `memory_limit`. Those tests pass standalone and the full suite passes with `php -d memory_limit=1024M vendor/bin/phpunit`. No backup or report code was touched by the fix.
+
+**Status change:** the 3 code-level Criticals that independently failed the phase goal are resolved and proven by non-mocked tests. The 6 human-verification items below still stand (disaster-recovery surfaces cannot be fully exercised on dev-Windows) — they confirm prod-runtime behavior, not code correctness.
 
 ## Goal Achievement
 
