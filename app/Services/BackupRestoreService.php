@@ -26,6 +26,13 @@ use Symfony\Component\Process\Process;
  * D-08: every Process + Artisan call is mockable via protected seams plus a
  * public buildMysqlProcess() test seam. The suite NEVER shells out.
  *
+ * CR-01: restoreFiles copies the backed-up files from the EXTRACTED ROOT into
+ * storage_path('app/public'). spatie zips storage/app/public/* with
+ * relative_path = storage/app/public, so that prefix is STRIPPED and the files
+ * extract to the work-dir root (alongside db-dumps/), NOT under a nested
+ * storage/app/public/ tree. verifyFilesRestored() asserts every extracted file
+ * entry was copied — a regression net against the original silent-no-op bug.
+ *
  * Pitfall 4: restoreFiles writes into storage_path('app/public') (the real
  * directory), NEVER public_path('storage') (the symlink target).
  *
@@ -63,8 +70,8 @@ class BackupRestoreService
             $workDir = $this->downloadAndExtract($backupPath);
             $sqlPath = $this->locateSqlDump($workDir);
             $this->restoreDatabase($sqlPath);
-            $this->restoreFiles($workDir);
-            $this->verifyRestore();
+            $filesRestored = $this->restoreFiles($workDir);
+            $this->verifyRestore($workDir, $filesRestored);
         } finally {
             // ALWAYS bring the app back up, even on exception. T-06-02-01.
             Artisan::call('up');
@@ -80,20 +87,28 @@ class BackupRestoreService
      *
      * Uses ARRAY args (NOT escapeshellarg string concat) per research
      * Pattern 4a — Process handles cross-platform escaping cleanly.
+     *
+     * WR-03: the dump is piped via STDIN (mysql reads SQL from stdin when no
+     * -e flag and no positional file is given). This avoids the `SOURCE <path>`
+     * form, which breaks on paths containing spaces, and streams the file
+     * without reading it all into memory.
      */
     public function buildMysqlProcess(string $sqlPath): Process
     {
         $cfg = config('database.connections.mysql');
 
-        return new Process([
+        $process = new Process([
             'mysql',
             '--host='.$cfg['host'],
             '--port='.$cfg['port'],
             '--user='.$cfg['username'],
             '--password='.$cfg['password'],
             $cfg['database'],
-            '-e', 'SOURCE '.$sqlPath,
         ]);
+
+        $process->setInput($this->openDumpStream($sqlPath));
+
+        return $process;
     }
 
     /**
@@ -119,41 +134,60 @@ class BackupRestoreService
     }
 
     /**
-     * Pitfall 4: copy the backed-up files back to storage_path('app/public'),
+     * Pitfall 4 + CR-01: copy the backed-up files back to storage_path('app/public'),
      * the REAL directory. NEVER write to public_path('storage') (the symlink).
      *
-     * The backup zip stores files under storage/app/public (relative_path is
-     * set to that in config/backup.php). When extracted, that nested tree
-     * exists under the work dir.
+     * spatie zips storage/app/public/* with relative_path = storage/app/public
+     * (config/backup.php), so that prefix is STRIPPED and the backed-up files
+     * extract to the work-dir ROOT (e.g. <workDir>/profiles/foo.jpg), alongside
+     * the db-dumps/ folder. Copy every top-level entry EXCEPT db-dumps back into
+     * storage/app/public.
      *
-     * Protected seam (D-08) — mocked in the test suite.
+     * Returns the count of entries copied (consumed by verifyFilesRestored).
+     *
+     * Protected seam (D-08) — mocked in the test suite (except the dedicated
+     * non-mocked integration test that proves the path math).
      */
-    protected function restoreFiles(string $workDir): void
+    protected function restoreFiles(string $workDir): int
     {
-        // The spatie backup zips storage/app/public/* with relative_path =
-        // storage/app/public, so the backed-up files live under
-        // <workDir>/storage/app/public/. (If the layout differs, the source
-        // dir simply won't exist and copyDirectory is a no-op — harmless.)
-        $sourceDir = $workDir.'/storage/app/public';
         $destDir = storage_path('app/public');
-
         $this->files->ensureDirectoryExists($destDir, 0775, true);
 
-        // copyDirectory merges the source tree into the destination,
-        // overwriting existing files. Do NOT delete the destination dir first
-        // (the storage symlink would be followed in the wrong direction on
-        // some setups — Pitfall 4 anti-pattern). Research Pattern 4.
-        $this->files->copyDirectory($sourceDir, $destDir);
+        $copied = 0;
+
+        foreach ($this->files->directories($workDir) as $dir) {
+            if (basename($dir) === 'db-dumps') {
+                continue;
+            }
+            $this->files->copyDirectory($dir, $destDir.DIRECTORY_SEPARATOR.basename($dir));
+            $copied++;
+        }
+
+        foreach ($this->files->files($workDir) as $file) {
+            $this->files->copy($file->getPathname(), $destDir.DIRECTORY_SEPARATOR.$file->getFilename());
+            $copied++;
+        }
+
+        return $copied;
     }
 
     /**
-     * Lightweight spot-check: COUNT(*) on a few high-value tables must be > 0.
-     * This is the "did the restore actually do anything" guard. The full
-     * per-table parity check lives in RestoreTestService.
+     * Post-restore verification: the DB must have rows AND every backed-up file
+     * entry must have been copied (CR-01 silent-no-op guard).
      *
      * Protected seam (D-08) — mocked in the test suite.
      */
-    protected function verifyRestore(): void
+    protected function verifyRestore(string $workDir, int $filesRestored): void
+    {
+        $this->verifyDatabaseRestored();
+        $this->verifyFilesRestored($workDir, $filesRestored);
+    }
+
+    /**
+     * Lightweight DB spot-check: COUNT(*) on a few high-value tables must be > 0.
+     * The full per-table parity check lives in RestoreTestService.
+     */
+    protected function verifyDatabaseRestored(): void
     {
         foreach (['members', 'monthly_closings', 'audits'] as $table) {
             $count = (int) DB::table($table)->count();
@@ -166,8 +200,51 @@ class BackupRestoreService
     }
 
     /**
+     * CR-01 regression net: the count of file entries restoreFiles reports
+     * having copied MUST equal the count present in the extracted tree. If
+     * restoreFiles ever silently no-ops again (e.g. wrong source path), this
+     * diverges and the restore fails loudly instead of reporting success while
+     * losing every uploaded file.
+     */
+    protected function verifyFilesRestored(string $workDir, int $filesRestored): void
+    {
+        $expected = $this->countExtractedFileEntries($workDir);
+
+        if ($filesRestored !== $expected) {
+            throw new RuntimeException(
+                "Post-restore verification failed: restored {$filesRestored} file entries "
+                ."but the extracted backup contained {$expected} (silent file-restore guard, CR-01)."
+            );
+        }
+    }
+
+    /**
+     * Count the top-level file entries in the extracted tree, excluding the
+     * db-dumps folder (which is handled by restoreDatabase, not restoreFiles).
+     */
+    protected function countExtractedFileEntries(string $workDir): int
+    {
+        $count = 0;
+        foreach ($this->files->directories($workDir) as $dir) {
+            if (basename($dir) === 'db-dumps') {
+                continue;
+            }
+            $count++;
+        }
+        foreach ($this->files->files($workDir) as $file) {
+            $count++;
+        }
+
+        return $count;
+    }
+
+    /**
      * Download the backup zip from the configured backups disk and extract it
      * to a fresh temp dir. Protected seam (D-08).
+     *
+     * WR-01: the zip is STREAMED to disk (readStream + stream_copy_to_stream)
+     * rather than $disk->get(), which materializes the whole file in memory
+     * and would OOM on a real prod backup.
      *
      * @return string The extracted work directory absolute path.
      */
@@ -181,7 +258,7 @@ class BackupRestoreService
         $this->files->ensureDirectoryExists($workDir, 0775, true);
 
         $localZip = $workDir.'/'.basename($backupPath);
-        $this->files->put($localZip, $disk->get($backupPath));
+        $this->streamToLocal($disk, $backupPath, $localZip);
 
         $zip = new \ZipArchive;
         $opened = $zip->open($localZip);
@@ -192,6 +269,44 @@ class BackupRestoreService
         $zip->close();
 
         return $workDir;
+    }
+
+    /**
+     * Open a readable stream over the SQL dump (WR-03 — piped to mysql stdin).
+     *
+     * @return resource
+     */
+    protected function openDumpStream(string $sqlPath)
+    {
+        $resource = fopen($sqlPath, 'r');
+
+        if ($resource === false) {
+            throw new RuntimeException("Could not open SQL dump for restore: {$sqlPath}");
+        }
+
+        return $resource;
+    }
+
+    /**
+     * Stream a file from a filesystem disk to a local path without buffering
+     * the whole file in memory (WR-01).
+     */
+    protected function streamToLocal($disk, string $diskPath, string $destFile): void
+    {
+        $stream = $disk->readStream($diskPath);
+
+        try {
+            $dest = fopen($destFile, 'w+b');
+            if ($dest === false) {
+                throw new RuntimeException("Could not open {$destFile} for writing.");
+            }
+            stream_copy_to_stream($stream, $dest);
+            fclose($dest);
+        } finally {
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
+        }
     }
 
     protected function cleanup(string $workDir): void

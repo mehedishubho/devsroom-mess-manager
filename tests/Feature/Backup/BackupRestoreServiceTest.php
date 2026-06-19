@@ -107,7 +107,7 @@ class BackupRestoreServiceTest extends TestCase
         $service = $this->makeService([
             'downloadAndExtract' => sys_get_temp_dir().'/fake-restore',
             'restoreDatabase' => null,
-            'restoreFiles' => null,
+            'restoreFiles' => 0,
             'verifyRestore' => null,
             'cleanup' => null,
         ]);
@@ -128,7 +128,7 @@ class BackupRestoreServiceTest extends TestCase
         $service = $this->makeService([
             'downloadAndExtract' => sys_get_temp_dir().'/fake-restore',
             'restoreDatabase' => null,
-            'restoreFiles' => null,
+            'restoreFiles' => 0,
             'verifyRestore' => null,
             'cleanup' => null,
         ]);
@@ -164,105 +164,132 @@ class BackupRestoreServiceTest extends TestCase
     }
 
     /**
-     * Test 8: restoreFiles copies into storage_path('app/public'), NOT
-     * public_path('storage'). Pitfall 4 — the symlink must not be followed.
+     * Test 8 (CR-01, NON-MOCKED integration): restoreFiles copies the backed-up
+     * files from the EXTRACTED ROOT into storage_path('app/public').
      *
-     * Verified structurally by spying on Filesystem::copyDirectory's dest arg.
+     * spatie zips storage/app/public/* with relative_path = storage/app/public,
+     * so the prefix is STRIPPED and files extract to the work-dir root (alongside
+     * db-dumps/). The original restoreFiles sourced from a nonexistent
+     * <workDir>/storage/app/public and silently copied nothing — this test runs
+     * the REAL Filesystem against a real spatie-shaped temp tree to prove the
+     * fix: files land in storage/app/public, db-dumps is excluded.
      */
-    public function test_restore_files_writes_into_storage_app_public_never_public_storage(): void
+    public function test_restore_files_copies_extracted_root_into_storage_app_public(): void
     {
-        // Replace Filesystem with a spy so we can capture the copyDirectory() dest.
-        $filesSpy = Mockery::mock(Filesystem::class);
-        $filesSpy->shouldReceive('glob')->andReturn([]);
-        $filesSpy->shouldReceive('ensureDirectoryExists')->andReturn(true);
-        $filesSpy->shouldReceive('directories')->andReturn([]);
-        $filesSpy->shouldReceive('files')->andReturn([]);
-        $filesSpy->shouldReceive('deleteDirectory')->andReturn(true);
+        $workDir = sys_get_temp_dir().'/cr01-'.uniqid();
+        @mkdir($workDir.'/profiles', 0775, true);
+        @mkdir($workDir.'/db-dumps', 0775, true);
+        file_put_contents($workDir.'/profiles/member-1.jpg', 'photo-bytes');
+        file_put_contents($workDir.'/loose-receipt.pdf', 'receipt-bytes');
+        file_put_contents($workDir.'/db-dumps/devsroom.sql', '-- dump');
 
-        $capturedDestinations = [];
-        $filesSpy->shouldReceive('copyDirectory')
-            ->with(Mockery::on(fn ($src) => is_string($src)), Mockery::on(function ($dest) use (&$capturedDestinations) {
-                $capturedDestinations[] = $dest;
+        $destDir = storage_path('app/public');
 
-                return is_string($dest);
-            }))
-            ->andReturn(true);
-        $filesSpy->shouldReceive('copy')->andReturn(true);
+        $service = new BackupRestoreService(new Filesystem, new BackupPathResolver(new Filesystem));
+        $ref = new \ReflectionMethod($service, 'restoreFiles');
 
-        $this->app->instance(Filesystem::class, $filesSpy);
+        try {
+            $copied = $ref->invoke($service, $workDir);
 
-        // Build the service AFTER binding so DI resolves the spy.
-        // restoreFiles runs for real against the spy (so we capture the
-        // copyDirectory dest); everything else is stubbed.
-        $mock = Mockery::mock(BackupRestoreService::class, [$filesSpy, new BackupPathResolver(new Filesystem)])
-            ->makePartial();
-        $mock->shouldAllowMockingProtectedMethods();
-        $mock->shouldReceive('downloadAndExtract')->andReturn(sys_get_temp_dir().'/fake-workdir');
-        $mock->shouldReceive('locateSqlDump')->andReturn('/fake/dump.sql');
-        $mock->shouldReceive('restoreDatabase');
-        $mock->shouldReceive('verifyRestore');
-        $mock->shouldReceive('cleanup');
-
-        $mock->restoreFromDisk('backups/test.zip');
-
-        $forbidden = $this->normalizeSlashes(public_path('storage'));
-        foreach ($capturedDestinations as $dest) {
-            $this->assertStringNotContainsString(
-                $forbidden,
-                $this->normalizeSlashes($dest),
-                "restoreFiles wrote to public_path('storage') (the symlink target). Pitfall 4.",
-            );
+            // profiles/ dir + loose-receipt.pdf file = 2 entries (db-dumps excluded).
+            $this->assertSame(2, $copied);
+            $this->assertFileExists($destDir.'/profiles/member-1.jpg');
+            $this->assertFileEquals($workDir.'/profiles/member-1.jpg', $destDir.'/profiles/member-1.jpg');
+            $this->assertFileExists($destDir.'/loose-receipt.pdf');
+            // db-dumps MUST NOT be copied into storage/app/public.
+            $this->assertDirectoryDoesNotExist($destDir.'/db-dumps');
+            $this->assertFileDoesNotExist($destDir.'/db-dumps/devsroom.sql');
+        } finally {
+            @unlink($destDir.'/profiles/member-1.jpg');
+            @unlink($destDir.'/loose-receipt.pdf');
+            @rmdir($destDir.'/profiles');
+            @unlink($workDir.'/profiles/member-1.jpg');
+            @unlink($workDir.'/loose-receipt.pdf');
+            @unlink($workDir.'/db-dumps/devsroom.sql');
+            @rmdir($workDir.'/profiles');
+            @rmdir($workDir.'/db-dumps');
+            @rmdir($workDir);
         }
+    }
 
-        // At least one destination must be storage_path('app/public').
-        $expected = $this->normalizeSlashes(storage_path('app/public'));
-        $foundStorageApp = false;
-        foreach ($capturedDestinations as $dest) {
-            if (str_contains($this->normalizeSlashes($dest), $expected)) {
-                $foundStorageApp = true;
+    /**
+     * Test 8b (CR-01 guard): verifyFilesRestored throws when restoreFiles copies
+     * fewer entries than the extracted tree contains (the original silent-no-op
+     * regression net). The DB check is stubbed so we isolate the file guard.
+     */
+    public function test_verify_restore_throws_when_files_were_silently_skipped(): void
+    {
+        $workDir = sys_get_temp_dir().'/cr01-guard-'.uniqid();
+        @mkdir($workDir.'/profiles', 0775, true);
+        file_put_contents($workDir.'/profiles/member-1.jpg', 'photo-bytes');
 
-                break;
-            }
+        try {
+            $service = Mockery::mock(BackupRestoreService::class, [new Filesystem, new BackupPathResolver(new Filesystem)])
+                ->makePartial();
+            $service->shouldAllowMockingProtectedMethods();
+            $service->shouldReceive('verifyDatabaseRestored'); // isolate the file guard
+
+            $ref = new \ReflectionMethod($service, 'verifyRestore');
+
+            $this->expectException(\RuntimeException::class);
+            $this->expectExceptionMessage('silent file-restore guard');
+
+            // 0 copied but the tree contains 1 entry => guard must fire.
+            $ref->invoke($service, $workDir, 0);
+        } finally {
+            @unlink($workDir.'/profiles/member-1.jpg');
+            @rmdir($workDir.'/profiles');
+            @rmdir($workDir);
         }
-        $this->assertTrue($foundStorageApp, "restoreFiles did not write to storage_path('app/public').");
     }
 
     /**
      * Test 9: buildMysqlProcess() constructs a Symfony\Component\Process\Process
      * with ARRAY args (no escapeshellarg string concat) containing --host /
-     * --user / --password / the database name + SOURCE directive.
+     * --user / --password / the database name, and PIPES the dump via STDIN
+     * (WR-03 — never the `SOURCE <path>` form, which breaks on paths with spaces).
      *
      * The service exposes buildMysqlProcess() as a public test seam so the
      * suite can inspect the Process without ever shelling out.
      */
-    public function test_build_mysql_process_uses_array_args_with_required_flags(): void
+    public function test_build_mysql_process_pipes_dump_via_stdin_not_source(): void
     {
-        // Build the service directly — bypassing the setUp() Artisan spy.
-        $service = new BackupRestoreService(new Filesystem, new BackupPathResolver(new Filesystem));
+        $dump = sys_get_temp_dir().'/cr03-'.uniqid().'.sql';
+        file_put_contents($dump, '-- dump');
 
-        $process = $service->buildMysqlProcess('/tmp/dump.sql');
+        try {
+            // Build the service directly — bypassing the setUp() Artisan spy.
+            $service = new BackupRestoreService(new Filesystem, new BackupPathResolver(new Filesystem));
 
-        // Symfony Process::getCommandLine() renders the array args back as a
-        // shell-escaped string — assert the required tokens are present.
-        $cmdline = $process->getCommandLine();
-        $this->assertStringContainsString('mysql', $cmdline);
-        $this->assertStringContainsString('--host', $cmdline);
-        $this->assertStringContainsString('--user', $cmdline);
-        $this->assertStringContainsString('--password', $cmdline);
-        $this->assertStringContainsString('SOURCE', $cmdline);
-        $this->assertStringContainsString('/tmp/dump.sql', $cmdline);
+            $process = $service->buildMysqlProcess($dump);
 
-        // The Process was built from an ARRAY of args (not a single shell string)
-        // — confirmed by the existence of multiple quoted tokens. On Linux,
-        // Process uses single quotes; on Windows it uses double quotes. Count
-        // whichever kind appears in the rendered cmdline.
-        $singleQuoteCount = substr_count($cmdline, "'");
-        $doubleQuoteCount = substr_count($cmdline, '"');
-        $this->assertGreaterThan(
-            1,
-            $singleQuoteCount + $doubleQuoteCount,
-            'Expected Process to be constructed from an array of args (multiple quoted tokens), not a single shell string.',
-        );
+            // Symfony Process::getCommandLine() renders the array args back as a
+            // shell-escaped string — assert the required tokens are present.
+            $cmdline = $process->getCommandLine();
+            $this->assertStringContainsString('mysql', $cmdline);
+            $this->assertStringContainsString('--host', $cmdline);
+            $this->assertStringContainsString('--user', $cmdline);
+            $this->assertStringContainsString('--password', $cmdline);
+
+            // WR-03: the dump is piped via STDIN — never passed as `SOURCE <path>`.
+            $this->assertStringNotContainsString('SOURCE', $cmdline);
+            $this->assertStringNotContainsString($dump, $cmdline);
+
+            // The Process was built from an ARRAY of args (not a single shell
+            // string) — confirmed by multiple quoted tokens in the rendered cmdline.
+            $singleQuoteCount = substr_count($cmdline, "'");
+            $doubleQuoteCount = substr_count($cmdline, '"');
+            $this->assertGreaterThan(
+                1,
+                $singleQuoteCount + $doubleQuoteCount,
+                'Expected Process to be constructed from an array of args (multiple quoted tokens), not a single shell string.',
+            );
+
+            // The dump stream is wired as the Process input (piped to mysql stdin).
+            $this->assertNotNull($process->getInput());
+        } finally {
+            @unlink($dump);
+        }
     }
 
     /**
@@ -291,10 +318,5 @@ class BackupRestoreServiceTest extends TestCase
         $this->assertNotNull($thrown, 'Exception must propagate.');
         $this->assertSame('mysql restore failed', $thrown->getMessage());
         $this->assertArtisanCalled('up');
-    }
-
-    private function normalizeSlashes(string $path): string
-    {
-        return str_replace('\\', '/', $path);
     }
 }

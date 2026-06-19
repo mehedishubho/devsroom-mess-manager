@@ -168,7 +168,18 @@ class RestoreTestService
         $this->files->ensureDirectoryExists($tempDir, 0775, true);
 
         $localZip = $tempDir.'/'.basename($latestZip);
-        $this->files->put($localZip, $disk->get($latestZip));
+        // WR-01: stream the zip to disk instead of $disk->get() (which buffers
+        // the whole file in memory → OOM on a real prod backup).
+        $in = $disk->readStream($latestZip);
+        $out = fopen($localZip, 'w+b');
+        if ($out === false) {
+            throw new \RuntimeException("Could not open {$localZip} for writing.");
+        }
+        stream_copy_to_stream($in, $out);
+        fclose($out);
+        if (is_resource($in)) {
+            fclose($in);
+        }
 
         $zip = new \ZipArchive;
         $opened = $zip->open($localZip);
@@ -212,8 +223,15 @@ class RestoreTestService
             '--user='.$cfg['username'],
             '--password='.$cfg['password'],
             $cfg['database'],
-            '-e', 'SOURCE '.$sqlPath,
         ]);
+        // WR-03: pipe the dump via STDIN (avoids the `SOURCE <path>` form, which
+        // breaks on paths containing spaces). A missing dump throws rather than
+        // silently producing an empty restore.
+        $resource = fopen($sqlPath, 'r');
+        if ($resource === false) {
+            throw new \RuntimeException("Could not open SQL dump for restore-test: {$sqlPath}");
+        }
+        $process->setInput($resource);
         $process->setTimeout(600);
         $process->mustRun();
     }
