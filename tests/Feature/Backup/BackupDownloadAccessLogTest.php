@@ -81,7 +81,9 @@ class BackupDownloadAccessLogTest extends TestCase
 
         $audit = Audit::where('event', 'backup.download')->latest('id')->first();
         $this->assertNotNull($audit, 'Expected an audit row with event=backup.download.');
-        $this->assertStringContainsString(self::PATH, (string) $audit->new_values);
+        // Audit::new_values is json-cast (array). Assert array access, not a
+        // substring on the serialized blob (CR-03 — the cast must encode once).
+        $this->assertSame(self::PATH, $audit->new_values['path'] ?? null);
     }
 
     /**

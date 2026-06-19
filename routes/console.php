@@ -1,6 +1,5 @@
 <?php
 
-use App\Console\Commands\RestoreTestRun;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -26,11 +25,11 @@ if (class_exists(BackupServiceProvider::class)) {
     Schedule::command('backup:run')->daily()->at('01:30')
         ->withoutOverlapping()->onOneServer();
     Schedule::command('backup:monitor')->daily()->at('02:00')->onOneServer();
-}
 
-// D-04: nightly restore-test. Tunable — change cadence here to weekly if
-// VPS load matters. The RestoreTestRun class is always present in this app.
-if (class_exists(RestoreTestRun::class)) {
+    // D-04: nightly restore-test. Tunable — change cadence here to weekly if
+    // VPS load matters. Guarded on spatie (WR-07): the RestoreTestRun command
+    // ships in the app regardless, but the test needs a spatie backup zip to
+    // load, so it is meaningless without the backup pipeline.
     Schedule::command('backup:restore-test')->daily()->at('03:00')
         ->withoutOverlapping()->onOneServer();
 }

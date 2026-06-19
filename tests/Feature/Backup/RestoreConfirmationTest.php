@@ -166,7 +166,8 @@ class RestoreConfirmationTest extends TestCase
         $audit = Audit::where('event', 'backup.restore')->latest('id')->first();
         $this->assertNotNull($audit, 'Expected an audit row with event=backup.restore.');
         $this->assertSame('backup', $audit->auditable_type);
-        $this->assertStringContainsString(self::PATH, (string) $audit->new_values);
+        // Audit::new_values is json-cast (array). Assert array access (CR-03).
+        $this->assertSame(self::PATH, $audit->new_values['path'] ?? null);
     }
 
     /**
@@ -197,7 +198,8 @@ class RestoreConfirmationTest extends TestCase
 
         $audit = Audit::where('event', 'backup.restore.failed')->latest('id')->first();
         $this->assertNotNull($audit, 'Expected an audit row with event=backup.restore.failed.');
-        $this->assertStringContainsString('mid-restore explosion', (string) $audit->new_values);
+        // Audit::new_values is json-cast (array). Assert array access (CR-03).
+        $this->assertSame('mid-restore explosion', $audit->new_values['error'] ?? null);
 
         // No success row should have been written alongside the failure row.
         $this->assertSame(0, Audit::where('event', 'backup.restore')->count());

@@ -77,6 +77,7 @@ class BackupController extends Controller
      */
     public function download(string $path)
     {
+        $this->guardPath($path);
         $disk = Storage::disk($this->backupDisk());
         abort_unless($disk->exists($path), 404);
 
@@ -101,7 +102,7 @@ class BackupController extends Controller
             'event' => $event,
             'auditable_type' => 'backup', // sentinel value (not a real model)
             'auditable_id' => 0,
-            'new_values' => json_encode($payload) ?: null,
+            'new_values' => $payload,
             'url' => $request->fullUrl(),
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
@@ -121,6 +122,19 @@ class BackupController extends Controller
     private function backupDisk(): string
     {
         return (string) config('backup.backup.destination.disks.0', 'backups');
+    }
+
+    /**
+     * Defense-in-depth path guard (WR-05). Flysystem normalizes `..` segments,
+     * but reject traversal / absolute patterns explicitly so a malformed
+     * request never reaches the disk layer.
+     */
+    private function guardPath(string $path): void
+    {
+        abort_if(
+            str_contains($path, '..') || str_starts_with($path, '/') || str_starts_with($path, '\\'),
+            404,
+        );
     }
 
     /**

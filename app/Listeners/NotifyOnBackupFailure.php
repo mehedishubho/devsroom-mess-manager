@@ -31,7 +31,9 @@ class NotifyOnBackupFailure
         $this->notifications->broadcastToManagers(NotificationType::BACKUP_FAILED, [
             'event' => class_basename($event),
             'message' => $diskName,
-            'exception' => $event instanceof BackupHasFailed ? (string) $event->exception : null,
+            // WR-06: surface only the message, not the full (string) exception —
+            // the latter leaks stack internals into the in-app notification.
+            'exception' => ($event instanceof BackupHasFailed && $event->exception) ? $event->exception->getMessage() : null,
         ]);
     }
 }

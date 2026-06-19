@@ -35,6 +35,7 @@ class RestoreController extends Controller
 
     public function show(string $path): View
     {
+        $this->guardPath($path);
         $disk = Storage::disk((string) config('backup.backup.destination.disks.0', 'backups'));
         abort_unless($disk->exists($path), 404);
 
@@ -47,6 +48,8 @@ class RestoreController extends Controller
     public function store(RestoreRequest $request): RedirectResponse
     {
         $path = (string) $request->validated('path');
+
+        $this->guardPath($path);
 
         try {
             $this->service->restoreFromDisk($path);
@@ -93,11 +96,24 @@ class RestoreController extends Controller
             'event' => $event,
             'auditable_type' => 'backup',
             'auditable_id' => 0,
-            'new_values' => json_encode($payload) ?: null,
+            'new_values' => $payload,
             'url' => $request->fullUrl(),
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
             'tags' => 'backup',
         ])->save();
+    }
+
+    /**
+     * Defense-in-depth path guard (WR-05). Flysystem normalizes `..` segments,
+     * but reject traversal / absolute patterns explicitly so a malformed
+     * request never reaches the disk layer or the destructive service.
+     */
+    private function guardPath(string $path): void
+    {
+        abort_if(
+            str_contains($path, '..') || str_starts_with($path, '/') || str_starts_with($path, '\\'),
+            404,
+        );
     }
 }
