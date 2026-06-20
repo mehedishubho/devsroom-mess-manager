@@ -68,8 +68,9 @@ Route::middleware(['auth', 'role:super-admin'])
 Route::get('/set-password', [SetPasswordController::class, 'show'])->name('password.set.show');
 Route::post('/set-password', [SetPasswordController::class, 'update'])->name('password.set.update');
 
-// Manager (admin role) — home + mess config + audit + invite
-Route::middleware(['auth', 'role:admin', EnsureMessExists::class])->group(function () {
+// Mess managers (admin + manager roles) — home + mess config + audit + invite.
+// `roles:` = EnsureAnyTyroRole (ANY-match); `role:` would be ALL-match.
+Route::middleware(['auth', 'roles:admin,manager', EnsureMessExists::class])->group(function () {
     Route::get('/home', [HomeController::class, 'index'])->name('home');
 
     Route::get('/mess/settings', [MessConfigController::class, 'edit'])->name('mess.settings.edit');

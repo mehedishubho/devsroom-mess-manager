@@ -44,7 +44,7 @@ class AppServiceProvider extends ServiceProvider
 
                     return '/dashboard';
                 }
-                if ($user->hasRole('admin')) {
+                if ($user->hasRole('admin') || $user->hasRole('manager')) {
                     return '/home';
                 }
                 if ($user->hasRole('user')) {

@@ -11,7 +11,7 @@ class UpdateMessRequest extends FormRequest
     {
         $user = $this->user();
 
-        return $user && ($user->hasRole('admin') || $user->hasRole('super-admin'));
+        return $user && $user->canManageMess();
     }
 
     public function rules(): array

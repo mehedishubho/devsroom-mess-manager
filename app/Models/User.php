@@ -57,4 +57,24 @@ class User extends Authenticatable
     {
         return $this->member()->first();
     }
+
+    /**
+     * Is this user a mess Manager? (distinct from the generic `admin` role,
+     * but with the same day-to-day mess authority).
+     */
+    public function isManager(): bool
+    {
+        return $this->hasRole('manager');
+    }
+
+    /**
+     * Can the user manage the mess day-to-day? True for admin, super-admin,
+     * or manager. Centralizes the repeated
+     * `hasRole('admin') || hasRole('super-admin')` gate used across the
+     * mess FormRequests, routes, and views — and extends it to the manager role.
+     */
+    public function canManageMess(): bool
+    {
+        return $this->hasAnyRole(['admin', 'super-admin', 'manager']);
+    }
 }

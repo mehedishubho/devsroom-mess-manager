@@ -1,11 +1,18 @@
+##admin
 mehedihassanshubho@gmail.com
 
-1225524
+123456
 
-Manager
+
+
+##Manager
 
 mhs@wpmhs.com
 123456
 
+##User
 user@gmail.com
 123456
+
+manager@demo.test / password (admin) 
+member@demo.test / password (user) · admin@tyro.project

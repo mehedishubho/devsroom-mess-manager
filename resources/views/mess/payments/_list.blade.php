@@ -4,7 +4,7 @@
     </p>
 @else
     @php
-        $canView = auth()->user() && (auth()->user()->hasRole('admin') || auth()->user()->hasRole('super-admin'));
+        $canView = auth()->user()?->canManageMess() ?? false;
     @endphp
     {{-- mobile cards --}}
     <div class="space-y-3 md:hidden">

@@ -10,7 +10,8 @@ class AssignRoleCommand extends Command
 {
     protected $signature = 'mess:assign-role
                             {email : User email}
-                            {role : Role slug (super-admin, admin, user)}';
+                            {role : Role slug (super-admin, admin, manager, user)}
+                            {--sync : Detach all other roles first (replace)}';
 
     protected $description = 'Assign a Tyro role to an existing user.';
 
@@ -30,8 +31,13 @@ class AssignRoleCommand extends Command
             return self::FAILURE;
         }
 
-        $user->assignRole($role);
-        $this->info("Assigned role '{$role->slug}' to {$user->email}.");
+        if ($this->option('sync')) {
+            $user->syncRoles([$role]);
+            $this->info("Synced role '{$role->slug}' to {$user->email} (other roles detached).");
+        } else {
+            $user->assignRole($role);
+            $this->info("Assigned role '{$role->slug}' to {$user->email}.");
+        }
 
         return self::SUCCESS;
     }

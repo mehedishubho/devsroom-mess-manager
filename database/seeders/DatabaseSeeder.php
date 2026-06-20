@@ -21,7 +21,7 @@ class DatabaseSeeder extends Seeder
 
         User::factory()->create([
             'name' => 'Test User',
-            'email' => 'test@example.com',
+            'email' => 'test@user.com',
         ]);
 
         // D-07: PerfDemoSeeder is intentionally NOT called here.

@@ -28,7 +28,7 @@ result: pending
 ## Tests
 
 ### 1. Login as super-admin and reach Tyro dashboard
-expected: Visit /login, enter mehedihassanshubho@gmail.com / 1225524, click Sign in. You land on /dashboard (Tyro admin UI) without any 2FA challenge.
+expected: Visit /login, enter mehedihassanshubho@gmail.com / 123456, click Sign in. You land on /dashboard (Tyro admin UI) without any 2FA challenge.
 result: pass
 
 ### 2. Login as manager (admin) and reach /home
