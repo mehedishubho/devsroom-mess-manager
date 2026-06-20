@@ -5,12 +5,12 @@
             <h1 class="text-2xl font-semibold leading-tight text-slate-900">{{ __('Guest meals') }}</h1>
             <p class="mt-1 text-sm text-slate-600">{{ __('All guest meals recorded across members.') }}</p>
         </div>
-        <a href="{{ route('mess.guest-meals.create') }}" class="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+        <a href="{{ route('mess.guest-meals.create') }}" class="btn btn-primary">
             {{ __('Add guest meal') }}
         </a>
     </header>
 
-    <div class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+    <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <table class="min-w-full divide-y divide-slate-200">
             <thead class="bg-slate-50">
                 <tr>
@@ -25,7 +25,7 @@
             </thead>
             <tbody class="divide-y divide-slate-200 bg-white">
                 @forelse ($guestMeals as $gm)
-                    <tr>
+                    <tr class="transition-colors hover:bg-slate-50">
                         <td class="px-4 py-3 text-sm text-slate-600">{{ $gm->date->format('d M Y') }}</td>
                         <td class="px-4 py-3 text-sm text-slate-900">{{ $gm->member?->name ?? '—' }}</td>
                         <td class="px-4 py-3 text-sm text-slate-900">{{ $gm->guest_name }}</td>

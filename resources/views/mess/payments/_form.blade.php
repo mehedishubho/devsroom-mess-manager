@@ -18,7 +18,7 @@
 </div>
 <div>
     <label for="member_id" class="block text-sm font-medium text-slate-700">{{ __('Member') }}</label>
-    <select name="member_id" id="member_id" class="mt-1 block min-h-[44px] w-full rounded-md border-slate-300 bg-white px-3 text-base text-slate-900 @error('member_id') border-rose-500 @enderror">
+    <select name="member_id" id="member_id" class="input mt-1 @error('member_id') input-error @enderror">
         <option value="">{{ __('Select member') }}</option>
         @foreach ($members as $id => $name)
             <option value="{{ $id }}" @selected(old('member_id', $payment->member_id ?? null) == $id)>{{ $name }}</option>
@@ -28,17 +28,17 @@
 </div>
 <div>
     <label for="date" class="block text-sm font-medium text-slate-700">{{ __('Date') }}</label>
-    <input type="date" name="date" id="date" value="{{ old('date', isset($payment) && $payment ? $payment->date->format('Y-m-d') : now()->toDateString()) }}" class="mt-1 block min-h-[44px] w-full rounded-md border-slate-300 px-3 text-base text-slate-900 @error('date') border-rose-500 @enderror" />
+    <input type="date" name="date" id="date" value="{{ old('date', isset($payment) && $payment ? $payment->date->format('Y-m-d') : now()->toDateString()) }}" class="input input-date mt-1 @error('date') input-error @enderror" />
     @error('date') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
 </div>
 <div>
     <label for="amount" class="block text-sm font-medium text-slate-700">{{ __('Amount (BDT)') }}</label>
-    <input type="number" name="amount" id="amount" min="0.01" step="0.01" value="{{ old('amount', $payment->amount ?? '') }}" class="mt-1 block min-h-[44px] w-full rounded-md border-slate-300 px-3 text-base text-slate-900 @error('amount') border-rose-500 @enderror" />
+    <input type="number" name="amount" id="amount" min="0.01" step="0.01" value="{{ old('amount', $payment->amount ?? '') }}" class="input mt-1 @error('amount') input-error @enderror" />
     @error('amount') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
 </div>
 <div>
     <label for="method" class="block text-sm font-medium text-slate-700">{{ __('Method') }}</label>
-    <select name="method" id="method" class="mt-1 block min-h-[44px] w-full rounded-md border-slate-300 bg-white px-3 text-base text-slate-900 @error('method') border-rose-500 @enderror">
+    <select name="method" id="method" class="input mt-1 @error('method') input-error @enderror">
         @foreach (\App\Support\PaymentMethod::ALL as $m)
             <option value="{{ $m }}" @selected(old('method', $payment->method ?? \App\Support\PaymentMethod::CASH) === $m)>{{ \App\Support\PaymentMethod::LABELS[$m] }}</option>
         @endforeach
@@ -47,11 +47,11 @@
 </div>
 <div>
     <label for="reference" class="block text-sm font-medium text-slate-700">{{ __('Reference') }} <span class="text-xs text-slate-500">{{ __('(required for non-cash)') }}</span></label>
-    <input type="text" name="reference" id="reference" maxlength="100" value="{{ old('reference', $payment->reference ?? '') }}" class="mt-1 block min-h-[44px] w-full rounded-md border-slate-300 px-3 text-base text-slate-900 @error('reference') border-rose-500 @enderror" />
+    <input type="text" name="reference" id="reference" maxlength="100" value="{{ old('reference', $payment->reference ?? '') }}" class="input mt-1 @error('reference') input-error @enderror" />
     @error('reference') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
 </div>
 <div>
     <label for="notes" class="block text-sm font-medium text-slate-700">{{ __('Notes') }}</label>
-    <textarea name="notes" id="notes" rows="3" maxlength="1000" class="mt-1 block min-h-[60px] w-full rounded-md border-slate-300 px-3 text-base text-slate-900 @error('notes') border-rose-500 @enderror">{{ old('notes', $payment->notes ?? '') }}</textarea>
+    <textarea name="notes" id="notes" rows="3" maxlength="1000" class="input mt-1 @error('notes') input-error @enderror">{{ old('notes', $payment->notes ?? '') }}</textarea>
     @error('notes') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
 </div>

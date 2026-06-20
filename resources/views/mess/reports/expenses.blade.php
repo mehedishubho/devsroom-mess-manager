@@ -19,24 +19,24 @@
             :title="__('No expenses match the current filters.')"
             :description="__('Try widening the date range, choosing a different category, or clearing filters.')" />
     @else
-        <section class="overflow-hidden rounded-lg border border-slate-200 bg-white">
+        <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-slate-200 text-sm">
                     <thead class="bg-slate-50">
                         <tr>
-                            <th class="px-3 py-2 text-left font-semibold text-slate-700">{{ __('Date') }}</th>
-                            <th class="px-3 py-2 text-left font-semibold text-slate-700">{{ __('Category') }}</th>
-                            <th class="px-3 py-2 text-left font-semibold text-slate-700">{{ __('Description') }}</th>
-                            <th class="px-3 py-2 text-left font-semibold text-slate-700">{{ __('Vendor') }}</th>
-                            <th class="px-3 py-2 text-left font-semibold text-slate-700">{{ __('Purchased by') }}</th>
-                            <th class="px-3 py-2 text-right font-semibold text-slate-700">{{ __('Amount') }}</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Date') }}</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Category') }}</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Description') }}</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Vendor') }}</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Purchased by') }}</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Amount') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                         @foreach ($report['rows'] as $expense)
-                            <tr>
-                                <td class="px-3 py-2 whitespace-nowrap text-slate-900">{{ $expense->date->format('d-m-Y') }}</td>
-                                <td class="px-3 py-2 text-slate-700">
+                            <tr class="transition-colors hover:bg-slate-50">
+                                <td class="px-4 py-3 whitespace-nowrap text-slate-900">{{ $expense->date->format('d-m-Y') }}</td>
+                                <td class="px-4 py-3 text-slate-700">
                                     @if ($expense->category)
                                         {{ $expense->category->name }}
                                         @if ($expense->category->kind === ExpenseKind::BAZAR)
@@ -48,13 +48,19 @@
                                         <span class="text-slate-400">—</span>
                                     @endif
                                 </td>
-                                <td class="px-3 py-2 text-slate-900">{{ $expense->description ?? '—' }}</td>
-                                <td class="px-3 py-2 text-slate-600">{{ $expense->vendor ?? '—' }}</td>
-                                <td class="px-3 py-2 text-slate-600">{{ $expense->purchasedByMember?->name ?? '—' }}</td>
-                                <td class="px-3 py-2 text-right tabular-nums font-medium text-slate-900">{{ Money::taka($expense->amount) }}</td>
+                                <td class="px-4 py-3 text-slate-900">{{ $expense->description ?? '—' }}</td>
+                                <td class="px-4 py-3 text-slate-600">{{ $expense->vendor ?? '—' }}</td>
+                                <td class="px-4 py-3 text-slate-600">{{ $expense->purchasedByMember?->name ?? '—' }}</td>
+                                <td class="px-4 py-3 text-right tabular-nums font-medium text-slate-900">{{ Money::taka($expense->amount) }}</td>
                             </tr>
                         @endforeach
                     </tbody>
+                    <tfoot class="bg-slate-50">
+                        <tr>
+                            <th colspan="5" class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Total') }}</th>
+                            <th class="px-4 py-3 text-right tabular-nums font-bold text-slate-900">{{ Money::taka($report['totals']['amount']) }}</th>
+                        </tr>
+                    </tfoot>
                 </table>
             </div>
         </section>

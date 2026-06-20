@@ -39,7 +39,7 @@
                 <p class="font-semibold">{{ __('MONTH CLOSED — :label is locked.', ['label' => $now->format('F Y')]) }}</p>
                 <p class="mt-1 text-amber-800">{{ __('Meal/expense/payment writes for this month are disabled. Use corrections to adjust a closed month.') }}</p>
             </div>
-            <a href="{{ route('mess.closings.show', $currentClosing) }}" class="inline-flex items-center rounded-md border border-amber-400 bg-white px-3 py-2 text-sm font-medium text-amber-900 hover:bg-amber-100">
+            <a href="{{ route('mess.closings.show', $currentClosing) }}" class="btn btn-sm border border-amber-300 bg-amber-50 text-amber-800 shadow-sm hover:bg-amber-100">
                 {{ __('View closing') }}
             </a>
         </div>
@@ -47,7 +47,7 @@
 
     {{-- DASH-03: Pending meal-off alert banner (rendered only when count > 0) --}}
     @if ($pendingMealOff > 0)
-        <a href="{{ route('mess.meal-off.index') }}" class="mb-4 block rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 hover:bg-amber-100">
+        <a href="{{ route('mess.meal-off.index') }}" class="mb-4 block rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 transition-colors hover:bg-amber-100">
             {{ trans_choice(':count pending meal off request awaiting approval|:count pending meal off requests awaiting approval', $pendingMealOff) }}
         </a>
     @endif
@@ -100,12 +100,12 @@
                         <input type="hidden" name="payment_from" value="{{ $charts['payment']['range']['from'] ?? '' }}">
                         <input type="hidden" name="payment_to" value="{{ $charts['payment']['range']['to'] ?? '' }}">
                         <label class="text-xs text-slate-600">{{ __('From') }}
-                            <input type="date" name="meal_from" value="{{ $charts['meal']['range']['from'] ?? '' }}" class="mt-1 block rounded-md border-slate-300 text-xs">
+                            <input type="date" name="meal_from" value="{{ $charts['meal']['range']['from'] ?? '' }}" class="input input-date mt-1 w-auto max-w-44">
                         </label>
                         <label class="text-xs text-slate-600">{{ __('To') }}
-                            <input type="date" name="meal_to" value="{{ $charts['meal']['range']['to'] ?? '' }}" class="mt-1 block rounded-md border-slate-300 text-xs">
+                            <input type="date" name="meal_to" value="{{ $charts['meal']['range']['to'] ?? '' }}" class="input input-date mt-1 w-auto max-w-44">
                         </label>
-                        <button type="submit" class="min-h-[44px] rounded-md bg-slate-800 px-3 py-1 text-xs font-medium text-white hover:bg-slate-900">{{ __('Apply') }}</button>
+                        <button type="submit" class="btn btn-dark btn-sm">{{ __('Apply') }}</button>
                     </form>
                 </div>
                 <div style="height: 280px;">
@@ -123,12 +123,12 @@
                         <input type="hidden" name="payment_from" value="{{ $charts['payment']['range']['from'] ?? '' }}">
                         <input type="hidden" name="payment_to" value="{{ $charts['payment']['range']['to'] ?? '' }}">
                         <label class="text-xs text-slate-600">{{ __('From') }}
-                            <input type="date" name="expense_from" value="{{ $charts['expense']['range']['from'] ?? '' }}" class="mt-1 block rounded-md border-slate-300 text-xs">
+                            <input type="date" name="expense_from" value="{{ $charts['expense']['range']['from'] ?? '' }}" class="input input-date mt-1 w-auto max-w-44">
                         </label>
                         <label class="text-xs text-slate-600">{{ __('To') }}
-                            <input type="date" name="expense_to" value="{{ $charts['expense']['range']['to'] ?? '' }}" class="mt-1 block rounded-md border-slate-300 text-xs">
+                            <input type="date" name="expense_to" value="{{ $charts['expense']['range']['to'] ?? '' }}" class="input input-date mt-1 w-auto max-w-44">
                         </label>
-                        <button type="submit" class="min-h-[44px] rounded-md bg-slate-800 px-3 py-1 text-xs font-medium text-white hover:bg-slate-900">{{ __('Apply') }}</button>
+                        <button type="submit" class="btn btn-dark btn-sm">{{ __('Apply') }}</button>
                     </form>
                 </div>
                 <div style="height: 280px;">
@@ -146,12 +146,12 @@
                         <input type="hidden" name="expense_from" value="{{ $charts['expense']['range']['from'] ?? '' }}">
                         <input type="hidden" name="expense_to" value="{{ $charts['expense']['range']['to'] ?? '' }}">
                         <label class="text-xs text-slate-600">{{ __('From') }}
-                            <input type="date" name="payment_from" value="{{ $charts['payment']['range']['from'] ?? '' }}" class="mt-1 block rounded-md border-slate-300 text-xs">
+                            <input type="date" name="payment_from" value="{{ $charts['payment']['range']['from'] ?? '' }}" class="input input-date mt-1 w-auto max-w-44">
                         </label>
                         <label class="text-xs text-slate-600">{{ __('To') }}
-                            <input type="date" name="payment_to" value="{{ $charts['payment']['range']['to'] ?? '' }}" class="mt-1 block rounded-md border-slate-300 text-xs">
+                            <input type="date" name="payment_to" value="{{ $charts['payment']['range']['to'] ?? '' }}" class="input input-date mt-1 w-auto max-w-44">
                         </label>
-                        <button type="submit" class="min-h-[44px] rounded-md bg-slate-800 px-3 py-1 text-xs font-medium text-white hover:bg-slate-900">{{ __('Apply') }}</button>
+                        <button type="submit" class="btn btn-dark btn-sm">{{ __('Apply') }}</button>
                     </form>
                 </div>
                 <div style="height: 280px;">

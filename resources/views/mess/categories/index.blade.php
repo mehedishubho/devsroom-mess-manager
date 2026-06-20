@@ -7,7 +7,7 @@
 
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div class="lg:col-span-2">
-            <div class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+            <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                 <table class="min-w-full divide-y divide-slate-200">
                     <thead class="bg-slate-50">
                         <tr>
@@ -19,7 +19,7 @@
                     </thead>
                     <tbody class="divide-y divide-slate-200 bg-white">
                         @forelse ($categories as $cat)
-                            <tr>
+                            <tr class="transition-colors hover:bg-slate-50">
                                 <td class="px-4 py-3 text-sm text-slate-900">{{ $cat->name }}</td>
                                 <td class="px-4 py-3 text-sm"><x-status-pill :variant="$cat->kind" /></td>
                                 <td class="px-4 py-3 text-sm text-slate-600">{{ $cat->is_default ? __('Yes') : __('No') }}</td>
@@ -48,7 +48,7 @@
         </div>
 
         <div>
-            <div class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+            <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                 <h2 class="text-base font-semibold text-slate-900">{{ __('Add category') }}</h2>
                 <form method="POST" action="{{ route('mess.categories.store') }}" class="mt-3">
                     @csrf

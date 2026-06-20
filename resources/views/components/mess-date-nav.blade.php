@@ -8,22 +8,22 @@
 @endphp
 
 <div class="flex items-center gap-2" data-date-nav>
-    <a href="{{ route($route, ['date' => $prev]) }}" class="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-50" aria-label="{{ __('Previous day') }}">
+    <a href="{{ route($route, ['date' => $prev]) }}" class="btn btn-secondary aspect-square p-2" aria-label="{{ __('Previous day') }}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5"/>
         </svg>
     </a>
 
     <input type="date" name="date" value="{{ $date }}" data-date-input
-        class="min-h-[44px] rounded-md border border-slate-300 px-3 py-2 text-base text-slate-900 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600" />
+        class="input input-date w-auto" />
 
-    <a href="{{ route($route, ['date' => $next]) }}" class="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-50" aria-label="{{ __('Next day') }}">
+    <a href="{{ route($route, ['date' => $next]) }}" class="btn btn-secondary aspect-square p-2" aria-label="{{ __('Next day') }}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/>
         </svg>
     </a>
 
-    <a href="{{ route($route, ['date' => $today]) }}" class="inline-flex min-h-[44px] items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50">
+    <a href="{{ route($route, ['date' => $today]) }}" class="btn btn-secondary">
         {{ __('Today') }}
     </a>
 </div>

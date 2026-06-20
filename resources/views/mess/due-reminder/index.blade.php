@@ -4,7 +4,7 @@
         <h1 class="text-2xl font-semibold leading-tight text-slate-900">{{ __('Due reminders') }}</h1>
         <p class="mt-1 text-sm text-slate-600">{{ __('Send an in-app reminder to every member who currently owes money.') }}</p>
     </header>
-    <form method="POST" action="{{ route('mess.due-reminder.send') }}" class="space-y-3 rounded-lg border border-slate-200 bg-white p-4 sm:p-6">
+    <form method="POST" action="{{ route('mess.due-reminder.send') }}" class="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
         @csrf
         @if ($members->isEmpty())
             <p class="rounded-md border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500">
@@ -26,7 +26,7 @@
                 @endforeach
             </ul>
             <div class="flex justify-end">
-                <button type="submit" class="inline-flex items-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700">
+                <button type="submit" class="btn btn-primary">
                     {{ __('Send reminders') }}
                 </button>
             </div>

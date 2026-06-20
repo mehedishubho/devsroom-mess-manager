@@ -20,17 +20,17 @@
             :title="__('No payments match the current filters.')"
             :description="__('Try a different member, method, or date range.')" />
     @else
-        <section class="overflow-hidden rounded-lg border border-slate-200 bg-white">
+        <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-slate-200 text-sm">
                     <thead class="bg-slate-50">
                         <tr>
-                            <th class="px-3 py-2 text-left font-semibold text-slate-700">{{ __('Date') }}</th>
-                            <th class="px-3 py-2 text-left font-semibold text-slate-700">{{ __('Member') }}</th>
-                            <th class="px-3 py-2 text-left font-semibold text-slate-700">{{ __('Method') }}</th>
-                            <th class="px-3 py-2 text-left font-semibold text-slate-700">{{ __('Type') }}</th>
-                            <th class="px-3 py-2 text-right font-semibold text-slate-700">{{ __('Amount') }}</th>
-                            <th class="px-3 py-2 text-left font-semibold text-slate-700">{{ __('Reference') }}</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Date') }}</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Member') }}</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Method') }}</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Type') }}</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Amount') }}</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Reference') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
@@ -38,20 +38,27 @@
                             @php
                                 $methodColor = PaymentMethod::COLORS[$payment->method] ?? 'slate';
                             @endphp
-                            <tr>
-                                <td class="px-3 py-2 whitespace-nowrap text-slate-900">{{ $payment->date->format('d-m-Y') }}</td>
-                                <td class="px-3 py-2 text-slate-900">{{ $payment->member?->name ?? '—' }}</td>
-                                <td class="px-3 py-2">
+                            <tr class="transition-colors hover:bg-slate-50">
+                                <td class="px-4 py-3 whitespace-nowrap text-slate-900">{{ $payment->date->format('d-m-Y') }}</td>
+                                <td class="px-4 py-3 text-slate-900">{{ $payment->member?->name ?? '—' }}</td>
+                                <td class="px-4 py-3">
                                     <span class="inline-flex items-center rounded-full bg-{{ $methodColor }}-100 px-2 py-0.5 text-xs font-medium text-{{ $methodColor }}-800">
                                         {{ __(PaymentMethod::LABELS[$payment->method] ?? ucfirst((string) $payment->method)) }}
                                     </span>
                                 </td>
-                                <td class="px-3 py-2 text-slate-600">{{ __(PaymentType::LABELS[$payment->type] ?? ucfirst((string) $payment->type)) }}</td>
-                                <td class="px-3 py-2 text-right tabular-nums font-medium text-slate-900">{{ Money::taka($payment->amount) }}</td>
-                                <td class="px-3 py-2 text-slate-600">{{ $payment->reference ?? '—' }}</td>
+                                <td class="px-4 py-3 text-slate-600">{{ __(PaymentType::LABELS[$payment->type] ?? ucfirst((string) $payment->type)) }}</td>
+                                <td class="px-4 py-3 text-right tabular-nums font-medium text-slate-900">{{ Money::taka($payment->amount) }}</td>
+                                <td class="px-4 py-3 text-slate-600">{{ $payment->reference ?? '—' }}</td>
                             </tr>
                         @endforeach
                     </tbody>
+                    <tfoot class="bg-slate-50">
+                        <tr>
+                            <th colspan="4" class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Total collected') }}</th>
+                            <th class="px-4 py-3 text-right tabular-nums font-bold text-slate-900">{{ Money::taka($report['totals']['amount']) }}</th>
+                            <th></th>
+                        </tr>
+                    </tfoot>
                 </table>
             </div>
         </section>

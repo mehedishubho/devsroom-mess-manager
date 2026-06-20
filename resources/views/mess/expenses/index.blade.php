@@ -6,10 +6,10 @@
             <p class="mt-1 text-sm text-slate-600">{{ __('All bazar and fixed expenses, most recent first.') }}</p>
         </div>
         <div class="flex flex-wrap gap-2">
-            <a href="{{ route('mess.expenses.bazar.create') }}" class="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-md bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700">
+            <a href="{{ route('mess.expenses.bazar.create') }}" class="btn btn-amber">
                 {{ __('Add bazar') }}
             </a>
-            <a href="{{ route('mess.expenses.fixed.create') }}" class="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-md bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700">
+            <a href="{{ route('mess.expenses.fixed.create') }}" class="btn btn-sky">
                 {{ __('Add fixed') }}
             </a>
         </div>
@@ -18,7 +18,7 @@
     {{-- Mobile cards (touch-friendly summary) --}}
     <div class="space-y-3 md:hidden">
         @forelse ($expenses as $expense)
-            <div class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+            <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div class="flex items-center justify-between">
                     <span class="text-xs text-slate-500">{{ $expense->date->format('d M Y') }}</span>
                     <x-status-pill :variant="$expense->category?->kind ?? 'bazar'" />
@@ -37,7 +37,7 @@
     </div>
 
     {{-- Desktop table --}}
-    <div class="hidden overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm md:block">
+    <div class="hidden overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm md:block">
         <table class="min-w-full divide-y divide-slate-200">
             <thead class="bg-slate-50">
                 <tr>

@@ -11,7 +11,7 @@
         <p class="mt-1 text-sm text-slate-600">{{ $description }}</p>
     @endif
     @if ($actionLabel && $actionRoute)
-        <a href="{{ $actionRoute }}" class="mt-4 inline-flex min-h-[44px] items-center justify-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+        <a href="{{ $actionRoute }}" class="btn btn-primary mt-4">
             {{ $actionLabel }}
         </a>
     @endif

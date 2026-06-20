@@ -13,15 +13,15 @@
         <input type="hidden" name="date" value="{{ $date }}" />
 
         <div class="mb-3 flex flex-wrap items-center gap-2">
-            <button type="button" data-preset="all" class="inline-flex min-h-[44px] items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            <button type="button" data-preset="all" class="btn btn-secondary">
                 {{ __('Mark all 3 meals') }}
             </button>
-            <button type="button" data-preset="none" class="inline-flex min-h-[44px] items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            <button type="button" data-preset="none" class="btn btn-secondary">
                 {{ __('Mark all 0 meals') }}
             </button>
         </div>
 
-        <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
             <table class="min-w-full divide-y divide-slate-200">
                 <thead class="bg-slate-50">
                     <tr>
@@ -68,11 +68,11 @@
                             <td class="px-2 py-2 text-center sm:px-4 sm:py-3">
                                 @if ($row->editable)
                                     <div class="inline-flex flex-wrap justify-center gap-1" role="group" aria-label="{{ __('Quick actions for :name', ['name' => $row->member->name]) }}">
-                                        <button type="button" data-row-preset="all" data-row-member="{{ $row->member->id }}" class="touch-target inline-flex items-center justify-center rounded border border-slate-300 bg-white px-2 text-xs font-medium text-slate-700 hover:bg-slate-50" aria-label="{{ __('All on for :name', ['name' => $row->member->name]) }}">B+L+D</button>
-                                        <button type="button" data-row-preset="breakfast" data-row-member="{{ $row->member->id }}" class="touch-target inline-flex items-center justify-center rounded border border-slate-300 bg-white px-2 text-xs font-medium text-slate-700 hover:bg-slate-50" aria-label="{{ __('Breakfast only for :name', ['name' => $row->member->name]) }}">B</button>
-                                        <button type="button" data-row-preset="lunch" data-row-member="{{ $row->member->id }}" class="touch-target inline-flex items-center justify-center rounded border border-slate-300 bg-white px-2 text-xs font-medium text-slate-700 hover:bg-slate-50" aria-label="{{ __('Lunch only for :name', ['name' => $row->member->name]) }}">L</button>
-                                        <button type="button" data-row-preset="dinner" data-row-member="{{ $row->member->id }}" class="touch-target inline-flex items-center justify-center rounded border border-slate-300 bg-white px-2 text-xs font-medium text-slate-700 hover:bg-slate-50" aria-label="{{ __('Dinner only for :name', ['name' => $row->member->name]) }}">D</button>
-                                        <button type="button" data-row-preset="none" data-row-member="{{ $row->member->id }}" class="touch-target inline-flex items-center justify-center rounded border border-slate-300 bg-white px-2 text-xs font-medium text-slate-700 hover:bg-slate-50" aria-label="{{ __('All off for :name', ['name' => $row->member->name]) }}">×</button>
+                                        <button type="button" data-row-preset="all" data-row-member="{{ $row->member->id }}" class="btn btn-secondary btn-sm" aria-label="{{ __('All on for :name', ['name' => $row->member->name]) }}">B+L+D</button>
+                                        <button type="button" data-row-preset="breakfast" data-row-member="{{ $row->member->id }}" class="btn btn-secondary btn-sm" aria-label="{{ __('Breakfast only for :name', ['name' => $row->member->name]) }}">B</button>
+                                        <button type="button" data-row-preset="lunch" data-row-member="{{ $row->member->id }}" class="btn btn-secondary btn-sm" aria-label="{{ __('Lunch only for :name', ['name' => $row->member->name]) }}">L</button>
+                                        <button type="button" data-row-preset="dinner" data-row-member="{{ $row->member->id }}" class="btn btn-secondary btn-sm" aria-label="{{ __('Dinner only for :name', ['name' => $row->member->name]) }}">D</button>
+                                        <button type="button" data-row-preset="none" data-row-member="{{ $row->member->id }}" class="btn btn-secondary btn-sm" aria-label="{{ __('All off for :name', ['name' => $row->member->name]) }}">×</button>
                                     </div>
                                 @endif
                             </td>
@@ -89,7 +89,7 @@
         </div>
 
         <div class="mt-4 flex flex-wrap items-center gap-2">
-            <button type="submit" class="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+            <button type="submit" class="btn btn-primary">
                 {{ __('Save all changes') }}
             </button>
         </div>

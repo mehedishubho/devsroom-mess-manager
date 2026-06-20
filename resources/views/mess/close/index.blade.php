@@ -22,7 +22,7 @@
             @csrf
             <input type="hidden" name="year" value="{{ $year }}" />
             <input type="hidden" name="month" value="{{ $month }}" />
-            <button type="button" @click="open = true" class="inline-flex items-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700">
+            <button type="button" @click="open = true" class="btn btn-primary">
                 {{ __('Close :label', ['label' => \Carbon\Carbon::create($year, $month, 1)->format('F Y')]) }}
             </button>
             @include('mess.close._confirmation-modal')

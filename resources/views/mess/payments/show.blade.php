@@ -6,11 +6,11 @@
             <p class="mt-1 text-sm text-slate-600">{{ $payment->date->format('d-m-Y') }} · {{ $payment->member?->name }}</p>
         </div>
         <div class="flex flex-wrap gap-2">
-            <a href="{{ route('mess.payments.index') }}" class="inline-flex min-h-[44px] items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">{{ __('Back') }}</a>
-            <a href="{{ route('mess.payments.edit', $payment) }}" class="inline-flex min-h-[44px] items-center justify-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700">{{ __('Edit') }}</a>
+            <a href="{{ route('mess.payments.index') }}" class="btn btn-secondary">{{ __('Back') }}</a>
+            <a href="{{ route('mess.payments.edit', $payment) }}" class="btn btn-primary">{{ __('Edit') }}</a>
         </div>
     </header>
-    <dl class="grid grid-cols-1 gap-4 rounded-lg border border-slate-200 bg-white p-4 sm:grid-cols-2 sm:p-6">
+    <dl class="grid grid-cols-1 gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2 sm:p-6">
         <div><dt class="text-xs uppercase tracking-wide text-slate-500">{{ __('Member') }}</dt><dd class="mt-1 text-sm text-slate-900">{{ $payment->member?->name ?? '—' }}</dd></div>
         <div><dt class="text-xs uppercase tracking-wide text-slate-500">{{ __('Date') }}</dt><dd class="mt-1 text-sm text-slate-900">{{ $payment->date->format('d-m-Y') }}</dd></div>
         <div><dt class="text-xs uppercase tracking-wide text-slate-500">{{ __('Type') }}</dt><dd class="mt-1"><x-payment-type-pill :type="$payment->type" /></dd></div>

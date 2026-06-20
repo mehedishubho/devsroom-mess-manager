@@ -5,7 +5,7 @@
             <h1 class="text-2xl font-semibold leading-tight text-slate-900">{{ __('Members') }}</h1>
             <p class="mt-1 text-sm text-slate-600">{{ __(":count active members", ['count' => $activeCount]) }}</p>
         </div>
-        <a href="{{ route('mess.members.create') }}" class="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+        <a href="{{ route('mess.members.create') }}" class="btn btn-primary">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
             </svg>
@@ -25,7 +25,7 @@
                 data-member-search
                 value="{{ $search ?? '' }}"
                 placeholder="{{ __('Search by name, mobile, email, or room…') }}"
-                class="min-h-[44px] w-full rounded-md border border-slate-300 bg-white pl-10 pr-3 text-base text-slate-900 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                class="input pl-10"
                 autocomplete="off"
             />
         </div>

@@ -15,7 +15,7 @@
     <div class="flex min-h-screen flex-col">
         <header class="flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4 md:px-6">
             <div class="flex items-center gap-2">
-                <button type="button" class="touch-target rounded-md p-2 text-slate-700 hover:bg-slate-100 md:hidden" data-sidebar-toggle aria-label="{{ __('Open menu') }}">
+                <button type="button" class="btn btn-ghost md:hidden" data-sidebar-toggle aria-label="{{ __('Open menu') }}">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-5 w-5" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/>
                     </svg>
@@ -27,7 +27,7 @@
                 <span class="hidden text-sm text-slate-600 sm:inline">{{ auth()->user()?->name }}</span>
                 <form method="POST" action="{{ url('/logout') }}">
                     @csrf
-                    <button type="submit" class="touch-target inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm text-slate-700 hover:bg-slate-100" aria-label="{{ __('Log out') }}">
+                    <button type="submit" class="btn btn-ghost" aria-label="{{ __('Log out') }}">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9"/>
                         </svg>
@@ -171,7 +171,7 @@
             <div data-sidebar-backdrop class="fixed inset-0 z-30 hidden bg-slate-900/50 md:hidden"></div>
 
             <main id="main-content" class="flex-1 px-4 py-6 md:px-8 md:py-8">
-                <div class="mx-auto max-w-3xl">
+                <div class="mx-auto w-full max-w-384">
                     @if (session('success'))
                         <div role="alert" class="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{{ session('success') }}</div>
                     @endif

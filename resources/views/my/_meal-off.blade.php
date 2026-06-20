@@ -5,13 +5,13 @@
         <div class="flex flex-col gap-1">
             <label for="from_date" class="text-sm font-medium text-slate-900">{{ __('From date') }}<span class="text-red-600" aria-hidden="true">*</span></label>
             <input type="date" name="from_date" id="from_date" value="{{ old('from_date') }}" required min="{{ now()->toDateString() }}"
-                class="min-h-[44px] w-full rounded-md border border-slate-300 px-3 py-2 text-base text-slate-900 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600">
+                class="input">
             @error('from_date') <p class="text-sm text-red-700">{{ $message }}</p> @enderror
         </div>
         <div class="flex flex-col gap-1">
             <label for="to_date" class="text-sm font-medium text-slate-900">{{ __('To date') }}<span class="text-red-600" aria-hidden="true">*</span></label>
             <input type="date" name="to_date" id="to_date" value="{{ old('to_date') }}" required min="{{ now()->toDateString() }}"
-                class="min-h-[44px] w-full rounded-md border border-slate-300 px-3 py-2 text-base text-slate-900 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600">
+                class="input">
             @error('to_date') <p class="text-sm text-red-700">{{ $message }}</p> @enderror
         </div>
     </div>
@@ -19,11 +19,11 @@
         <label for="reason" class="text-sm font-medium text-slate-900">{{ __('Reason') }}<span class="text-red-600" aria-hidden="true">*</span></label>
         <textarea name="reason" id="reason" rows="3" required minlength="3" maxlength="500"
             placeholder="{{ __('e.g. Going home, official tour, family event') }}"
-            class="min-h-[88px] w-full rounded-md border border-slate-300 px-3 py-2 text-base text-slate-900 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600">{{ old('reason') }}</textarea>
+            class="input">{{ old('reason') }}</textarea>
         @error('reason') <p class="text-sm text-red-700">{{ $message }}</p> @enderror
     </div>
     <div>
-        <button type="submit" class="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+        <button type="submit" class="btn btn-primary">
             {{ __('Request meal off') }}
         </button>
     </div>
