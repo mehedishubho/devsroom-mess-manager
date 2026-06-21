@@ -1,6 +1,6 @@
 @props(['request'])
 
-<article class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm" data-meal-off-card>
+<article class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm" data-meal-off-card>
     <header class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <h3 class="text-base font-semibold text-slate-900">{{ $request->member?->name ?? '—' }}</h3>
@@ -30,7 +30,7 @@
                 <form method="POST" action="{{ route('mess.meal-off.approve', $request) }}" class="inline">
                     @csrf
                     @method('PATCH')
-                    <button type="submit" class="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+                    <button type="submit" class="btn btn-primary">
                         {{ __('Approve') }}
                     </button>
                 </form>
@@ -40,8 +40,8 @@
                     @method('PATCH')
                     <input type="text" name="rejection_reason" required minlength="3" maxlength="500"
                         placeholder="{{ __('Reason for rejection (required)') }}"
-                        class="min-h-[44px] flex-1 rounded-md border border-slate-300 px-3 py-2 text-base text-slate-900 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600">
-                    <button type="submit" class="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                        class="input flex-1">
+                    <button type="submit" class="btn btn-secondary">
                         {{ __('Reject') }}
                     </button>
                 </form>

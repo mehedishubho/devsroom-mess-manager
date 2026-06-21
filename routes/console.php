@@ -21,9 +21,21 @@ if (class_exists(Telescope::class)) {
 // cache store (already in use). backup:run + backup:restore-test use
 // withoutOverlapping so a slow run cannot double up.
 if (class_exists(BackupServiceProvider::class)) {
-    Schedule::command('backup:clean')->daily()->at('01:00')->onOneServer();
-    Schedule::command('backup:run')->daily()->at('01:30')
-        ->withoutOverlapping()->onOneServer();
+    // Retention rotation is DB-driven (admin-configurable keep_days + storage
+    // cap), so it replaces spatie's backup:clean — which only reads static config.
+    Schedule::command('backup:purge')->daily()->at('01:00')->onOneServer();
+
+    // Backup cadence is admin-configurable via BackupConfig (off/daily/weekly/monthly + time).
+    // The scheduler is rebuilt each schedule:run, so a change takes effect within a minute.
+    $cfg = \App\Models\BackupConfig::current();
+
+    if (in_array($cfg->frequency, ['daily', 'weekly', 'monthly'], true)) {
+        Schedule::command('backup:run')
+            ->{$cfg->frequency}()
+            ->at($cfg->runAtLabel())
+            ->withoutOverlapping()
+            ->onOneServer();
+    }
     Schedule::command('backup:monitor')->daily()->at('02:00')->onOneServer();
 
     // D-04: nightly restore-test. Tunable — change cadence here to weekly if

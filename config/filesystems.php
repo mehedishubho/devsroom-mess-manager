@@ -60,9 +60,23 @@ return [
             'report' => false,
         ],
 
-        // D-02: dedicated backup destination = DigitalOcean Spaces (S3-compatible).
+        // Local backup copy — ALWAYS present. The BackupController lists,
+        // downloads, restores, and deletes against this disk. Backups land here
+        // first (default destination) regardless of cloud config.
+        'backups-local' => [
+            'driver' => 'local',
+            'root' => storage_path('app/backups'),
+            'throw' => true,
+        ],
+
+        // Off-server mirror — DigitalOcean Spaces (S3-compatible), D-02.
         // Separate from the general-purpose `s3` disk so the spatie default is untouched.
         // Pitfall 5: DO_SPACES_REGION MUST match the DO_SPACES_ENDPOINT subdomain (nyc3 + https://nyc3.digitaloceanspaces.com).
+        //
+        // This disk is ONLY added to spatie's destination list when DO_SPACES_* credentials
+        // are fully set — see App\Support\BackupDestinations. It is never used for listing,
+        // so an unconfigured Spaces (empty key/secret) never triggers the AWS SDK's EC2
+        // instance-metadata probe (169.254.169.254).
         'backups' => [
             'driver' => 's3',
             'key' => env('DO_SPACES_KEY'),

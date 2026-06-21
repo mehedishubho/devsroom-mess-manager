@@ -4,14 +4,14 @@
         <div>
             <h1 class="text-2xl font-semibold leading-tight text-slate-900">{{ __('Corrections for :label', ['label' => \Carbon\Carbon::create($closing->year, $closing->month, 1)->format('F Y')]) }}</h1>
         </div>
-        <a href="{{ route('mess.closings.corrections.create', $closing) }}" class="inline-flex items-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700">{{ __('Add correction') }}</a>
+        <a href="{{ route('mess.closings.corrections.create', $closing) }}" class="btn btn-primary">{{ __('Add correction') }}</a>
     </header>
     @if ($closing->corrections->isEmpty())
         <p class="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
             {{ __('No corrections recorded.') }}
         </p>
     @else
-        <div class="overflow-hidden rounded-lg border border-slate-200 bg-white">
+        <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <table class="min-w-full divide-y divide-slate-200 text-sm">
                 <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
                     <tr>
@@ -25,7 +25,7 @@
                 </thead>
                 <tbody class="divide-y divide-slate-200 bg-white">
                     @foreach ($closing->corrections as $c)
-                        <tr>
+                        <tr class="transition-colors hover:bg-slate-50">
                             <td class="px-4 py-3 text-slate-700">{{ $c->created_at->format('d-m-Y') }}</td>
                             <td class="px-4 py-3 text-slate-900">{{ $c->member?->name ?? '—' }}</td>
                             <td class="px-4 py-3 text-right font-semibold {{ (float) $c->amount >= 0 ? 'text-emerald-700' : 'text-rose-700' }}">{{ \App\Support\Money::taka($c->amount) }}</td>

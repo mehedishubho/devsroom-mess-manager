@@ -22,19 +22,19 @@
     <div class="flex flex-col gap-1">
         <label for="emergency_contact" class="text-sm font-medium text-slate-900">{{ __('Emergency contact') }}</label>
         <input type="text" name="emergency_contact" id="emergency_contact" value="{{ old('emergency_contact', $member->emergency_contact) }}"
-            class="min-h-[44px] w-full rounded-md border border-slate-300 px-3 py-2 text-base text-slate-900 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600">
+            class="input">
         @error('emergency_contact') <p class="text-sm text-red-700">{{ $message }}</p> @enderror
     </div>
 
     <div class="flex flex-wrap items-center gap-2">
-        <button type="submit" class="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+        <button type="submit" class="btn btn-primary">
             {{ __('Save changes') }}
         </button>
     </div>
 </form>
 
 <div class="mt-6 border-t border-slate-200 pt-4">
-    <a href="#" class="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50">
+    <a href="#" class="btn btn-secondary">
         {{ __('Change password') }}
     </a>
     <p class="mt-1 text-xs text-slate-500">{{ __('Use the password reset link sent to your email, or contact the manager.') }}</p>

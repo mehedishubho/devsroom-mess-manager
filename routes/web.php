@@ -52,10 +52,14 @@ Route::middleware(['auth', 'role:super-admin'])
     ->name('dashboard.backups.')
     ->group(function () {
         Route::get('/', [BackupController::class, 'index'])->name('index');
+        Route::get('/configure', [BackupController::class, 'edit'])->name('configure');
+        Route::put('/configure', [BackupController::class, 'update'])->name('configure.update');
         Route::post('/run', [BackupController::class, 'runNow'])->name('run');
         Route::post('/restore-test', [BackupController::class, 'runRestoreTest'])->name('restore-test.run');
         Route::get('/{path}/download', [BackupController::class, 'download'])
             ->where('path', '.*')->name('download');
+        Route::delete('/{path}', [BackupController::class, 'destroy'])
+            ->where('path', '.*')->name('destroy');
         Route::get('/restore/{path}', [RestoreController::class, 'show'])
             ->where('path', '.*')->name('restore.show');
         // Throttle the destructive POST: 5 attempts per minute.
@@ -68,9 +72,11 @@ Route::middleware(['auth', 'role:super-admin'])
 Route::get('/set-password', [SetPasswordController::class, 'show'])->name('password.set.show');
 Route::post('/set-password', [SetPasswordController::class, 'update'])->name('password.set.update');
 
-// Mess managers (admin + manager roles) — home + mess config + audit + invite.
+// Mess managers (admin + super-admin + manager roles) — home + mess config + audit + invite.
 // `roles:` = EnsureAnyTyroRole (ANY-match); `role:` would be ALL-match.
-Route::middleware(['auth', 'roles:admin,manager', EnsureMessExists::class])->group(function () {
+// super-admin is included so the installation owner can run all daily mess operations
+// (Home, Members, Meals, Expenses, Payments, Reports, Close month, etc.) without 403.
+Route::middleware(['auth', 'roles:admin,super-admin,manager', EnsureMessExists::class])->group(function () {
     Route::get('/home', [HomeController::class, 'index'])->name('home');
 
     Route::get('/mess/settings', [MessConfigController::class, 'edit'])->name('mess.settings.edit');

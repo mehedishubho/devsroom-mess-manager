@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Backup;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Backup\UpdateBackupConfigRequest;
+use App\Models\BackupConfig;
 use App\Models\Mess;
 use App\Models\RestoreTest;
+use App\Support\BackupDestinations;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -43,7 +46,10 @@ class BackupController extends Controller
 
         $latestRestoreTest = RestoreTest::latest('id')->first();
 
-        return view('dashboard.backups.index', compact('backups', 'latestRestoreTest'));
+        $config = BackupConfig::current();
+        $spacesConfigured = BackupDestinations::spacesConfigured();
+
+        return view('dashboard.backups.index', compact('backups', 'latestRestoreTest', 'config', 'spacesConfigured'));
     }
 
     public function runNow(): RedirectResponse
@@ -84,6 +90,67 @@ class BackupController extends Controller
         $this->writeAudit('backup.download', ['path' => $path]);
 
         return response()->streamDownload(fn () => $disk->readStream($path), basename($path));
+    }
+
+    /**
+     * Delete a single backup archive from the local disk. Lighter-weight than
+     * a restore (only removes one zip), so a JS confirm on the button is enough
+     * — no typed-mess-name gate. Audit-logged (T-06-03-05).
+     */
+    public function destroy(string $path): RedirectResponse
+    {
+        $this->guardPath($path);
+        $disk = Storage::disk($this->backupDisk());
+
+        if (! $disk->exists($path)) {
+            return back()->withErrors(['backup' => __('Backup not found.')]);
+        }
+
+        $disk->delete($path);
+        $this->writeAudit('backup.delete', ['path' => $path]);
+
+        return back()->with('success', __('Backup deleted.'));
+    }
+
+    /**
+     * Show the Configure form: backup schedule (frequency + time) and
+     * retention/rotation (keep-all-days + storage cap).
+     */
+    public function edit(): View
+    {
+        $config = BackupConfig::current();
+        $spacesConfigured = BackupDestinations::spacesConfigured();
+
+        return view('dashboard.backups.configure', compact('config', 'spacesConfigured'));
+    }
+
+    /**
+     * Save the Configure form. Persists the singleton row, then clears the
+     * config cache so the new schedule + retention take effect immediately
+     * (the scheduler reads BackupConfig at each schedule:run; backup:purge
+     * reads it at runtime; spatie picks up the refreshed destination list).
+     */
+    public function update(UpdateBackupConfigRequest $request): RedirectResponse
+    {
+        $data = $request->validated();
+
+        BackupConfig::updateOrCreate(['id' => 1], [
+            'frequency' => $data['frequency'],
+            'run_at' => $data['run_at'],
+            'keep_all_days' => $data['keep_all_days'],
+            'max_mb' => $data['max_mb'],
+        ]);
+        BackupConfig::flushCache();
+
+        try {
+            Artisan::call('config:clear');
+        } catch (\Throwable) {
+            // Non-fatal: a failed config:clear must not block the save.
+        }
+
+        return redirect()
+            ->route('dashboard.backups.index')
+            ->with('success', __('Backup configuration updated.'));
     }
 
     /**

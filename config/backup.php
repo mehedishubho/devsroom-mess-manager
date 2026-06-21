@@ -120,11 +120,11 @@ return [
             /*
              * The disk names on which the backups will be stored.
              *
-             * D-02: S3-compatible DO Spaces destination via the `backups` disk.
+             * Always `backups-local` (a local folder); additionally `backups`
+             * (DigitalOcean Spaces) when its credentials are configured —
+             * resolved by App\Support\BackupDestinations (env-only, config-safe).
              */
-            'disks' => [
-                env('BACKUP_DISK', 'backups'),
-            ],
+            'disks' => \App\Support\BackupDestinations::all(),
 
             /*
              * Determines whether to allow backups to continue when some targets fail.
@@ -250,7 +250,7 @@ return [
     'monitor_backups' => [
         [
             'name' => env('APP_NAME', 'devsroom-mess'),
-            'disks' => [env('BACKUP_DISK', 'backups')],
+            'disks' => \App\Support\BackupDestinations::all(),
             'health_checks' => [
                 MaximumAgeInDays::class => 1,
                 MaximumStorageInMegabytes::class => 5000,

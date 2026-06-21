@@ -8,7 +8,7 @@
 </head>
 <body class="min-h-screen bg-slate-50 text-slate-900 antialiased">
     <main class="mx-auto max-w-md px-4 py-12">
-        <div class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm md:p-6">
+        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
             <h1 class="text-2xl font-semibold leading-tight text-slate-900">{{ __('Set your password') }}</h1>
             <p class="mt-1 text-sm text-slate-600">{{ __('Welcome to :app. Choose a password to activate your account.', ['app' => config('app.name')]) }}</p>
 
@@ -23,7 +23,7 @@
                     </label>
                     <p class="text-xs text-slate-500">{{ __('At least 8 characters') }}</p>
                     <input type="password" name="password" id="password" required autofocus
-                        class="min-h-[44px] w-full rounded-md border border-slate-300 px-3 py-2 text-base text-slate-900 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600">
+                        class="input">
                     @error('password') <p class="text-sm text-red-700">{{ $message }}</p> @enderror
                 </div>
 
@@ -32,10 +32,10 @@
                         {{ __('Confirm password') }}<span class="text-red-600" aria-hidden="true">*</span>
                     </label>
                     <input type="password" name="password_confirmation" id="password_confirmation" required
-                        class="min-h-[44px] w-full rounded-md border border-slate-300 px-3 py-2 text-base text-slate-900 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600">
+                        class="input">
                 </div>
 
-                <button type="submit" class="inline-flex items-center justify-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 min-h-[44px]">
+                <button type="submit" class="btn btn-primary">
                     {{ __('Set password') }}
                 </button>
             </form>
