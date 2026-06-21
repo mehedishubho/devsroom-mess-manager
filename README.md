@@ -171,9 +171,11 @@ For a deep walkthrough (bill math, month-close flow, cache key strategy, role/ID
 
 ## Deployment
 
-See [**DEPLOYMENT.md**](./DEPLOYMENT.md) for the full production-hardening checklist.
+➡️ **Start with [SETUP-USAGE-DEPLOY.md](./SETUP-USAGE-DEPLOY.md)** — the consolidated guide covering **setup**, **daily usage by role** (super-admin / admin / manager / user), and deployment on both a **VPS** and **shared hosting (cPanel / Plesk / DirectAdmin)**.
 
-> **Shared hosting is ruled out.** The month-close runs as a queued job (`CloseMonthJob`) and requires a persistent queue worker via `supervisor`. Shared hosts can't reliably run a persistent worker, so a VPS (Forge-managed or manual) is required. The DEPLOYMENT.md checklist covers the Forge path (primary) and a manual VPS appendix, plus the verbatim supervisor config, the `schedule:run` cron, the hard `APP_DEBUG=false` requirement, HTTPS, storage permissions, and production MySQL credentials.
+For the full VPS/Forge production-hardening runbook, see [**DEPLOYMENT.md**](./DEPLOYMENT.md) — verbatim supervisor config, the `schedule:run` cron, the hard `APP_DEBUG=false` requirement, HTTPS, storage permissions, and production MySQL credentials.
+
+> **Shared hosting:** the month-close runs as a queued job (`CloseMonthJob`), which normally needs a persistent queue worker via `supervisor` (so a VPS is preferred). However, shared hosting **is supported** by running jobs inline (`QUEUE_CONNECTION=sync`) — documented step-by-step in [SETUP-USAGE-DEPLOY.md §5.3](./SETUP-USAGE-DEPLOY.md#53-deploy-on-shared-hosting-cpanel--plesk--directadmin). Trade-off: "Close month" runs synchronously in the request (a few seconds for a small mess) with no background retries — fine for a single small mess; use a VPS for heavier load.
 
 ---
 
