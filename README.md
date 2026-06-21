@@ -1,14 +1,51 @@
+<div align="center">
+
 # Devsroom Mess Management
 
-**A mess manager can run a full month end-to-end on a phone — enter meals, log bazar, take payments, close the month, and produce a correct member bill — without spreadsheets and without arguing about who owes what.**
+**Run a full mess month end-to-end from a phone — meals, bazar, payments, month-close, and correct member bills — without spreadsheets and without arguing about who owes what.**
+
+[![Laravel](https://img.shields.io/badge/Laravel-13-FF2D20?logo=laravel&logoColor=white)](https://laravel.com)
+[![PHP](https://img.shields.io/badge/PHP-8.3%2B-777BB4?logo=php&logoColor=white)](https://www.php.net/)
+[![MySQL](https://img.shields.io/badge/MySQL-8-4479A1?logo=mysql&logoColor=white)](https://www.mysql.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
 A web-based mess management system built for Bangladesh messes — bachelor hostels, student hostels, and shared accommodations. The mess manager enters daily meals and bazar expenses on mobile; members log in to view their bills, request meal-offs, and check their payment history. The system automates the Bangladesh-specific monthly close: meal rate derived from bazar only, fixed expenses split equally, advance balance carry-forward, and immutable monthly snapshots.
 
-The v1 scope is **one mess, fully working for one real monthly cycle**. The schema is multi-mess-ready (`mess_id` on every domain table) but only one mess is exercised in v1.
+**Developed by [Devsroom](https://devsroom.com)** · Developer portfolio: [wpmhs.com](https://wpmhs.com)
+
+</div>
+
+> The v1 scope is **one mess, fully working for one real monthly cycle**. The schema is multi-mess-ready (`mess_id` on every domain table) but only one mess is exercised in v1.
 
 ---
 
-## What It Does
+## Documentation
+
+| Guide | What it covers |
+|-------|----------------|
+| **[Setup · Roles · Deploy](./SETUP-USAGE-DEPLOY.md)** | Installation, **daily usage by role** (super-admin / admin / manager / user), and deployment on **VPS** + **shared hosting**. |
+| **[Deployment Runbook](./DEPLOYMENT.md)** | Deep VPS / Forge hardening — supervisor, cron, HTTPS, backups. |
+| **[Architecture (AGENTS.md)](./AGENTS.md)** | Bill math, month-close flow, cache strategy, role/IDOR model. |
+
+## Table of Contents
+
+- [Key Features](#key-features)
+- [Tech Stack](#tech-stack)
+- [Prerequisites](#prerequisites)
+- [Installation (local dev)](#installation-local-dev)
+- [Demo Dataset](#demo-dataset-optional)
+- [Common Commands](#common-commands)
+- [Perf / Debug Tooling (dev-only)](#perf--debug-tooling-dev-only)
+- [Architecture Overview](#architecture-overview)
+- [Deployment](#deployment)
+- [Roadmap](#roadmap)
+- [Credits](#credits)
+- [License](#license)
+
+---
+
+## Key Features
 
 - **Member management** — full CRUD with profile (name, mobile, email, NID, profession, room/seat, joining/leaving dates, status, emergency contact, photo). Member invite flow with email link + set-password page.
 - **Daily meal grid** — rows=members, columns=breakfast/lunch/dinner. "Mark all 3" / "Mark all 0" presets + per-member quick actions (All on, All off, B/L/D only). Single-transaction bulk save. N+1-safe query (< 100ms at 50 members — locked by `tests/Feature/Perf/MealGridQueryCountTest.php`).
@@ -25,6 +62,21 @@ The v1 scope is **one mess, fully working for one real monthly cycle**. The sche
 - **Exports** — PDF (Dompdf, plain-CSS A4 portrait, "Page N" footer) + Excel/`.xlsx` (Maatwebsite/Excel, numeric-formatted Amount columns so SUM/AVERAGE work) on all 4 reports × both manager and member sides.
 - **Audit log** — `owen-it/laravel-auditing` writes an append-only entry on every write to meal/expense/payment/member/meal-off/guest-meal models.
 - **Notifications** — in-app (monthly closing complete, due reminder, payment received, meal-off approval). Bell icon in the nav.
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| **Backend** | Laravel 13 (PHP 8.3+) — server-rendered Blade, no SPA framework |
+| **Database** | MySQL 8 (the only DB — dev/prod parity; no sqlite) |
+| **Frontend** | Tailwind CSS v4 (`@tailwindcss/vite`) + Chart.js 4.5 |
+| **Auth & Admin** | Tyro Dashboard + Tyro Login (roles: `super-admin` / `admin` / `manager` / `user`) |
+| **Auditing** | `owen-it/laravel-auditing` — append-only entry on every write |
+| **Exports** | Dompdf (PDF) + Maatwebsite Excel (`.xlsx`) |
+| **Backups** | `spatie/laravel-backup` → local folder + DigitalOcean Spaces (S3) |
+| **Queue** | `database` connection — `CloseMonthJob` (idempotent, `onOneServer`) |
 
 ---
 
@@ -179,12 +231,35 @@ For the full VPS/Forge production-hardening runbook, see [**DEPLOYMENT.md**](./D
 
 ---
 
-## License / Contributing / v2 Roadmap
+## Roadmap
 
-- **License:** MIT (Laravel skeleton default).
-- **Contributing:** PRs welcome. Run `vendor/bin/pint` and `vendor/bin/phpunit` before submitting.
-- **v2 roadmap:** Bengali localization (`bn.json` + Bengali UI/PDF), multi-mess (schema-ready via `mess_id`), real bKash/Nagad/Rocket payment gateway integration, PWA/offline mode, native mobile apps, real-time websockets, 2FA + social login. See `.planning/REQUIREMENTS.md` § v2 Requirements for the full list.
+- Bengali localization (`bn.json` + Bengali UI/PDF)
+- Multi-mess (schema-ready via `mess_id`)
+- Real bKash / Nagad / Rocket payment-gateway integration
+- PWA / offline mode, native mobile apps, real-time websockets
+- 2FA + social login
+
+See `.planning/REQUIREMENTS.md` § v2 Requirements for the full list.
+
+## Contributing
+
+PRs welcome. Run `vendor/bin/pint` and `vendor/bin/phpunit` before submitting.
 
 ---
 
-*This README replaces the default Laravel stub. The full project plan (154 v1 requirements across 5 phases), research, and per-phase summaries live in `.planning/`.*
+## Credits
+
+| | |
+|---|---|
+| **Agency** | [**Devsroom**](https://devsroom.com) — software development agency |
+| **Developer portfolio** | [**wpmhs.com**](https://wpmhs.com) |
+
+<p align="center"><em>Built with care for Bangladesh messes.</em></p>
+
+## License
+
+Released under the [MIT License](https://opensource.org/licenses/MIT). © [Devsroom](https://devsroom.com).
+
+---
+
+<sup>This README replaces the default Laravel stub. The full project plan (154 v1 requirements across 5 phases), research, and per-phase summaries live in `.planning/`.</sup>
