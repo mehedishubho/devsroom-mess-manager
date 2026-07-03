@@ -1,6 +1,6 @@
 <div align="center">
 
-# Devsroom Mess Management
+# Mess Management Application Using Laravel
 
 **Run a full mess month end-to-end from a phone — meals, bazar, payments, month-close, and correct member bills — without spreadsheets and without arguing about who owes what.**
 
