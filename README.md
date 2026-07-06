@@ -1,6 +1,6 @@
 <div align="center">
 
-# Mess Management Application Using Laravel
+# Mess Management Application Using Laravel 13 + Tyro Dashboard
 
 **Run a full mess month end-to-end from a phone — meals, bazar, payments, month-close, and correct member bills — without spreadsheets and without arguing about who owes what.**
 
