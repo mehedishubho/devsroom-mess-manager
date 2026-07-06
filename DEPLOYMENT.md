@@ -254,7 +254,13 @@ Forge handles this automatically.
 After the first deploy, run this smoke test:
 
 1. Visit `https://your-domain.com`. Should redirect to `/login` (Tyro Login).
-2. Log in as the production admin (the super-admin you set up via `php artisan tinker` → `User::factory()` + `assignRole(Role::firstOrCreate(['slug'=>'super-admin']))`, OR seeded manually — **NOT** `manager@demo.test`, that's dev only).
+2. Log in as the production admin (the super-admin you set up — **NOT** `manager@demo.test`, that's dev only). If no super-admin exists yet, visit the app root — the **one-time setup wizard** at `/setup` will guide you through creating the first super-admin account. Alternatively, create one via CLI:
+
+    ```bash
+    php artisan mess:create-super-admin admin@yourdomain.com "Admin Name" --password=<strong-password>
+    ```
+
+    Then log in at `/login` with that email/password.
 3. Walk the onboarding: create the real Mess (name, address, rent, manager contact) → configure settings (meal values, currency BDT, date format DD-MM-YYYY).
 4. Smoke-test: create a member, enter a meal on `/mess/meals`, view `/home` (dashboard should populate).
 5. Trigger a test month-close: `/mess/close` → POST. Watch the worker log (`storage/logs/worker.log` or Forge's log UI) for `CloseMonthJob` completing without exception. Verify `/mess/closings` shows the new closing.

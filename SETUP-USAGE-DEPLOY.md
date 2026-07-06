@@ -61,11 +61,22 @@ composer run dev            # http://localhost:8000
 
 ### 3.1 Create the first super-admin (the install owner)
 
+When you first visit the app (e.g. `http://localhost:8000` or `https://yourdomain.com`), the **one-time setup wizard** runs automatically since no super-admin account exists yet:
+
+1. Visit the app root — you're redirected to `/setup`.
+2. Fill in the **name**, **email**, and **password** for the initial super-admin.
+3. Submit — the account is created, the app is marked as installed, and you're logged in.
+4. If no mess exists yet, you land at `/onboarding` to create the first mess. Otherwise you're redirected to `/dashboard`.
+
+> The setup routes (`/setup` GET/POST) are locked by `RedirectIfSetupCompleted` middleware after installation — a GET redirects to `/dashboard` and a POST returns 404. This is a **one-time operation**.
+
+**Alternative — CLI path** (if you prefer the terminal or need to script it):
+
 ```bash
 php artisan mess:create-super-admin owner@example.com "Owner Name" --password=secret
 ```
 
-Log in at `/login` with that email/password. You'll land on the backups/dashboard.
+Then log in at `/login` with that email/password. After logging in, if no mess exists, you'll be redirected to `/onboarding`; otherwise you land on `/dashboard`.
 
 ### 3.2 Assign roles to existing users
 
@@ -336,7 +347,8 @@ The constants everywhere: **docroot → `/public`**, **`QUEUE_CONNECTION=sync`**
 ## 6. Post-deploy verification (do once)
 
 1. Visit `https://yourdomain.com/up` → should return a 200 health page.
-2. Log in as super-admin → **Backups** loads (no `UnableToListContents`) and the Configuration card shows "Local — default ✓" (and "Spaces — configured ✓" if you added creds).
+2. Visit `https://yourdomain.com` — since it's a fresh install, you should be redirected to `/setup` (the one-time setup wizard). Complete the wizard to create the initial super-admin account.
+3. Log in as super-admin → **Backups** loads (no `UnableToListContents`) and the Configuration card shows "Local — default ✓" (and "Spaces — configured ✓" if you added creds).
 3. **Backups → Backup now** → a zip appears in `storage/app/backups/`; **Delete** removes it (audit-logged).
 4. Log in as admin/manager → `/home` dashboard renders; open each sidebar page → all 200.
 5. Invite a member → they get the email → set-password → land on `/my`.

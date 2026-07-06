@@ -120,8 +120,7 @@ php artisan key:generate
 # 5. Run migrations
 php artisan migrate
 
-# 6. Seed the base data (default DatabaseSeeder — creates expense categories +
-#    a test user, does NOT run the perf demo seeder)
+# 6. Seed the base data (optional — only expense categories; does NOT create a test user)
 php artisan db:seed
 ```
 
@@ -131,7 +130,11 @@ After install, start the dev servers (in one terminal, runs `php artisan serve`,
 composer run dev
 ```
 
-Then visit http://localhost:8000 and log in as the test user created by `DatabaseSeeder`, or seed the demo dataset (below) to use the demo manager/member accounts.
+Then visit [http://localhost:8000](http://localhost:8000). Since no super-admin exists yet, you'll be redirected to a **one-time setup wizard** — fill in the name, email, and password for the initial `super-admin` account. After submission, you're logged in and can either create the first mess via `/onboarding` or seed the demo dataset for exploration.
+
+> **Alternative — CLI path:** `php artisan mess:create-super-admin admin@example.com "Admin" --password=secret` then log in at `/login`.
+
+To explore with a full demo dataset instead, seed the demo accounts:
 
 ---
 
