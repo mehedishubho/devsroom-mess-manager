@@ -216,8 +216,8 @@ Route::middleware(['auth', EnsureMessExists::class])->group(function () {
     Route::post('notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.mark-read');
 });
 
-// Member (user role) home
-Route::middleware(['auth', 'role:user'])->group(function () {
+// Member (user / mess-member role) home
+Route::middleware(['auth', 'roles:user,mess-member'])->group(function () {
     Route::get('/my', [MyController::class, 'index'])->name('my');
     Route::patch('my/profile', [MyController::class, 'updateProfile'])->name('my.profile.update');
     Route::post('my/meal-off', [MyController::class, 'storeMealOff'])->name('my.meal-off.store');
