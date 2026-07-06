@@ -4,6 +4,7 @@ namespace Tests\Feature\Auth;
 
 use App\Models\Mess;
 use App\Models\User;
+use App\Models\AppSetting;
 use HasinHayder\Tyro\Models\Role;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -59,5 +60,18 @@ class RouteAccessTest extends TestCase
         $user->assignRole(Role::where('slug', 'admin')->first());
 
         $this->actingAs($user)->get('/my')->assertForbidden();
+    }
+
+    public function test_dashboard_is_forbidden_for_member(): void
+    {
+        AppSetting::create([
+            'key' => 'installed',
+            'value' => ['installed' => true, 'installed_at' => now()->toISOString()],
+        ]);
+
+        $user = User::factory()->create();
+        $user->assignRole(Role::where('slug', 'user')->first());
+
+        $this->actingAs($user)->get('/dashboard')->assertForbidden();
     }
 }

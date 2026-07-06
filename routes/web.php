@@ -30,11 +30,26 @@ use App\Http\Controllers\My\MyReportExportController;
 use App\Http\Controllers\MyController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\PostLoginRedirectController;
+use App\Http\Controllers\RootController;
 use App\Http\Controllers\SetPasswordController;
+use App\Http\Controllers\SetupController;
 use App\Http\Middleware\EnsureMessExists;
+use App\Http\Middleware\RedirectIfSetupCompleted;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', fn () => view('welcome'))->name('welcome');
+Route::get('/', RootController::class)->name('welcome');
+
+Route::get('/post-login', PostLoginRedirectController::class)
+    ->middleware('auth')
+    ->name('post-login');
+
+Route::middleware(RedirectIfSetupCompleted::class)->group(function () {
+    Route::get('/setup', [SetupController::class, 'create'])->name('setup.create');
+    Route::post('/setup', [SetupController::class, 'store'])
+        ->middleware('throttle:5,1')
+        ->name('setup.store');
+});
 
 // Onboarding (super-admin only)
 Route::middleware(['auth', 'role:super-admin', EnsureMessExists::class])->group(function () {

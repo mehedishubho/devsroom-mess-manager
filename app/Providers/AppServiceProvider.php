@@ -12,7 +12,6 @@ use App\Models\Payment;
 use App\Services\BillPreviewInvalidator;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
@@ -29,31 +28,6 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Carbon::setLocale('en');
-
-        // D-02: role-based post-login redirect.
-        config([
-            'tyro-login.redirects.after_login' => function () {
-                $user = Auth::user() ?? auth()->user();
-                if (! $user) {
-                    return '/';
-                }
-                if ($user->hasRole('super-admin')) {
-                    if (! Mess::query()->exists()) {
-                        return route('onboarding.create');
-                    }
-
-                    return '/dashboard';
-                }
-                if ($user->hasRole('admin') || $user->hasRole('manager')) {
-                    return '/home';
-                }
-                if ($user->hasRole('user')) {
-                    return '/my';
-                }
-
-                return '/';
-            },
-        ]);
 
         $this->registerBillPreviewInvalidation();
         $this->registerBackupFailureListeners();

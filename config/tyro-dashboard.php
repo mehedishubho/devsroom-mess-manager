@@ -14,7 +14,7 @@ return [
     */
     'routes' => [
         'prefix' => env('TYRO_DASHBOARD_PREFIX', 'dashboard'),
-        'middleware' => ['web', 'auth'],
+        'middleware' => ['web', 'auth', 'roles:admin,super-admin'],
         'name_prefix' => 'tyro-dashboard.',
     ],
 

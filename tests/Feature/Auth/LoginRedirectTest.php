@@ -18,7 +18,7 @@ class LoginRedirectTest extends TestCase
         $this->seedTyroRoles();
     }
 
-    public function test_closure_returns_dashboard_for_super_admin(): void
+    public function test_post_login_redirects_super_admin_to_dashboard(): void
     {
         Mess::factory()->create();
         $user = User::factory()->create([
@@ -28,12 +28,12 @@ class LoginRedirectTest extends TestCase
         $user->assignRole(Role::where('slug', 'super-admin')->first());
         Mess::forgetActiveIdCache();
 
-        $this->actingAs($user);
-        $url = config('tyro-login.redirects.after_login')();
-        $this->assertSame('/dashboard', $url);
+        $this->actingAs($user)
+            ->get('/post-login')
+            ->assertRedirect('/dashboard');
     }
 
-    public function test_closure_returns_onboarding_for_super_admin_when_no_mess(): void
+    public function test_post_login_redirects_super_admin_to_onboarding_when_no_mess(): void
     {
         $user = User::factory()->create([
             'email' => 'super-new@test.com',
@@ -42,12 +42,12 @@ class LoginRedirectTest extends TestCase
         $user->assignRole(Role::where('slug', 'super-admin')->first());
         Mess::forgetActiveIdCache();
 
-        $this->actingAs($user);
-        $url = config('tyro-login.redirects.after_login')();
-        $this->assertSame(route('onboarding.create'), $url);
+        $this->actingAs($user)
+            ->get('/post-login')
+            ->assertRedirect(route('onboarding.create'));
     }
 
-    public function test_closure_returns_home_for_admin(): void
+    public function test_post_login_redirects_admin_to_home(): void
     {
         $user = User::factory()->create([
             'email' => 'admin@test.com',
@@ -55,12 +55,12 @@ class LoginRedirectTest extends TestCase
         ]);
         $user->assignRole(Role::where('slug', 'admin')->first());
 
-        $this->actingAs($user);
-        $url = config('tyro-login.redirects.after_login')();
-        $this->assertSame('/home', $url);
+        $this->actingAs($user)
+            ->get('/post-login')
+            ->assertRedirect('/home');
     }
 
-    public function test_closure_returns_my_for_user(): void
+    public function test_post_login_redirects_user_to_my(): void
     {
         $user = User::factory()->create([
             'email' => 'member@test.com',
@@ -68,8 +68,8 @@ class LoginRedirectTest extends TestCase
         ]);
         $user->assignRole(Role::where('slug', 'user')->first());
 
-        $this->actingAs($user);
-        $url = config('tyro-login.redirects.after_login')();
-        $this->assertSame('/my', $url);
+        $this->actingAs($user)
+            ->get('/post-login')
+            ->assertRedirect('/my');
     }
 }

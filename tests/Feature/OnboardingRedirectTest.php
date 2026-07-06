@@ -18,25 +18,23 @@ class OnboardingRedirectTest extends TestCase
         $this->seedTyroRoles();
     }
 
-    public function test_closure_routes_super_admin_to_onboarding_when_no_mess(): void
+    public function test_post_login_routes_super_admin_to_onboarding_when_no_mess(): void
     {
         $user = User::factory()->create();
         $user->assignRole(Role::where('slug', 'super-admin')->first());
-        $this->actingAs($user);
-
-        $url = config('tyro-login.redirects.after_login')();
-        $this->assertSame(route('onboarding.create'), $url);
+        $this->actingAs($user)
+            ->get('/post-login')
+            ->assertRedirect(route('onboarding.create'));
     }
 
-    public function test_closure_routes_super_admin_to_dashboard_when_mess_exists(): void
+    public function test_post_login_routes_super_admin_to_dashboard_when_mess_exists(): void
     {
         Mess::factory()->create();
         $user = User::factory()->create();
         $user->assignRole(Role::where('slug', 'super-admin')->first());
-        $this->actingAs($user);
-
-        $url = config('tyro-login.redirects.after_login')();
-        $this->assertSame('/dashboard', $url);
+        $this->actingAs($user)
+            ->get('/post-login')
+            ->assertRedirect('/dashboard');
     }
 
     public function test_ensure_mess_middleware_skips_onboarding_route(): void
@@ -51,7 +49,7 @@ class OnboardingRedirectTest extends TestCase
 
     public function test_manager_redirected_to_onboarding_when_no_mess(): void
     {
-        // The post-login closure for the manager role returns /home.
+        // The post-login redirect for the manager role returns /home.
         // EnsureMessExists then intercepts the /home request and redirects
         // to /onboarding because no mess exists.
         $user = User::factory()->create();
