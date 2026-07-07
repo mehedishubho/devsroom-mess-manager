@@ -8,7 +8,9 @@ use App\Models\ExpenseCategory;
 use App\Models\GuestMeal;
 use App\Models\MealEntry;
 use App\Models\Member;
+use App\Models\MemberDisabledDay;
 use App\Models\Mess;
+use App\Models\MessClosedDay;
 use App\Models\Payment;
 use App\Support\ExpenseKind;
 use App\Support\MealType;
@@ -120,7 +122,29 @@ class BillPreviewService
 
         $memberIds = $members->pluck('id')->all();
 
-        $mealTotalsByMember = $this->mealTotals($memberIds, $start, $end);
+        // Pre-load closed dates (mess closed) and disabled dates (per member)
+        $closedDates = MessClosedDay::query()
+            ->where('mess_id', $messId)
+            ->whereBetween('date', [$start->toDateString(), $end->toDateString()])
+            ->pluck('date')
+            ->map(fn ($d) => $d instanceof Carbon ? $d->toDateString() : (string) $d)
+            ->values()
+            ->all();
+
+        $disabledDayRows = MemberDisabledDay::query()
+            ->where('mess_id', $messId)
+            ->whereBetween('date', [$start->toDateString(), $end->toDateString()])
+            ->get(['member_id', 'date']);
+
+        $disabledDaysByMember = [];
+        foreach ($disabledDayRows as $dd) {
+            $ds = $dd->date instanceof Carbon ? $dd->date->toDateString() : (string) $dd->date;
+            $disabledDaysByMember[$dd->member_id][] = $ds;
+        }
+
+        $closedDatesSet = array_flip($closedDates);
+
+        $mealTotalsByMember = $this->mealTotals($memberIds, $start, $end, $closedDatesSet, $disabledDaysByMember);
         $guestTotalsByMember = $this->guestTotals($memberIds, $start, $end);
         $paymentsByMember = $this->paymentsByMember($memberIds, $start, $end);
         $advanceBalances = $this->advanceBalances($memberIds);
@@ -136,13 +160,19 @@ class BillPreviewService
 
         $mealRate = $totalMeals > 0 ? round($totalBazar / $totalMeals, 2) : 0.0;
 
+        // Pre-compute disabled day counts per member for activeDaysForMember
+        $disabledDayCountByMember = [];
+        foreach ($memberIds as $mid) {
+            $disabledDayCountByMember[$mid] = count($disabledDaysByMember[$mid] ?? []);
+        }
+
         $rows = [];
         foreach ($members as $member) {
             $meals = $mealTotalsByMember[$member->id] ?? 0.0;
             $guestTotal = $guestTotalsByMember[$member->id] ?? 0.0;
             $mealCost = round($meals * $mealRate, 2);
 
-            $activeDays = $this->activeDaysForMember($member, $start, $end);
+            $activeDays = $this->activeDaysForMember($member, $start, $end, $closedDatesSet, $disabledDayCountByMember[$member->id] ?? 0);
             $fixedShare = $daysInMonth > 0
                 ? round($totalFixed * ($activeDays / $daysInMonth), 2)
                 : 0.0;
@@ -180,6 +210,7 @@ class BillPreviewService
                 'due_balance' => $dueBalance,
                 'active_days' => $activeDays,
                 'status' => $member->status,
+                'disabled_days' => $disabledDayCountByMember[$member->id] ?? 0,
             ];
         }
 
@@ -191,11 +222,16 @@ class BillPreviewService
             'meal_rate' => $mealRate,
             'total_fixed' => $totalFixed,
             'days_in_month' => $daysInMonth,
+            'closed_days_count' => count($closedDates),
             'members' => $rows,
         ];
     }
 
-    private function mealTotals(array $memberIds, Carbon $start, Carbon $end): array
+    /**
+     * @param  array<int, string>  $closedDatesSet  [date => true]
+     * @param  array<int, array<int, string>>  $disabledDaysByMember  [member_id => [date, ...]]
+     */
+    private function mealTotals(array $memberIds, Carbon $start, Carbon $end, array $closedDatesSet = [], array $disabledDaysByMember = []): array
     {
         if (empty($memberIds)) {
             return [];
@@ -204,10 +240,21 @@ class BillPreviewService
         $entries = MealEntry::query()
             ->whereIn('member_id', $memberIds)
             ->whereBetween('date', [$start->toDateString(), $end->toDateString()])
-            ->get(['member_id', 'breakfast', 'lunch', 'dinner']);
+            ->get(['member_id', 'date', 'breakfast', 'lunch', 'dinner']);
 
         $totals = array_fill_keys($memberIds, 0.0);
         foreach ($entries as $entry) {
+            $dateStr = $entry->date->toDateString();
+            // Skip entries on mess-closed dates
+            if (isset($closedDatesSet[$dateStr])) {
+                continue;
+            }
+            // Skip entries on member-disabled dates
+            $memberDisabled = $disabledDaysByMember[$entry->member_id] ?? [];
+            if (in_array($dateStr, $memberDisabled, true)) {
+                continue;
+            }
+
             $val = 0.0;
             if ($entry->breakfast) {
                 $val += MealType::value(MealType::BREAKFAST);
@@ -311,7 +358,10 @@ class BillPreviewService
         return true;
     }
 
-    private function activeDaysForMember(Member $member, Carbon $start, Carbon $end): int
+    /**
+     * @param  array<int, string>  $closedDatesSet  [date => true]
+     */
+    private function activeDaysForMember(Member $member, Carbon $start, Carbon $end, array $closedDatesSet = [], int $disabledDayCount = 0): int
     {
         $memberStart = $member->joining_date && $member->joining_date->gt($start)
             ? $member->joining_date->copy()
@@ -325,6 +375,20 @@ class BillPreviewService
             return 0;
         }
 
-        return (int) $memberStart->diffInDays($memberEnd) + 1;
+        $activeDays = (int) $memberStart->diffInDays($memberEnd) + 1;
+
+        // Subtract mess-closed days that fall within this member's active period
+        if (! empty($closedDatesSet)) {
+            $cursor = $memberStart->copy();
+            while ($cursor <= $memberEnd) {
+                if (isset($closedDatesSet[$cursor->toDateString()])) {
+                    $activeDays--;
+                }
+                $cursor->addDay();
+            }
+        }
+
+        // Subtract member-disabled days
+        return max(0, $activeDays - $disabledDayCount);
     }
 }

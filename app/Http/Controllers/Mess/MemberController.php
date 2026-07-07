@@ -7,10 +7,15 @@ use App\Http\Requests\Mess\StoreMemberRequest;
 use App\Http\Requests\Mess\UpdateMemberRequest;
 use App\Models\Member;
 use App\Models\Mess;
+use App\Models\User;
+use HasinHayder\Tyro\Models\Role;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class MemberController extends Controller
@@ -46,10 +51,42 @@ class MemberController extends Controller
     {
         $data = $request->validated();
         $photo = $data['photo'] ?? null;
-        unset($data['photo']);
+        unset($data['photo'], $data['create_account'], $data['password'], $data['password_confirmation']);
 
         $data['mess_id'] = Mess::activeId();
         $member = Member::create($data);
+
+        // Handle account creation
+        if ($request->boolean('create_account')) {
+            $email = $member->email;
+            $plainPassword = $request->input('password', Str::random(12));
+
+            $user = User::create([
+                'name' => $member->name,
+                'email' => $email,
+                'password' => Hash::make($plainPassword),
+            ]);
+
+            $user->assignRole(Role::firstOrCreate(['slug' => 'user'], ['name' => 'User']));
+            $member->update(['user_id' => $user->id]);
+
+            // Send credentials email if mail configured and email exists
+            if ($email && app()->bound('mailer') && count(config('mail.mailers.smtp', [])) > 0) {
+                try {
+                    Mail::to($email)->send(new \App\Mail\MemberCredentialsMail($user, $plainPassword));
+                } catch (\Throwable) {
+                    // Silently fail — credentials are shown on screen
+                }
+            }
+
+            return redirect()
+                ->route('mess.members.show', $member)
+                ->with('success', __('Member :name added. Their login email is :email with password: :password', [
+                    'name' => $member->name,
+                    'email' => $email,
+                    'password' => $plainPassword,
+                ]));
+        }
 
         if ($photo) {
             $this->storePhoto($member, $photo);

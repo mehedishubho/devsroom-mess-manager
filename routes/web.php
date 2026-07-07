@@ -126,6 +126,9 @@ Route::middleware(['auth', 'roles:admin,super-admin,manager', EnsureMessExists::
     Route::get('mess/meals', [MealGridController::class, 'index'])->name('mess.meals.index');
     Route::post('mess/meals', [MealGridController::class, 'save'])->name('mess.meals.save')
         ->middleware('month.open');
+    Route::get('mess/meals/monthly', [\App\Http\Controllers\Mess\MealMonthlyGridController::class, 'index'])->name('mess.meals.monthly');
+    Route::post('mess/meals/monthly', [\App\Http\Controllers\Mess\MealMonthlyGridController::class, 'save'])->name('mess.meals.monthly.save')
+        ->middleware('month.open');
 
     Route::get('mess/guest-meals', [GuestMealController::class, 'index'])->name('mess.guest-meals.index');
     Route::get('mess/guest-meals/create', [GuestMealController::class, 'create'])->name('mess.guest-meals.create');
@@ -152,6 +155,16 @@ Route::middleware(['auth', 'roles:admin,super-admin,manager', EnsureMessExists::
     Route::get('mess/categories', [ExpenseCategoryController::class, 'index'])->name('mess.categories.index');
     Route::post('mess/categories', [ExpenseCategoryController::class, 'store'])->name('mess.categories.store');
     Route::delete('mess/categories/{category}', [ExpenseCategoryController::class, 'destroy'])->name('mess.categories.destroy');
+
+    // Closed days (global day control)
+    Route::get('mess/closed-days', [\App\Http\Controllers\Mess\MessClosedDayController::class, 'index'])->name('mess.closed-days.index');
+    Route::post('mess/closed-days', [\App\Http\Controllers\Mess\MessClosedDayController::class, 'store'])->name('mess.closed-days.store');
+    Route::delete('mess/closed-days/{closedDay}', [\App\Http\Controllers\Mess\MessClosedDayController::class, 'destroy'])->name('mess.closed-days.destroy');
+
+    // Member disabled days (individual day control)
+    Route::get('mess/members/{member}/disabled-days', [\App\Http\Controllers\Mess\MemberDisabledDayController::class, 'index'])->name('mess.members.disabled-days.index');
+    Route::post('mess/members/{member}/disabled-days', [\App\Http\Controllers\Mess\MemberDisabledDayController::class, 'store'])->name('mess.members.disabled-days.store');
+    Route::delete('mess/members/{member}/disabled-days/{disabledDay}', [\App\Http\Controllers\Mess\MemberDisabledDayController::class, 'destroy'])->name('mess.members.disabled-days.destroy');
 
     Route::resource('mess/payments', PaymentController::class)
         ->only(['index', 'create', 'show', 'edit'])
@@ -216,8 +229,11 @@ Route::middleware(['auth', EnsureMessExists::class])->group(function () {
     Route::post('notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.mark-read');
 });
 
-// Member (user / mess-member role) home
-Route::middleware(['auth', 'roles:user,mess-member'])->group(function () {
+// Member (user / mess-member role) home — password.change forces first-login password set.
+Route::middleware(['auth', 'roles:user,mess-member', 'password.change'])->group(function () {
+    Route::get('my/password/change', [MyController::class, 'showChangePassword'])->name('my.password.change');
+    Route::post('my/password/change', [MyController::class, 'changePassword'])->name('my.password.change.store');
+
     Route::get('/my', [MyController::class, 'index'])->name('my');
     Route::patch('my/profile', [MyController::class, 'updateProfile'])->name('my.profile.update');
     Route::post('my/meal-off', [MyController::class, 'storeMealOff'])->name('my.meal-off.store');

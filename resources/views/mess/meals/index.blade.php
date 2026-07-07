@@ -12,6 +12,12 @@
         @csrf
         <input type="hidden" name="date" value="{{ $date }}" />
 
+        @if ($isClosed ?? false)
+            <div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {{ __('This day is marked as a mess closed day. Meals cannot be edited.') }}
+            </div>
+        @endif
+
         <div class="mb-3 flex flex-wrap items-center gap-2">
             <button type="button" data-preset="all" class="btn btn-secondary">
                 {{ __('Mark all 3 meals') }}
@@ -40,8 +46,12 @@
                                 @if ($row->member->room_or_seat)
                                     <div class="truncate text-xs text-slate-500">{{ $row->member->room_or_seat }}</div>
                                 @endif
-                                @if (!$row->editable)
-                                    <p class="mt-1 text-xs text-amber-700">{{ __('On meal off until :date', ['date' => $row->meal_off_until->format('d M')]) }}</p>
+                        @if (!$row->editable)
+                                    @if ($row->meal_off_until ?? false)
+                                        <p class="mt-1 text-xs text-amber-700">{{ __('On meal off until :date', ['date' => $row->meal_off_until->format('d M')]) }}</p>
+                                    @else
+                                        <p class="mt-1 text-xs text-slate-400">{{ __('Day disabled') }}</p>
+                                    @endif
                                 @endif
                             </td>
                             @foreach (['breakfast', 'lunch', 'dinner'] as $meal)
@@ -92,6 +102,9 @@
             <button type="submit" class="btn btn-primary">
                 {{ __('Save all changes') }}
             </button>
+            <a href="{{ route('mess.meals.monthly', ['month' => \Carbon\Carbon::parse($date)->format('Y-m')]) }}" class="btn btn-ghost btn-sm">
+                {{ __('Switch to monthly grid') }}
+            </a>
         </div>
     </form>
 

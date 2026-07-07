@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureMonthIsOpen;
 use App\Http\Middleware\RedirectIfSetupCompleted;
+use App\Http\Middleware\RequirePasswordChange;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -17,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'month.open' => EnsureMonthIsOpen::class,
             'setup.open' => RedirectIfSetupCompleted::class,
+            'password.change' => RequirePasswordChange::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

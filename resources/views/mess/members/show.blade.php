@@ -9,6 +9,9 @@
             <a href="{{ route('mess.members.edit', $member) }}" class="btn btn-secondary">
                 {{ __('Edit') }}
             </a>
+            <a href="{{ route('mess.members.disabled-days.index', $member) }}" class="btn btn-secondary">
+                {{ __('Disabled days') }}
+            </a>
             <form method="POST" action="{{ route('mess.members.deactivate', $member) }}" class="inline" onsubmit="return confirm('{{ __('Mark this member as inactive? They will not appear in the daily meal grid.') }}');">
                 @csrf
                 @method('PATCH')

@@ -7,7 +7,9 @@ use App\Models\Expense;
 use App\Models\GuestMeal;
 use App\Models\MealEntry;
 use App\Models\MealOffRequest;
+use App\Models\MemberDisabledDay;
 use App\Models\Mess;
+use App\Models\MessClosedDay;
 use App\Models\Payment;
 use App\Services\BillPreviewInvalidator;
 use Carbon\Carbon;
@@ -59,7 +61,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $invalidator = $this->app->make(BillPreviewInvalidator::class);
 
-        $models = [MealEntry::class, GuestMeal::class, MealOffRequest::class, Expense::class, Payment::class];
+        $models = [MealEntry::class, GuestMeal::class, MealOffRequest::class, Expense::class, Payment::class, MessClosedDay::class, MemberDisabledDay::class];
         foreach ($models as $modelClass) {
             // Laravel passes the model instance directly to eloquent.saved/deleted
             // listeners — there is no event object with a ->model property (CR-01).

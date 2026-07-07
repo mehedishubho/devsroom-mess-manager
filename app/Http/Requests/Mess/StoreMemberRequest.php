@@ -17,7 +17,7 @@ class StoreMemberRequest extends FormRequest
 
     public function rules(): array
     {
-        return [
+        $rules = [
             'name' => ['required', 'string', 'max:255'],
             'mobile' => ['nullable', 'string', 'max:30', 'regex:/^(01)[3-9]\d{8}$/'],
             'email' => ['nullable', 'email', 'max:255'],
@@ -29,7 +29,12 @@ class StoreMemberRequest extends FormRequest
             'leaving_date' => ['nullable', 'date', 'required_if:status,former'],
             'emergency_contact' => ['nullable', 'string', 'max:100'],
             'photo' => ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            // Account creation
+            'create_account' => ['nullable', 'boolean'],
+            'password' => ['nullable', 'string', 'min:8', 'confirmed'],
         ];
+
+        return $rules;
     }
 
     public function messages(): array

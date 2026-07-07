@@ -5,7 +5,9 @@ namespace App\Services;
 use App\Models\GuestMeal;
 use App\Models\MealEntry;
 use App\Models\Member;
+use App\Models\MemberDisabledDay;
 use App\Models\Mess;
+use App\Models\MessClosedDay;
 use App\Models\MonthlyClosing;
 use App\Models\MonthlyMemberSummary;
 use App\Models\Payment;
@@ -130,11 +132,36 @@ class MemberStatementService
     /**
      * Daily meal breakdown (D-23): each date with B/L/D booleans + the
      * configured meal value sum for that day.
+     * Excludes mess-closed dates and member-disabled dates.
      *
      * @return array<int,array{date:string,breakfast:bool,lunch:bool,dinner:bool,meal_value:float}>
      */
     private function dailyBreakdown(int $memberId, Carbon $start, Carbon $end): array
     {
+        $messId = Mess::activeId();
+
+        // Load mess-closed dates
+        $closedDatesSet = [];
+        if ($messId) {
+            $closedDates = MessClosedDay::query()
+                ->where('mess_id', $messId)
+                ->whereBetween('date', [$start->toDateString(), $end->toDateString()])
+                ->pluck('date')
+                ->map(fn ($d) => $d instanceof Carbon ? $d->toDateString() : (string) $d);
+            foreach ($closedDates as $ds) {
+                $closedDatesSet[$ds] = true;
+            }
+        }
+
+        // Load member-disabled dates
+        $disabledDates = MemberDisabledDay::query()
+            ->where('member_id', $memberId)
+            ->whereBetween('date', [$start->toDateString(), $end->toDateString()])
+            ->pluck('date')
+            ->map(fn ($d) => $d instanceof Carbon ? $d->toDateString() : (string) $d)
+            ->all();
+        $disabledDatesSet = array_flip($disabledDates);
+
         $entries = MealEntry::query()
             ->where('member_id', $memberId)
             ->whereBetween('date', [$start->toDateString(), $end->toDateString()])
@@ -142,7 +169,22 @@ class MemberStatementService
             ->get(['date', 'breakfast', 'lunch', 'dinner']);
 
         $out = [];
+        $seen = [];
+
         foreach ($entries as $entry) {
+            $dateStr = $entry->date->toDateString();
+
+            // Skip closed/disabled dates
+            if (isset($closedDatesSet[$dateStr]) || isset($disabledDatesSet[$dateStr])) {
+                continue;
+            }
+
+            // Avoid duplicates (in case of multiple entries for same date)
+            if (isset($seen[$dateStr])) {
+                continue;
+            }
+            $seen[$dateStr] = true;
+
             $val = 0.0;
             if ($entry->breakfast) {
                 $val += MealType::value(MealType::BREAKFAST);
@@ -155,7 +197,7 @@ class MemberStatementService
             }
 
             $out[] = [
-                'date' => $entry->date->toDateString(),
+                'date' => $dateStr,
                 'breakfast' => (bool) $entry->breakfast,
                 'lunch' => (bool) $entry->lunch,
                 'dinner' => (bool) $entry->dinner,

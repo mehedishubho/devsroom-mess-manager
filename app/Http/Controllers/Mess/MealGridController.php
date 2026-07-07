@@ -18,7 +18,7 @@ class MealGridController extends Controller
     {
         $date = $request->filled('date')
             ? Carbon::parse($request->query('date'))
-            : Carbon::now(config('app.timezone'));
+            : Carbon::now(config('app.timezone'))->startOfMonth();
 
         $data = $this->service->buildGridData($date);
 
@@ -26,6 +26,7 @@ class MealGridController extends Controller
             'rows' => $data['members'],
             'date' => $data['date']->toDateString(),
             'mealOffByMember' => $data['mealOffByMember'],
+            'isClosed' => $data['is_closed'] ?? false,
         ]);
     }
 

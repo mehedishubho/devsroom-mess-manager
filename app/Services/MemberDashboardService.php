@@ -5,6 +5,9 @@ namespace App\Services;
 use App\Models\AdvanceBalance;
 use App\Models\MealEntry;
 use App\Models\Member;
+use App\Models\MemberDisabledDay;
+use App\Models\Mess;
+use App\Models\MessClosedDay;
 use App\Models\Payment;
 use App\Models\User;
 use App\Support\MealType;
@@ -86,19 +89,51 @@ class MemberDashboardService
      * Matches BillPreviewService::mealTotals() — uses MealType::value()
      * for each checked B/L/D boolean. Guest meals are NOT included
      * (Open Question #3 LOCKED resolution).
+     * Excludes mess-closed dates and member-disabled dates for consistency
+     * with the bill math.
      */
     private function myMealsThisMonth(int $memberId, Carbon $now): float
     {
-        $start = $now->copy()->startOfMonth()->toDateString();
-        $end = $now->copy()->endOfMonth()->toDateString();
+        $start = $now->copy()->startOfMonth();
+        $end = $now->copy()->endOfMonth();
+
+        // Load mess-closed and member-disabled dates for this month
+        $messId = Mess::activeId();
+        $closedDatesSet = [];
+        if ($messId) {
+            $closedDates = MessClosedDay::query()
+                ->where('mess_id', $messId)
+                ->whereBetween('date', [$start->toDateString(), $end->toDateString()])
+                ->pluck('date')
+                ->map(fn ($d) => $d instanceof Carbon ? $d->toDateString() : (string) $d);
+            foreach ($closedDates as $ds) {
+                $closedDatesSet[$ds] = true;
+            }
+        }
+
+        $disabledDates = MemberDisabledDay::query()
+            ->where('member_id', $memberId)
+            ->whereBetween('date', [$start->toDateString(), $end->toDateString()])
+            ->pluck('date')
+            ->map(fn ($d) => $d instanceof Carbon ? $d->toDateString() : (string) $d)
+            ->all();
+
+        $disabledDatesSet = array_flip($disabledDates);
 
         $entries = MealEntry::query()
             ->where('member_id', $memberId)
-            ->whereBetween('date', [$start, $end])
-            ->get(['breakfast', 'lunch', 'dinner']);
+            ->whereBetween('date', [$start->toDateString(), $end->toDateString()])
+            ->get(['date', 'breakfast', 'lunch', 'dinner']);
 
         $total = 0.0;
         foreach ($entries as $entry) {
+            $dateStr = $entry->date->toDateString();
+            if (isset($closedDatesSet[$dateStr])) {
+                continue;
+            }
+            if (isset($disabledDatesSet[$dateStr])) {
+                continue;
+            }
             if ($entry->breakfast) {
                 $total += MealType::value(MealType::BREAKFAST);
             }

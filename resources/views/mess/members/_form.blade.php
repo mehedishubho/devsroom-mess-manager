@@ -103,6 +103,48 @@
     </div>
 </div>
 
+<div class="mt-6 border-t border-slate-200 pt-6">
+    <h2 class="text-lg font-semibold text-slate-900">{{ __('Login account') }}</h2>
+    <p class="mt-1 text-sm text-slate-600">{{ __('Optionally create a login account so this member can sign in.') }}</p>
+
+    <div class="mt-4 flex flex-col gap-4">
+        <div class="flex items-center gap-2">
+            <input type="checkbox" name="create_account" id="create_account" value="1"
+                data-toggle-account-fields
+                class="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring focus:ring-emerald-600 focus:ring-offset-1">
+            <label for="create_account" class="text-sm font-medium text-slate-900">
+                {{ __('Create login account') }}
+            </label>
+        </div>
+
+        <div data-account-fields style="display:none" class="ml-7 flex flex-col gap-4 border-l-2 border-emerald-200 pl-4">
+            <div class="flex flex-col gap-1">
+                <label for="password" class="text-sm font-medium text-slate-900">{{ __('Password') }}</label>
+                <p class="text-xs text-slate-500">{{ __('Leave blank to auto-generate a password.') }}</p>
+                <input type="password" name="password" id="password" minlength="8"
+                    class="input @error('password') border-red-500 @enderror"
+                    autocomplete="new-password">
+                @error('password') <p class="text-sm text-red-700">{{ $message }}</p> @enderror
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label for="password_confirmation" class="text-sm font-medium text-slate-900">{{ __('Confirm password') }}</label>
+                <input type="password" name="password_confirmation" id="password_confirmation" minlength="8"
+                    class="input"
+                    autocomplete="new-password">
+            </div>
+
+            <div class="flex items-center gap-2">
+                <input type="checkbox" name="send_credentials" id="send_credentials" value="1"
+                    class="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring focus:ring-emerald-600 focus:ring-offset-1">
+                <label for="send_credentials" class="text-sm text-slate-900">
+                    {{ __('Send credentials via email') }}
+                </label>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="mt-6 flex flex-wrap items-center gap-2">
     <button type="submit" class="btn btn-primary">
         {{ __('Save member') }}
@@ -117,11 +159,19 @@
         (function () {
             const sel = document.querySelector('[data-show-leaving-date]');
             const field = document.querySelector('[data-leaving-date-field]');
-            if (!sel || !field) return;
-            sel.addEventListener('change', function () {
-                if (sel.value === 'former') { field.style.display = ''; }
-                else { field.style.display = 'none'; }
-            });
+            if (sel && field) {
+                sel.addEventListener('change', function () {
+                    field.style.display = sel.value === 'former' ? '' : 'none';
+                });
+            }
+
+            const toggle = document.querySelector('[data-toggle-account-fields]');
+            const fields = document.querySelector('[data-account-fields]');
+            if (toggle && fields) {
+                toggle.addEventListener('change', function () {
+                    fields.style.display = toggle.checked ? '' : 'none';
+                });
+            }
         })();
     </script>
 @endonce

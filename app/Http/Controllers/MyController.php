@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\My\StoreMealOffRequest;
 use App\Http\Requests\My\UpdateMyProfileRequest;
+use App\Http\Requests\My\ChangeMyPasswordRequest;
 use App\Models\MealOffRequest;
 use App\Models\Mess;
 use App\Models\Payment;
@@ -12,6 +13,7 @@ use App\Support\MealOffStatus;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
@@ -71,9 +73,30 @@ class MyController extends Controller
 
         $data = $request->validated();
         $photo = $data['photo'] ?? null;
-        unset($data['photo']);
+        unset($data['photo'], $data['current_password'], $data['new_password'], $data['new_password_confirmation']);
 
         $member->update($data);
+
+        // Update User record name + email if provided
+        $user = $request->user();
+        $userData = [];
+        if (isset($data['name'])) {
+            $userData['name'] = $data['name'];
+        }
+        if (isset($data['email']) && $data['email'] !== $user->email) {
+            $userData['email'] = $data['email'];
+        }
+        if (! empty($userData)) {
+            $user->update($userData);
+        }
+
+        // Handle password change
+        if ($request->filled('new_password')) {
+            $user->update([
+                'password' => Hash::make($request->input('new_password')),
+                'password_changed_at' => now(),
+            ]);
+        }
 
         if ($photo) {
             $ext = $photo->getClientOriginalExtension();
@@ -88,6 +111,21 @@ class MyController extends Controller
         }
 
         return redirect()->route('my', ['tab' => 'profile'])->with('success', __('Profile updated.'));
+    }
+
+    public function showChangePassword(): View
+    {
+        return view('auth.change-password');
+    }
+
+    public function changePassword(ChangeMyPasswordRequest $request): RedirectResponse
+    {
+        $request->user()->update([
+            'password' => Hash::make($request->input('password')),
+            'password_changed_at' => now(),
+        ]);
+
+        return redirect()->intended(route('my'))->with('success', __('Password changed successfully.'));
     }
 
     public function storeMealOff(StoreMealOffRequest $request): RedirectResponse

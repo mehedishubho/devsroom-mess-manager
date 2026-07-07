@@ -5,7 +5,9 @@ namespace App\Services;
 use App\Models\MealEntry;
 use App\Models\MealOffRequest;
 use App\Models\Member;
+use App\Models\MemberDisabledDay;
 use App\Models\Mess;
+use App\Models\MessClosedDay;
 use App\Support\MealOffStatus;
 use App\Support\MemberStatus;
 use Carbon\Carbon;
@@ -19,6 +21,14 @@ class MealGridService
      */
     public function buildGridData(Carbon $date): array
     {
+        $messId = Mess::activeId();
+
+        // Check if the date is a mess-closed day
+        $isClosed = $messId && MessClosedDay::query()
+            ->where('mess_id', $messId)
+            ->where('date', $date->toDateString())
+            ->exists();
+
         $activeMembers = Member::query()
             ->where('status', MemberStatus::ACTIVE)
             ->orderBy('name')
@@ -32,9 +42,19 @@ class MealGridService
 
         $mealOffByMember = $this->approvedMealOffForDate($date, $activeMembers->pluck('id'));
 
-        $rows = $activeMembers->map(function (Member $member) use ($entries, $mealOffByMember) {
+        // Get member disabled days for this date
+        $disabledMemberIds = $messId ? MemberDisabledDay::query()
+            ->where('mess_id', $messId)
+            ->where('date', $date->toDateString())
+            ->pluck('member_id')
+            ->all() : [];
+
+        $disabledSet = array_flip($disabledMemberIds);
+
+        $rows = $activeMembers->map(function (Member $member) use ($entries, $mealOffByMember, $isClosed, $disabledSet) {
             $entry = $entries->get($member->id);
             $off = $mealOffByMember[$member->id] ?? null;
+            $isDisabled = isset($disabledSet[$member->id]);
 
             return (object) [
                 'member' => $member,
@@ -43,7 +63,7 @@ class MealGridService
                 'dinner' => $entry?->dinner ?? false,
                 'entry_id' => $entry?->id,
                 'meal_off_until' => $off?->to_date,
-                'editable' => $off === null,
+                'editable' => !$isClosed && $off === null && !$isDisabled,
             ];
         });
 
@@ -51,6 +71,7 @@ class MealGridService
             'members' => $rows,
             'date' => $date,
             'mealOffByMember' => $mealOffByMember,
+            'is_closed' => $isClosed,
         ];
     }
 
@@ -108,6 +129,13 @@ class MealGridService
      */
     private function editableMemberIdsForDate(Carbon $date): array
     {
+        $messId = Mess::activeId();
+
+        // If the mess is closed on this date, no one is editable.
+        if ($messId && MessClosedDay::query()->where('mess_id', $messId)->where('date', $date->toDateString())->exists()) {
+            return [];
+        }
+
         return Member::query()
             ->where('status', MemberStatus::ACTIVE)
             ->whereNotIn('id', function ($q) use ($date) {
@@ -116,6 +144,14 @@ class MealGridService
                     ->where('status', MealOffStatus::APPROVED)
                     ->where('from_date', '<=', $date->toDateString())
                     ->where('to_date', '>=', $date->toDateString());
+            })
+            ->whereNotIn('id', function ($q) use ($date, $messId) {
+                $q->select('member_id')
+                    ->from('member_disabled_days')
+                    ->where('date', $date->toDateString());
+                if ($messId) {
+                    $q->where('mess_id', $messId);
+                }
             })
             ->pluck('id')
             ->all();

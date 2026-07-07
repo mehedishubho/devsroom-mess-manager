@@ -30,7 +30,7 @@ class MyMonthlyReportTest extends TestCase
 
     private function memberUser(Member $member): User
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['password_changed_at' => now()]);
         $user->assignRole(Role::where('slug', 'user')->first());
         $member->update(['user_id' => $user->id]);
 

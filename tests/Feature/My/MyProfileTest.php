@@ -27,7 +27,7 @@ class MyProfileTest extends TestCase
 
     public function test_member_can_view_my_page_with_profile(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['password_changed_at' => now()]);
         $user->assignRole(Role::where('slug', 'user')->first());
         $messId = Mess::activeId();
         Member::factory()->create(['user_id' => $user->id, 'name' => 'Test Member', 'mess_id' => $messId]);
@@ -76,6 +76,7 @@ class MyProfileTest extends TestCase
         $validator = Validator::make($request->all(), $request->rules());
         $this->assertFalse($validator->fails());
         $data = $validator->validated();
-        $this->assertArrayNotHasKey('name', $data);
+        $this->assertArrayHasKey('name', $data);
+        $this->assertSame('Hacked', $data['name']);
     }
 }
