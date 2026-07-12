@@ -116,6 +116,15 @@ Route::middleware(['auth', 'roles:admin,super-admin,manager', EnsureMessExists::
     Route::patch('mess/members/{member}/deactivate', [MemberController::class, 'destroy'])
         ->name('mess.members.deactivate');
 
+    // Soft-delete a member (reversible; retains history).
+    Route::delete('mess/members/{member}', [MemberController::class, 'delete'])
+        ->name('mess.members.destroy');
+
+    // Permanent removal — super-admin only, guarded by a dependency check.
+    Route::delete('mess/members/{member}/force', [MemberController::class, 'forceDelete'])
+        ->middleware('role:super-admin')
+        ->name('mess.members.force-destroy');
+
     Route::get('mess/members-search', MemberSearchController::class)
         ->name('mess.members.search');
 

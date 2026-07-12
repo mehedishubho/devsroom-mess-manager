@@ -130,11 +130,73 @@ class MemberController extends Controller
 
     public function destroy(Member $member): RedirectResponse
     {
+        // This method is wired to the PATCH .../deactivate route: it is the
+        // reversible "hide from meal grid" action (status only, NOT a delete).
+        // Permanent removal goes through delete() / forceDelete() below.
         $member->update(['status' => 'inactive']);
 
         return redirect()
             ->route('mess.members.index')
             ->with('success', __('Member :name marked as inactive.', ['name' => $member->name]));
+    }
+
+    /**
+     * Soft-delete a member (sets deleted_at). Reversible via the database; the
+     * member disappears from lists and the meal grid. Use deactivate() first if
+     * you only want to drop them from the current month's denominator.
+     */
+    public function delete(Member $member): RedirectResponse
+    {
+        $name = $member->name;
+        $member->delete();
+
+        return redirect()
+            ->route('mess.members.index')
+            ->with('success', __('Member :name deleted. Their history is retained and can be restored if needed.', ['name' => $name]));
+    }
+
+    /**
+     * Permanently remove a member and their direct profile data (photo). Guarded
+     * by a dependency check: if the member has payments, meals, or expenses on
+     * their behalf, we refuse — those records are part of the mess's immutable
+     * financial history and must not be orphaned. Super-admin only (route gate).
+     */
+    public function forceDelete(Member $member): RedirectResponse
+    {
+        $blocking = $this->permanentDeleteBlockers($member);
+
+        if ($blocking > 0) {
+            return redirect()
+                ->route('mess.members.show', $member)
+                ->with('error', __(
+                    'Cannot permanently delete :name — they have :count linked record(s) (meals, payments, or expenses). Soft-delete them instead to preserve the mess ledger.',
+                    ['name' => $member->name, 'count' => $blocking]
+                ));
+        }
+
+        if ($member->photo_path) {
+            Storage::disk('public')->delete($member->photo_path);
+        }
+
+        $name = $member->name;
+        $member->forceDelete();
+
+        return redirect()
+            ->route('mess.members.index')
+            ->with('success', __('Member :name permanently deleted.', ['name' => $name]));
+    }
+
+    /**
+     * Count records that reference this member and would be orphaned by a hard
+     * delete. A non-zero count means permanent deletion is unsafe.
+     */
+    private function permanentDeleteBlockers(Member $member): int
+    {
+        return $member->mealEntries()->count()
+            + $member->mealOffRequests()->count()
+            + $member->guestMeals()->count()
+            + \App\Models\Payment::where('member_id', $member->id)->count()
+            + \App\Models\Expense::where('purchased_by', $member->user_id)->count();
     }
 
     private function storePhoto(Member $member, UploadedFile $photo): void

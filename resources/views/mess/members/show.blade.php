@@ -19,6 +19,22 @@
                     {{ __('Deactivate') }}
                 </button>
             </form>
+            <form method="POST" action="{{ route('mess.members.destroy', $member) }}" class="inline" onsubmit="return confirm('{{ __('Delete this member? They will be removed from lists and the meal grid. Their history is retained and can be restored if needed.') }}');">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="btn btn-danger">
+                    {{ __('Delete') }}
+                </button>
+            </form>
+            @if(auth()->user()?->hasRole('super-admin'))
+            <form method="POST" action="{{ route('mess.members.force-destroy', $member) }}" class="inline" onsubmit="return confirm('{{ __('Permanently delete this member? This cannot be undone. Blocked if they have meals, payments, or expenses on record.') }}');">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="btn btn-danger">
+                    {{ __('Permanently delete') }}
+                </button>
+            </form>
+            @endif
         </div>
     </header>
 
