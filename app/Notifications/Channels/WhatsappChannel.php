@@ -63,11 +63,11 @@ class WhatsappChannel extends Channel
                 'to' => $mobile, 'status' => $response->status(), 'body' => $response->body(),
             ]);
 
-            return ['ok' => false, 'detail' => 'twilio rejected: ' . $response->body()];
+            return ['ok' => false, 'detail' => 'twilio rejected: '.$response->body()];
         } catch (\Throwable $e) {
             Log::warning('WhatsApp notification failed', ['error' => $e->getMessage()]);
 
-            return ['ok' => false, 'detail' => 'whatsapp error: ' . $e->getMessage()];
+            return ['ok' => false, 'detail' => 'whatsapp error: '.$e->getMessage()];
         }
     }
 
@@ -77,6 +77,6 @@ class WhatsappChannel extends Channel
      */
     private function whatsappNumber(string $number): string
     {
-        return str_starts_with($number, 'whatsapp:') ? $number : 'whatsapp:' . $number;
+        return str_starts_with($number, 'whatsapp:') ? $number : 'whatsapp:'.$number;
     }
 }

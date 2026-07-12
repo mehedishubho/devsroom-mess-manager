@@ -4,8 +4,8 @@ namespace App\Notifications\Channels;
 
 use App\Models\User;
 use App\Notifications\NotificationMessage;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 /**
  * Email channel. Uses the application's configured mail driver, so no per-mess
@@ -49,7 +49,7 @@ class EmailChannel extends Channel
                 'type' => $type, 'email' => $email, 'error' => $e->getMessage(),
             ]);
 
-            return ['ok' => false, 'detail' => 'mail error: ' . $e->getMessage()];
+            return ['ok' => false, 'detail' => 'mail error: '.$e->getMessage()];
         }
     }
 }

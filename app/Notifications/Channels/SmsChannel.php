@@ -45,7 +45,7 @@ class SmsChannel extends Channel
         } catch (\Throwable $e) {
             Log::warning('SMS notification failed', ['error' => $e->getMessage()]);
 
-            return ['ok' => false, 'detail' => 'sms error: ' . $e->getMessage()];
+            return ['ok' => false, 'detail' => 'sms error: '.$e->getMessage()];
         }
     }
 
@@ -76,7 +76,7 @@ class SmsChannel extends Channel
                 'to' => $to, 'status' => $response->status(), 'body' => $response->body(),
             ]);
 
-            return ['ok' => false, 'detail' => 'vonage rejected: ' . $response->body()];
+            return ['ok' => false, 'detail' => 'vonage rejected: '.$response->body()];
         }
 
         return ['ok' => true, 'detail' => "sent to {$to}"];
@@ -109,7 +109,7 @@ class SmsChannel extends Channel
                 'to' => $to, 'status' => $response->status(), 'body' => $response->body(),
             ]);
 
-            return ['ok' => false, 'detail' => 'twilio rejected: ' . $response->body()];
+            return ['ok' => false, 'detail' => 'twilio rejected: '.$response->body()];
         }
 
         return ['ok' => true, 'detail' => "sent to {$to}"];

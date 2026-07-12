@@ -29,7 +29,7 @@ interface NotificationChannel
      * @param  User  $recipient  The user to reach (email/mobile resolved inside).
      * @param  string  $type  A App\Support\NotificationType constant.
      * @param  array<string, mixed>  $data  Payload for the message body.
-     * @return array{ok: bool, detail: string}  Delivery outcome for logging.
+     * @return array{ok: bool, detail: string} Delivery outcome for logging.
      */
     public function send(User $recipient, string $type, array $data): array;
 }

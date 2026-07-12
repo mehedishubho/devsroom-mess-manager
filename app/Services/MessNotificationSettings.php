@@ -21,8 +21,11 @@ class MessNotificationSettings
     public const SETTING_KEY = 'notifications.config';
 
     public const CHANNEL_EMAIL = 'email';
+
     public const CHANNEL_TELEGRAM = 'telegram';
+
     public const CHANNEL_WHATSAPP = 'whatsapp';
+
     public const CHANNEL_SMS = 'sms';
 
     /** External channels that can be toggled on/off by the admin. */

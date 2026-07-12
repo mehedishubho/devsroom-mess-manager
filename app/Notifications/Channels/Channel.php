@@ -50,10 +50,10 @@ abstract class Channel implements NotificationChannel
 
         // Bangladesh domestic 01XXXXXXXXX → +880XXXXXXXXX.
         if (preg_match('/^01[3-9]\d{8}$/', $mobile)) {
-            return '+880' . substr($mobile, 1);
+            return '+880'.substr($mobile, 1);
         }
 
-        return '+' . ltrim($mobile, '+0');
+        return '+'.ltrim($mobile, '+0');
     }
 
     protected function recipientEmail(User $recipient): ?string

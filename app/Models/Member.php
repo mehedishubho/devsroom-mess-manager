@@ -79,12 +79,12 @@ class Member extends Model implements AuditableContract
             ->where('slug', $candidate)
             ->exists()
         ) {
-            $candidate = $base . '-' . $suffix++;
+            $candidate = $base.'-'.$suffix++;
 
             // Beyond the numeric-suffix range, fall back to a short random tail
             // to guarantee uniqueness for pathological collision sets.
             if ($suffix > 1000) {
-                $candidate = $base . '-' . Str::random(5);
+                $candidate = $base.'-'.Str::random(5);
                 break;
             }
         }

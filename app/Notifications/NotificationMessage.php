@@ -29,36 +29,36 @@ final class NotificationMessage
         return match ($type) {
             NotificationType::DUE_REMINDER => new self(
                 __('Due reminder'),
-                $prefix . __('You have an outstanding due of :amount with the mess. Please clear it at your earliest.', ['amount' => static::money($data['due_balance'] ?? 0)]),
+                $prefix.__('You have an outstanding due of :amount with the mess. Please clear it at your earliest.', ['amount' => self::money($data['due_balance'] ?? 0)]),
             ),
             NotificationType::CLOSE_COMPLETE => new self(
                 __('Month closed'),
-                $prefix . __('The mess month has been closed. Meal rate: :rate per meal.', ['rate' => static::money($data['meal_rate'] ?? 0)]),
+                $prefix.__('The mess month has been closed. Meal rate: :rate per meal.', ['rate' => self::money($data['meal_rate'] ?? 0)]),
             ),
             NotificationType::PAYMENT_RECORDED => new self(
                 __('Payment recorded'),
-                $prefix . __('A payment of :amount has been recorded against your mess account.', ['amount' => static::money($data['amount'] ?? 0)]),
+                $prefix.__('A payment of :amount has been recorded against your mess account.', ['amount' => self::money($data['amount'] ?? 0)]),
             ),
             NotificationType::MEAL_OFF_DECISION => new self(
                 __('Meal off request :status', ['status' => $data['status'] ?? '']),
-                $prefix . __('Your meal-off request for :range was :status.', [
+                $prefix.__('Your meal-off request for :range was :status.', [
                     'range' => trim((string) ($data['range'] ?? '')),
                     'status' => $data['status'] ?? '',
                 ]),
             ),
             NotificationType::BACKUP_FAILED => new self(
                 __('Backup failed'),
-                $prefix . __('A scheduled mess backup failed. Please review the backup configuration.'),
+                $prefix.__('A scheduled mess backup failed. Please review the backup configuration.'),
             ),
             default => new self(
                 __('Mess notification'),
-                $prefix . __('You have a new mess notification (:type).', ['type' => $type]),
+                $prefix.__('You have a new mess notification (:type).', ['type' => $type]),
             ),
         };
     }
 
     protected static function money(float|int|string $value): string
     {
-        return '৳' . number_format((float) $value, 2);
+        return '৳'.number_format((float) $value, 2);
     }
 }

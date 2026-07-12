@@ -55,11 +55,11 @@ class TelegramChannel extends Channel
                 'chat' => $chatId, 'status' => $response->status(), 'body' => $response->body(),
             ]);
 
-            return ['ok' => false, 'detail' => 'telegram api rejected: ' . $response->body()];
+            return ['ok' => false, 'detail' => 'telegram api rejected: '.$response->body()];
         } catch (\Throwable $e) {
             Log::warning('Telegram notification failed', ['error' => $e->getMessage()]);
 
-            return ['ok' => false, 'detail' => 'telegram error: ' . $e->getMessage()];
+            return ['ok' => false, 'detail' => 'telegram error: '.$e->getMessage()];
         }
     }
 }

@@ -36,7 +36,7 @@ return new class extends Migration
             Schema::table('members', function (Blueprint $table) {
                 $table->index(['mess_id', 'slug']);
             });
-        } catch (\Throwable) {
+        } catch (Throwable) {
             // Index may already exist on some installs — non-fatal.
         }
     }
@@ -47,7 +47,7 @@ return new class extends Migration
             Schema::table('members', function (Blueprint $table) {
                 $table->dropIndex(['mess_id', 'slug']);
             });
-        } catch (\Throwable) {
+        } catch (Throwable) {
             // Non-fatal on rollback.
         }
 
@@ -62,7 +62,7 @@ return new class extends Migration
      */
     private function uniqueSlug(string $name, int $messId, int $ignoreId): string
     {
-        $base = Str::slug($name) ?: 'member-' . $ignoreId;
+        $base = Str::slug($name) ?: 'member-'.$ignoreId;
         $slug = $base;
         $suffix = 2;
 
@@ -72,7 +72,7 @@ return new class extends Migration
             ->where('slug', $slug)
             ->exists()
         ) {
-            $slug = $base . '-' . $suffix++;
+            $slug = $base.'-'.$suffix++;
         }
 
         return $slug;

@@ -33,7 +33,7 @@ class ChannelManager
      * Fan out one notification across the mess's enabled channels for the type.
      *
      * @param  array<string, mixed>  $data
-     * @return array<string, array{ok: bool, detail: string}>  Per-channel outcome.
+     * @return array<string, array{ok: bool, detail: string}> Per-channel outcome.
      */
     public function dispatch(User $recipient, string $type, array $data): array
     {
@@ -52,7 +52,7 @@ class ChannelManager
             } catch (\Throwable $e) {
                 // Defensive: channels already catch internally, but guard against
                 // any transport-level throw so the caller is never broken.
-                $results[$key] = ['ok' => false, 'detail' => 'dispatch error: ' . $e->getMessage()];
+                $results[$key] = ['ok' => false, 'detail' => 'dispatch error: '.$e->getMessage()];
                 Log::warning('Notification channel dispatch threw', [
                     'channel' => $key, 'type' => $type, 'error' => $e->getMessage(),
                 ]);

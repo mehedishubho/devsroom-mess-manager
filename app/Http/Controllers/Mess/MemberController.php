@@ -5,8 +5,11 @@ namespace App\Http\Controllers\Mess;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Mess\StoreMemberRequest;
 use App\Http\Requests\Mess\UpdateMemberRequest;
+use App\Mail\MemberCredentialsMail;
+use App\Models\Expense;
 use App\Models\Member;
 use App\Models\Mess;
+use App\Models\Payment;
 use App\Models\User;
 use HasinHayder\Tyro\Models\Role;
 use Illuminate\Http\RedirectResponse;
@@ -73,7 +76,7 @@ class MemberController extends Controller
             // Send credentials email if mail configured and email exists
             if ($email && app()->bound('mailer') && count(config('mail.mailers.smtp', [])) > 0) {
                 try {
-                    Mail::to($email)->send(new \App\Mail\MemberCredentialsMail($user, $plainPassword));
+                    Mail::to($email)->send(new MemberCredentialsMail($user, $plainPassword));
                 } catch (\Throwable) {
                     // Silently fail — credentials are shown on screen
                 }
@@ -195,8 +198,8 @@ class MemberController extends Controller
         return $member->mealEntries()->count()
             + $member->mealOffRequests()->count()
             + $member->guestMeals()->count()
-            + \App\Models\Payment::where('member_id', $member->id)->count()
-            + \App\Models\Expense::where('purchased_by', $member->user_id)->count();
+            + Payment::where('member_id', $member->id)->count()
+            + Expense::where('purchased_by', $member->user_id)->count();
     }
 
     private function storePhoto(Member $member, UploadedFile $photo): void

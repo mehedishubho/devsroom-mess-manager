@@ -54,7 +54,7 @@ class UpdateMessNotificationSettingsRequest extends FormRequest
     public function normalizedConfig(): array
     {
         $input = $this->validated();
-        $defaults = (new MessNotificationSettings())->defaults();
+        $defaults = (new MessNotificationSettings)->defaults();
 
         $channels = array_merge(
             $defaults['channels'],
