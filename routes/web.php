@@ -97,6 +97,12 @@ Route::middleware(['auth', 'roles:admin,super-admin,manager', EnsureMessExists::
     Route::get('/mess/settings', [MessConfigController::class, 'edit'])->name('mess.settings.edit');
     Route::patch('/mess/settings', [MessConfigController::class, 'update'])->name('mess.settings.update');
 
+    // Multi-channel notification configuration (email / WhatsApp / Telegram / SMS).
+    Route::get('/mess/notifications', [\App\Http\Controllers\Mess\MessNotificationController::class, 'edit'])
+        ->name('mess.notifications.edit');
+    Route::put('/mess/notifications', [\App\Http\Controllers\Mess\MessNotificationController::class, 'update'])
+        ->name('mess.notifications.update');
+
     Route::get('/mess/audit', [AuditController::class, 'index'])->name('mess.audit');
 
     Route::get('/mess/members/invite', [MemberInviteController::class, 'create'])->name('mess.members.invite.create');

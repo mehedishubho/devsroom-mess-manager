@@ -6,22 +6,61 @@ use App\Models\Mess;
 use App\Models\Notification;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Log;
 
 class NotificationService
 {
+    public function __construct(private readonly ChannelManager $channels) {}
+
     /**
-     * Send a notification to one user.
+     * Send a notification to one user. Always creates the canonical in-app
+     * record, then fans out to the mess's enabled external channels
+     * (email/WhatsApp/Telegram/SMS). Channel dispatch is fail-open — a
+     * misconfigured or down provider never blocks the in-app notification or
+     * the caller's transaction.
      *
      * @param  array<string, mixed>  $data
      */
     public function send(User $user, string $type, array $data = []): Notification
     {
-        return Notification::create([
+        $notification = Notification::create([
             'mess_id' => Mess::activeId(),
             'user_id' => $user->id,
             'type' => $type,
             'data' => $data,
         ]);
+
+        $this->dispatchChannels($user, $type, $data);
+
+        return $notification;
+    }
+
+    /**
+     * Fan a notification out to the external channels for this type. Wrapped so
+     * failures never escape — the in-app record is already written above.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function dispatchChannels(User $user, string $type, array $data): void
+    {
+        try {
+            $results = $this->channels->dispatch($user, $type, $data);
+
+            foreach ($results as $channel => $result) {
+                if (($result['ok'] ?? false) === false) {
+                    Log::info('Notification channel did not deliver', [
+                        'channel' => $channel,
+                        'type' => $type,
+                        'user_id' => $user->id,
+                        'detail' => $result['detail'] ?? '',
+                    ]);
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Notification channel fan-out failed', [
+                'type' => $type, 'user_id' => $user->id, 'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
