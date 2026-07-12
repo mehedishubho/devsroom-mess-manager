@@ -47,7 +47,7 @@ A web-based mess management system built for Bangladesh messes — bachelor host
 
 ## Key Features
 
-- **Member management** — full CRUD with profile (name, mobile, email, NID, profession, room/seat, joining/leaving dates, status, emergency contact, photo). Member invite flow with email link + set-password page.
+- **Member management** — full CRUD with profile (name, mobile, email, NID, profession, room/seat, joining/leaving dates, status, emergency contact, photo). Member invite flow with email link + set-password page. Soft-delete + super-admin-only permanent removal (guarded against breaking the ledger). **Name-based URLs** (`/mess/members/john-doe`) with automatic unique-slug disambiguation for same-name members, and **duplicate prevention** (email/mobile must be unique within a mess).
 - **Daily meal grid** — rows=members, columns=breakfast/lunch/dinner. "Mark all 3" / "Mark all 0" presets + per-member quick actions (All on, All off, B/L/D only). Single-transaction bulk save. N+1-safe query (< 100ms at 50 members — locked by `tests/Feature/Perf/MealGridQueryCountTest.php`).
 - **Meal off + approvals** — members request meal off for a date range with a reason; manager approves/rejects (rejection requires a reason); approved meal off auto-deducts from the member's meal count.
 - **Guest meals** — manager records guest meals (guest name, host member, date, meal type, qty); charged to the host member's bill.
@@ -61,7 +61,8 @@ A web-based mess management system built for Bangladesh messes — bachelor host
 - **Member `/my` dashboard** — 4 Overview cards (My Meals, My Bill, My Advance, My Payment History) + tabs for Profile, Meals, Meal off, Payments, My reports.
 - **Exports** — PDF (Dompdf, plain-CSS A4 portrait, "Page N" footer) + Excel/`.xlsx` (Maatwebsite/Excel, numeric-formatted Amount columns so SUM/AVERAGE work) on all 4 reports × both manager and member sides.
 - **Audit log** — `owen-it/laravel-auditing` writes an append-only entry on every write to meal/expense/payment/member/meal-off/guest-meal models.
-- **Notifications** — in-app (monthly closing complete, due reminder, payment received, meal-off approval). Bell icon in the nav.
+- **Notifications** — in-app bell (monthly closing complete, due reminder, payment received, meal-off approval) **plus multi-channel delivery**: email, WhatsApp, Telegram, and SMS, each toggleable and configurable from the admin dashboard. Multiple channels can be active at once, with a per-notification-type routing matrix. Channels fail open — a down provider never blocks the in-app record or the caller's transaction.
+- **Role-based navigation** — the sidebar adapts to the signed-in role: managers get grouped Mess / Finance / Closing / Reports / Settings sections, super-admin additionally sees the System group (admin dashboard + backups), and members get a focused self-service "My" nav instead of inaccessible manager pages.
 
 ---
 
@@ -222,6 +223,19 @@ For a deep walkthrough (bill math, month-close flow, cache key strategy, role/ID
 - `app/Http/Middleware/EnsureMonthIsOpen.php` — hard-lock on 11 write routes for closed months
 - `app/Providers/AppServiceProvider.php` — post-login redirect by role + the cache invalidation hook
 
+### Roles & access
+
+The app ships with four roles. Every manager route is gated by `roles:` middleware and the sidebar renders only the sections a role can actually use, so members never see (or 403 on) manager pages.
+
+| Role | Sees | Lands on |
+|------|------|----------|
+| **super-admin** | Everything managers see **+** the System group (Tyro admin dashboard at `/dashboard`, backups, permanent member deletion) | `/dashboard` |
+| **admin** | Full mess operations: members, meals, expenses, payments, reports, month-close, notification channel config | `/home` |
+| **manager** | Same daily mess operations as admin (delegated mess manager) | `/home` |
+| **user / mess-member** | Self-service only: own bill, payments, meal-off requests, own statement & monthly report | `/my` |
+
+**Notifications** are role-aware too: members receive due-reminders, payment confirmations, and meal-off decisions on their configured channels; managers/super-admin receive month-close and backup-failure broadcasts.
+
 ---
 
 ## Deployment
@@ -236,11 +250,16 @@ For the full VPS/Forge production-hardening runbook, see [**DEPLOYMENT.md**](./D
 
 ## Roadmap
 
+**Recently shipped** — member soft/permanent delete, name-based member URLs, duplicate-member prevention, role-based grouped sidebar, and multi-channel notifications (email / WhatsApp / Telegram / SMS).
+
+Still ahead:
+
 - Bengali localization (`bn.json` + Bengali UI/PDF)
-- Multi-mess (schema-ready via `mess_id`)
+- Multi-mess runtime (schema-ready via `mess_id`)
 - Real bKash / Nagad / Rocket payment-gateway integration
 - PWA / offline mode, native mobile apps, real-time websockets
 - 2FA + social login
+- Per-member Telegram linking + at-rest encryption of stored channel credentials
 
 See `.planning/REQUIREMENTS.md` § v2 Requirements for the full list.
 
