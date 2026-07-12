@@ -30,7 +30,11 @@ class ChannelManager
     public function __construct(private readonly MessNotificationSettings $settings) {}
 
     /**
-     * Fan out one notification across the mess's enabled channels for the type.
+     * Fan out one notification across the mess's enabled channels for the type,
+     * further filtered by the recipient's own preference. A user with no
+     * preference set receives every admin-enabled channel (opt-out); a user who
+     * picked specific channels receives only the intersection of their choice
+     * and what the admin enabled for the type.
      *
      * @param  array<string, mixed>  $data
      * @return array<string, array{ok: bool, detail: string}> Per-channel outcome.
@@ -38,6 +42,14 @@ class ChannelManager
     public function dispatch(User $recipient, string $type, array $data): array
     {
         $keys = $this->settings->channelsForType($type);
+
+        // Apply the recipient's personal preference (a subset of the admin's
+        // enabled channels). Null preference = receive all enabled channels.
+        $preferred = $recipient->preferredChannels();
+        if (is_array($preferred)) {
+            $keys = array_values(array_intersect($keys, $preferred));
+        }
+
         $results = [];
 
         foreach ($keys as $key) {

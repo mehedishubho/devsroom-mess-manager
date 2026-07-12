@@ -15,7 +15,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name', 'email', 'password'])]
+#[Fillable(['name', 'email', 'password', 'notification_preferences'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -34,7 +34,41 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'notification_preferences' => 'array',
         ];
+    }
+
+    /**
+     * The external channels this user has chosen to receive notifications on.
+     * Returns null when the user hasn't set a preference — meaning "give me
+     * every channel the admin has enabled" (opt-out model). The ChannelManager
+     * always intersects this with the mess's admin-enabled set, so a user can
+     * never receive on a channel the admin disabled.
+     *
+     * @return list<string>|null
+     */
+    public function preferredChannels(): ?array
+    {
+        $channels = $this->notification_preferences['channels'] ?? null;
+
+        if (! is_array($channels)) {
+            return null;
+        }
+
+        return array_values($channels);
+    }
+
+    /**
+     * Persist a list of preferred channel keys (must be a subset of the mess's
+     * enabled channels — validated by the request).
+     *
+     * @param  list<string>  $channels
+     */
+    public function setPreferredChannels(array $channels): bool
+    {
+        return $this->update([
+            'notification_preferences' => ['channels' => array_values($channels)],
+        ]);
     }
 
     public function member(): HasOne

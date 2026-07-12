@@ -29,6 +29,7 @@ use App\Http\Controllers\My\MyReportController;
 use App\Http\Controllers\My\MyReportExportController;
 use App\Http\Controllers\MyController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\NotificationPreferenceController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PostLoginRedirectController;
 use App\Http\Controllers\RootController;
@@ -242,6 +243,12 @@ Route::middleware(['auth', 'roles:admin,super-admin,manager', EnsureMessExists::
 Route::middleware(['auth', EnsureMessExists::class])->group(function () {
     Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.mark-read');
+
+    // Per-user channel preferences (subset of the mess admin's enabled channels).
+    Route::get('notification-preferences', [NotificationPreferenceController::class, 'edit'])
+        ->name('notification-preferences.edit');
+    Route::put('notification-preferences', [NotificationPreferenceController::class, 'update'])
+        ->name('notification-preferences.update');
 });
 
 // Member (user / mess-member role) home — password.change forces first-login password set.
