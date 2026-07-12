@@ -438,16 +438,18 @@ Follow these steps once, at first deploy:
 spatie emits `BackupHasFailed` and `UnhealthyBackupWasFound` events. The app wires these (via `AppServiceProvider::registerBackupFailureListeners()`, `class_exists`-guarded) to the `NotifyOnBackupFailure` listener, which calls `NotificationService::broadcastToManagers('backup_failed', ...)`. That fan-outs to:
 
 - An **in-app notification** row in the manager/super-admin bell (`notifications` table) — always works, no extra config.
-- An **email** via spatie's mail channel. The default `MAIL_MAILER=log` writes the email to a log file — to actually RECEIVE the email, set:
+- An **email** (via the Email notification channel, which uses the Laravel mail driver). The default `MAIL_MAILER=log` writes the email to a log file — to actually RECEIVE the email, set:
   ```env
   MAIL_MAILER=smtp
   MAIL_HOST=<your-smtp-host>
   MAIL_PORT=587
+  MAIL_SCHEME=tls
   MAIL_USERNAME=<smtp-user>
   MAIL_PASSWORD=<smtp-password>
   MAIL_FROM_ADDRESS=ops@your-domain.com
   BACKUP_NOTIFICATION_EMAIL=ops@your-domain.com
   ```
+- **WhatsApp / Telegram / SMS** — if the admin enables any of these for the `backup_failed` notification type at `/mess/notifications`, the same failure also fires on those channels. Credentials for those live in the dashboard, not `.env`. (Each channel fails open — a down provider never blocks the in-app record.)
 
 Recommended SMTP providers: AWS SES, Postmark, SendGrid, or your VPS's mail relay.
 

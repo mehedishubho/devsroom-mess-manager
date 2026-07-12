@@ -202,7 +202,7 @@ Write path: `POST /mess/meals` → `EnsureMonthIsOpen` middleware (refuses if mo
 
 ## Data Model (Current — 16 domain models + Laravel defaults)
 - `messes` + `settings` (per-mess config: meal values, currency, date format)
-- `members` (status: active/inactive/former; `mess_id` scoped via `MessScope` global scope)
+- `members` (status: active/inactive/former; `mess_id` scoped via `MessScope` global scope; per-mess-unique **`slug`** is the route binding key → `/mess/members/{slug}`; SoftDeletes — `delete()` soft-deletes, `forceDelete()` permanent + dependency-guarded)
 - `meal_entries` (UNIQUE mess_id+member_id+date; B/L/D booleans)
 - `meal_off_requests` (status: pending/approved/rejected; from_date/to_date + reason)
 - `guest_meals` (host member FK + charge_amount)
@@ -213,17 +213,17 @@ Write path: `POST /mess/meals` → `EnsureMonthIsOpen` middleware (refuses if mo
 - `monthly_closings` (UNIQUE mess_id+year+month — the idempotency lock)
 - `monthly_member_summaries` (immutable snapshot per close)
 - `monthly_corrections` (post-close adjustment entries; snapshot stays immutable)
-- `notifications` (in-app: close_complete, due_reminder, payment_received, meal_off_approved/rejected)
+- `notifications` (in-app, always-on canonical record: close_complete, due_reminder, payment_received, meal_off_decision, backup_failed). Multi-channel delivery fans out from `NotificationService::send()` via `ChannelManager` to the mess's enabled external channels (`App\Notifications\Channels\{Email,Telegram,Whatsapp,Sms}Channel`) — each **fails open**. Channel toggles + credentials + per-type routing live in `settings` (key `notifications.config`); per-user preferences live on `users.notification_preferences` (JSON) and are intersected with the mess-enabled set at dispatch.
 - `member_invitations` (invite flow)
-- Laravel defaults: `users`, `password_reset_tokens`, `sessions`, `cache`, `cache_locks`, `jobs`, `job_batches`, `failed_jobs`, `personal_access_tokens`, telescope tables (3)
+- Laravel defaults: `users` (adds `notification_preferences` JSON), `password_reset_tokens`, `sessions`, `cache`, `cache_locks`, `jobs`, `job_batches`, `failed_jobs`, `personal_access_tokens`, telescope tables (3)
 - Tyro tables: `roles`, `privileges`, `role_user`, `privilege_role`, `invitations`, `audit_logs`
 
 ## Routing (`routes/web.php`)
 - `GET /` → welcome view
 - **Onboarding** (`role:super-admin` + `EnsureMessExists`): `/onboarding` create/store
-- **Manager** (`role:admin` + `EnsureMessExists`): `/home`, `/mess/settings`, `/mess/members` (resource), `/mess/meals`, `/mess/guest-meals`, `/mess/meal-off` (approval), `/mess/expenses` (bazar + fixed), `/mess/categories`, `/mess/payments`, `/mess/advance-balances`, `/mess/bill-preview`, `/mess/reports/{monthly,member-statement,expenses,payments}` + `.pdf`/`.xlsx` variants, `/mess/close`, `/mess/closings`, `/mess/closings/{c}/corrections`, `/mess/due-reminder`, `/mess/audit`
-- **Member** (`role:user`): `/my`, `/my/profile`, `/my/meal-off`, `/my/payments`, `/my/bill-preview`, `/my/reports/{statement,monthly}` + `.pdf`/`.xlsx` variants — **NO `{member}` URL param anywhere** (T-04-02-01)
-- **Shared** (`auth`): `/notifications`
+- **Manager** (`role:admin` + `EnsureMessExists`): `/home`, `/mess/settings`, `/mess/notifications` (channel config), `/mess/members` (resource), `DELETE /mess/members/{member}` (soft delete), `DELETE /mess/members/{member}/force` (`role:super-admin` — permanent, dependency-guarded), `/mess/meals`, `/mess/guest-meals`, `/mess/meal-off` (approval), `/mess/expenses` (bazar + fixed), `/mess/categories`, `/mess/payments`, `/mess/advance-balances`, `/mess/bill-preview`, `/mess/reports/{monthly,member-statement,expenses,payments}` + `.pdf`/`.xlsx` variants, `/mess/close`, `/mess/closings`, `/mess/closings/{c}/corrections`, `/mess/due-reminder`, `/mess/audit`
+- **Member** (`role:user`): `/my`, `/my/profile`, `/my/meal-off`, `/my/payments`, `/my/bill-preview`, `/my/reports/{statement,monthly}` + `.pdf`/`.xlsx` variants — **NO `{member}` URL param anywhere** (T-04-02-01; member-side resolution is by `auth()->user()`, never by a URL value)
+- **Shared** (`auth` + `EnsureMessExists`): `/notifications`, `/notification-preferences` (per-user channel choices)
 - Public: `/set-password` (from invite link)
 - 11 manager write routes additionally carry the `month.open` middleware alias (`EnsureMonthIsOpen`)
 - Tyro dashboard auto-registered at `/dashboard/*`; Tyro login at `/login`, `/register`, `/logout`, `/password/*`
@@ -239,6 +239,8 @@ Write path: `POST /mess/meals` → `EnsureMonthIsOpen` middleware (refuses if mo
 ## Extension Points
 - `config/tyro-dashboard.php`, `config/tyro-login.php` — Tyro config
 - `config/debugbar.php`, `config/telescope.php` — dev tooling (require-dev)
+- `App\Notifications\Contracts\NotificationChannel` — implement to add a delivery channel; register its key in `MessNotificationSettings::CHANNELS` + `ChannelManager::CHANNEL_CLASSES`
+- `App\Services\MessNotificationSettings` — per-mess channel config (one JSON row in `settings`, key `notifications.config`)
 - `App\Providers\AppServiceProvider::boot()` — post-login redirect + cache invalidation hook
 - `App\Providers\TelescopeServiceProvider::gate()` — who can view /telescope
 - Custom policies, form requests, jobs, listeners under `app/*/`

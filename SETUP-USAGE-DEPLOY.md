@@ -17,7 +17,7 @@ The app uses the **Tyro** role system. Four roles:
 | **Manager** | `manager` | Same mess operations as admin (intended for delegated day-to-day managers). | `/home` (manager dashboard) |
 | **User (Member)** | `user` | Their own portal: bills, meals, payments, meal-off requests, own reports. | `/my` (member dashboard) |
 
-> Admin, super-admin, and manager share the **same mess menu** (Home → Due reminders). Super-admin additionally sees **Backups**. The enforcement is role-based via the `roles:admin,super-admin,manager` route middleware; the `mess.*` privilege records (documented in the `create_manager_role_and_mess_privileges` migration) are attached to all three.
+> The **sidebar adapts to the role**: admin/super-admin/manager get a grouped Mess menu (Mess → Finance → Closing → Reports → Settings); super-admin additionally sees a **System** group (admin dashboard + Backups); members get a focused **My** nav instead of inaccessible manager pages. The enforcement is role-based via the `roles:admin,super-admin,manager` route middleware; the `mess.*` privilege records (documented in the `create_manager_role_and_mess_privileges` migration) are attached to all three.
 
 ---
 
@@ -104,14 +104,16 @@ Everything in §4.2 **plus**:
 - **Onboarding** (only when no mess exists yet — creating the first mess).
 
 ### 4.2 Admin & Manager (`admin`, `manager`)
-The full mess-management menu (left sidebar):
+The full mess-management menu (left sidebar, grouped: Mess / Finance / Closing / Reports / Settings):
 
 | Menu item | What you do there |
 |-----------|-------------------|
 | **Home** | Dashboard: 6 stat cards + 3 charts + pending-meal-off alert. |
 | **Mess settings** | Edit mess name, address, rent, meal values, currency, manager contact. |
+| **Notifications** | Configure **multi-channel delivery** (email / WhatsApp / Telegram / SMS) — toggle channels, store provider credentials, and route each notification type. See §4.4. |
+| **My preferences** | Your *personal* channel choices (a subset of what the mess enabled). Each member sets their own from their `/my` portal. |
 | **Audit log** | Append-only history of every write (filter by model/user/date). |
-| **Members** | CRUD members + invite; view profile, recent meals, request meal-off on their behalf, deactivate. |
+| **Members** | CRUD members + invite; view profile, recent meals, request meal-off on their behalf; **deactivate**, **delete** (soft, reversible), or **permanently delete** (super-admin only, blocked if the member has meals/payments/expenses). Member URLs are name-based (`/mess/members/john-doe`); email + mobile must be unique within the mess. |
 | **Daily meals** | The meal grid (rows=members, cols=B/L/D). Mark presets, bulk save. Date nav. |
 | **Guest meals** | Record guest meals charged to a host member. |
 | **Meal off approval** | Approve/reject member meal-off requests (rejection needs a reason). |
@@ -123,20 +125,40 @@ The full mess-management menu (left sidebar):
 | **Reports → Monthly / Member Statement / Expense / Payment** | 4 reports, each with PDF + Excel export + date/category/member/method filters. |
 | **Close month** | Snapshot + lock the month (idempotent; runs as a queued job). |
 | **Closings** | View closed months + post **corrections** (snapshot stays immutable). |
-| **Due reminders** | Send in-app reminders to members who owe money. |
+| **Due reminders** | Send reminders to members who owe money — delivered in-app **and** on every channel they've enabled (email / WhatsApp / Telegram / SMS). |
 
 **Month-close flow:** once a month, review the **Bill preview**, then **Close month**. This writes an immutable snapshot, locks writes for that month (the 11 write routes are guarded), and lets you post corrections afterward if needed. Members keep viewing their finalized bill on `/my`.
 
 ### 4.3 Member (`user`)
-The `/my` portal (tabs):
+The `/my` portal (tabs + sidebar):
 - **Overview** — My Meals, My Bill, My Advance, My Payment History cards.
 - **Profile** — update photo + emergency contact.
 - **My meals** — read-only recent meals.
 - **Meal off** — request meal-off for a date range + reason; see approval status.
 - **Payments** — own payment history.
 - **My reports** — own Member Statement (PDF/Excel) + the mess Monthly Report (aggregates only).
+- **Notification preferences** — pick which of the admin-enabled channels (email / WhatsApp / Telegram / SMS) *they* want to receive on. No choice set = all enabled channels.
 
-Members can **never** see another member's data — there's no `{member}` URL param on member routes (IDOR-structurally-impossible).
+Members can **never** see another member's data — there's no `{member}` URL param on member routes (IDOR-structurally-impossible). (Member *profile* pages do use a slug — `/mess/members/{slug}` — but those are manager-side; member routes derive the member from the logged-in user.)
+
+### 4.4 Notifications (multi-channel)
+
+Notifications (month-close complete, due reminders, payment recorded, meal-off decisions, backup failures) are delivered via the **in-app bell (always on)** plus any external channels the admin enables. An admin enables channels mess-wide; each member then picks their own subset from those.
+
+**Two layers:**
+1. **Admin** → **Settings → Notifications** (`/mess/notifications`): toggle channels, store provider credentials, and choose which channels fire for which notification type. Multiple channels can be active at once.
+2. **Member / manager** → **My preferences** (`/notification-preferences`): tick the channels they personally want (a subset of what the admin enabled). No preference set = receives every admin-enabled channel.
+
+**Channel setup:**
+
+| Channel | How to configure |
+|---------|------------------|
+| **Email** | `.env` mail driver (see §5.1). Set `MAIL_MAILER=smtp` + host/port/credentials; `log` is treated as "not configured." No dashboard credentials needed. |
+| **Telegram** | Create a bot via [@BotFather](https://t.me/BotFather) → copy the **API token**. Get the destination **chat id** (send the bot any message, then open `https://api.telegram.org/bot<TOKEN>/getUpdates`). Paste both in `/mess/notifications`. Posts to the one configured chat (per-member DMs are on the roadmap). |
+| **WhatsApp** | Twilio WhatsApp API: enter Account **SID**, **auth token**, and a WhatsApp-enabled **From** number in `/mess/notifications`. Recipient mobile is read from the member record. |
+| **SMS (phone)** | Vonage (Nexmo) or Twilio: pick a provider and enter its credentials + sender in `/mess/notifications`. Recipient mobile from the member record. |
+
+All channels **fail open** — a down or misconfigured provider logs the failure and moves on; it never blocks the in-app record or the action that triggered the notification (e.g. recording a payment). Per-recipient contact comes from the member's email/mobile, normalized to international format for WhatsApp/SMS.
 
 ---
 
@@ -152,7 +174,7 @@ Members can **never** see another member's data — there's no `{member}` URL pa
 | `APP_TIMEZONE` | `Asia/Dhaka` | Keep consistent. |
 | `DB_*` | prod MySQL creds | MySQL only. |
 | `DB_RESTORE_TEST_DATABASE` | `<db>_restore_test` | Create a 2nd empty MySQL DB for the nightly restore-test. |
-| `MAIL_MAILER` | `smtp` (+ host/user/pass/from) | Needed for invite emails + backup-failure alerts (`log` only catches mail in dev). |
+| `MAIL_MAILER` | `smtp` (+ host/user/pass/from) | Needed for invite emails, backup-failure alerts, **and the Email notification channel** (`log` only catches mail in dev). WhatsApp / Telegram / SMS credentials are set in the dashboard at `/mess/notifications`, not here. |
 | `DO_SPACES_*` | (optional) | Set `KEY`/`SECRET`/`BUCKET` to mirror backups off-server. Leave blank for local-only backups. |
 | `BACKUP_NOTIFICATION_EMAIL` | `you@…` | Where spatie sends backup failure emails. |
 | `TELESCOPE_ENABLED` / `DEBUGBAR_ENABLED` | `false` | Dev tooling — must be off in prod. |
@@ -365,6 +387,7 @@ The constants everywhere: **docroot → `/public`**, **`QUEUE_CONNECTION=sync`**
 | **`UnableToListContents` / `169.254.169.254`** on Backups | No Spaces creds + old config. Clear config (`php artisan config:clear`); the `backups-local` disk is always used for listing, so Spaces being absent is fine. |
 | **Month-close "hangs" forever** | You're on `sync` queue on shared hosting and hit `max_execution_time` — raise it in `.htaccess` (`php_value max_execution_time 300`) or use a VPS. |
 | **Invite emails not sent** | `MAIL_MAILER=log` still set — switch to `smtp` with real credentials. |
+| **WhatsApp / Telegram / SMS not delivering** | Channels are configured in the dashboard (`/mess/notifications`), not `.env`. Verify the channel is toggled on, credentials are correct (test Telegram with `https://api.telegram.org/bot<TOKEN>/getUpdates`), and the member has that channel ticked in **My preferences**. A member with no email/mobile on file is silently skipped for email/WhatsApp/SMS. Check `storage/logs/laravel.log` for the per-channel failure detail. |
 | **Profile photos 404** | `storage:link` missing — run `php artisan storage:link` (or create the symlink manually on shared hosting). |
 | **Backups fail with mysqldump error** | Set `DUMP_BINARY_PATH` to the dir containing `mysqldump`; ensure the host's PHP user can run it. (Spatie v10 is Linux-only — fine on servers, not Windows dev.) |
 | **"Backup schedule didn't run"** | The per-minute `schedule:run` cron isn't set (or wrong PHP path). The Backups → Configure cadence only fires through that cron. |

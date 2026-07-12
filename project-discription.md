@@ -129,6 +129,9 @@ Features:
 - Former members
 - Member search
 - Member profile
+- Name-based URLs (`/mess/members/{slug}`)
+- Duplicate prevention (email + mobile unique per mess)
+- Deactivate, soft-delete, and (super-admin) permanent delete
 
 ---
 
@@ -453,17 +456,30 @@ Charts:
 
 # Module 14: Notification System
 
+In-app bell (always on) plus multi-channel delivery. Admin enables channels mess-wide; each member picks their own subset.
+
 Notifications for:
 
 - Monthly closing
 - Due reminder
 - Payment received
 - Meal off approval
+- Backup failure
 
-Future:
+Channels (shipped):
 
-- SMS API
-- WhatsApp API
+- Email (Laravel mail driver / SMTP)
+- WhatsApp (Twilio WhatsApp API)
+- Telegram (Bot API)
+- SMS / phone (Vonage or Twilio)
+
+Features:
+
+- Admin configures active channels + credentials in the dashboard
+- Multiple channels can be active at once
+- Per-notification-type routing matrix
+- Per-member channel preferences (a subset of admin-enabled channels)
+- Fail-open: a down/misconfigured channel never blocks the triggering action
 
 ---
 
