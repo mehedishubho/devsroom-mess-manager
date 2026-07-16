@@ -11,6 +11,13 @@
 }
 
 /*
+ * Alpine v3 x-cloak — hide elements with [x-cloak] until Alpine has finished
+ * initializing, so modals and dropdowns do not flash on page load.
+ * Task 3 (quick-260717-2q3) — close-month modal Cancel button fix.
+ */
+[x-cloak] { display: none !important; }
+
+/*
  * Touch-target utility (01-UI-SPEC §2.3 — clickable elements ≥44×44px).
  * Reused across manager daily-ops screens so they remain thumb-tappable at
  * 360px (D-13). Plain composition of Tailwind utilities — no custom CSS
