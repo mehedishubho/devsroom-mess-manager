@@ -25,6 +25,7 @@
                                 <td class="px-4 py-3 text-sm text-slate-600">{{ $cat->is_default ? __('Yes') : __('No') }}</td>
                                 <td class="px-4 py-3 text-right text-sm">
                                     @if (! $cat->is_default)
+                                        <a href="{{ route('mess.categories.edit', $cat) }}" class="text-emerald-700 hover:underline">{{ __('Edit') }}</a>
                                         <form method="POST" action="{{ route('mess.categories.destroy', $cat) }}" class="inline" onsubmit="return confirm('{{ __('Delete this category?') }}');">
                                             @csrf
                                             @method('DELETE')

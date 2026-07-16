@@ -170,6 +170,8 @@ Route::middleware(['auth', 'roles:admin,super-admin,manager', EnsureMessExists::
 
     Route::get('mess/categories', [ExpenseCategoryController::class, 'index'])->name('mess.categories.index');
     Route::post('mess/categories', [ExpenseCategoryController::class, 'store'])->name('mess.categories.store');
+    Route::get('mess/categories/{category}/edit', [ExpenseCategoryController::class, 'edit'])->name('mess.categories.edit');
+    Route::patch('mess/categories/{category}', [ExpenseCategoryController::class, 'update'])->name('mess.categories.update');
     Route::delete('mess/categories/{category}', [ExpenseCategoryController::class, 'destroy'])->name('mess.categories.destroy');
 
     // Closed days (global day control)
