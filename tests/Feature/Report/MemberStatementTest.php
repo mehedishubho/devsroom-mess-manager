@@ -81,16 +81,25 @@ class MemberStatementTest extends TestCase
 
     public function test_manager_cannot_view_cross_mess_member(): void
     {
-        // Create a second mess + a member attached to it
+        // Task 5 (quick-260717-2q3) — behavior changed: a foreign member_id
+        // no longer 404s (which the manager experienced as a broken link).
+        // Instead, the controller falls through to auto-pick the first
+        // active member of the active mess — the URL becomes shareable.
+        // Cross-mess DATA is still protected: MessScope on Member::where('id', $foreignId)
+        // returns null, so no foreign data ever reaches the view.
         $otherMess = Mess::factory()->create();
         $foreignMember = Member::factory()->create([
             'mess_id' => $otherMess->id,
             'status' => MemberStatus::ACTIVE,
             'name' => 'Foreign Member',
         ]);
+        // Seed a local member so the auto-pick has a valid target.
+        $localMember = Member::factory()->create([
+            'mess_id' => Mess::activeId(),
+            'status' => MemberStatus::ACTIVE,
+            'name' => 'Local Member',
+        ]);
 
-        // Active mess is the first one (from setUp). MessScope filters
-        // Member queries by active_mess_id, so firstOrFail returns 404.
         $response = $this->actingAs($this->admin())
             ->get(route('mess.reports.member-statement', [
                 'member_id' => $foreignMember->id,
@@ -98,7 +107,12 @@ class MemberStatementTest extends TestCase
                 'month' => now()->month,
             ]));
 
-        $response->assertNotFound();
+        // Cross-mess member resolves to null under MessScope; controller
+        // auto-picks the local member and redirects (no 404, no foreign data leak).
+        $response->assertRedirect();
+        $target = $response->headers->get('Location');
+        $this->assertStringContainsString('member_id='.$localMember->id, $target);
+        $this->assertStringNotContainsString('member_id='.$foreignMember->id, $target);
     }
 
     public function test_member_role_forbidden(): void
