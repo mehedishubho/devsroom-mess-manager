@@ -4,13 +4,15 @@
     'month' => null,
     'showExports' => false,
     'extra' => [],
-    'filters' => [],  // additional filter params (from/to / category_id / method) carried to export
+    'filters' => [],  // additional filter params (from / to / category_id / method) carried to export
+    'from' => null,   // data-driven month-range lower bound — forwarded into the month nav
+    'to' => null,     // data-driven month-range upper bound — forwarded into the month nav
 ])
 
 <div class="flex flex-wrap items-center justify-between gap-3">
     <div class="flex-1 min-w-[240px]">
         @if ($year !== null && $month !== null)
-            <x-month-nav :year="$year" :month="$month" :route="$route" :extra="$extra" />
+            <x-month-nav :year="$year" :month="$month" :route="$route" :extra="$extra" :from="$from" :to="$to" />
         @endif
     </div>
 

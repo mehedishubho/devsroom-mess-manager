@@ -31,7 +31,7 @@
     </header>
 
     <div class="mb-6">
-        <x-report-toolbar route="mess.reports.monthly" :year="$year" :month="$month" showExports="true" :filters="request()->query('from') || request()->query('to') || request()->query('category_id') || request()->query('month') ? request()->only(['from', 'to', 'category_id', 'month']) : []" />
+        <x-report-toolbar route="mess.reports.monthly" :year="$year" :month="$month" showExports="true" :from="$monthRange['first'] ?? null" :to="$monthRange['last'] ?? null" :filters="request()->query('from') || request()->query('to') || request()->query('category_id') || request()->query('month') ? request()->only(['from', 'to', 'category_id', 'month']) : []" />
     </div>
 
     @if (! $hasData)

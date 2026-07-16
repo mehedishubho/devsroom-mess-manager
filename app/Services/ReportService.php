@@ -9,6 +9,7 @@ use App\Models\MonthlyMemberSummary;
 use App\Models\Payment;
 use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 
 /**
  * ReportService — manager-side read-only reports.
@@ -32,6 +33,122 @@ class ReportService
     public function __construct(
         private readonly BillPreviewService $preview,
     ) {}
+
+    /**
+     * Data-driven month-picker range (Task 4 of quick-260717-2q3).
+     *
+     * Replaces the hardcoded 24-month window with the actual data span:
+     * min/max year+month across meal_entries, expenses, payments, and
+     * monthly_closings for this mess. Fallback when no data exists: the
+     * last 12 months ending at the current month (still NOT the old 24).
+     *
+     * @return array{first: array{year:int,month:int}, last: array{year:int,month:int}}
+     */
+    public function availableMonthRange(int $messId): array
+    {
+        $earliest = null;
+        $latest = null;
+
+        // Four small queries (kept separate for readability — NO UNION).
+        // Each returns either a YYYY-MM-01 date or null; we merge into the
+        // running min/max. Use query builder (no BelongsToActiveMess on the
+        // raw builder) and scope by mess_id explicitly.
+        $sources = [
+            DB::table('meal_entries')->where('mess_id', $messId)->min('date'),
+            DB::table('expenses')->where('mess_id', $messId)->min('date'),
+            DB::table('payments')->where('mess_id', $messId)->min('date'),
+            $this->closingMinYearMonth($messId),
+        ];
+        foreach ($sources as $value) {
+            if (! filled($value)) {
+                continue;
+            }
+            try {
+                $carbon = Carbon::parse($value)->startOfMonth();
+                if ($earliest === null || $carbon < $earliest) {
+                    $earliest = $carbon;
+                }
+            } catch (\Throwable) {
+                // Skip malformed dates silently.
+            }
+        }
+
+        $maxSources = [
+            DB::table('meal_entries')->where('mess_id', $messId)->max('date'),
+            DB::table('expenses')->where('mess_id', $messId)->max('date'),
+            DB::table('payments')->where('mess_id', $messId)->max('date'),
+            $this->closingMaxYearMonth($messId),
+        ];
+        foreach ($maxSources as $value) {
+            if (! filled($value)) {
+                continue;
+            }
+            try {
+                $carbon = Carbon::parse($value)->startOfMonth();
+                if ($latest === null || $carbon > $latest) {
+                    $latest = $carbon;
+                }
+            } catch (\Throwable) {
+                // Skip malformed dates silently.
+            }
+        }
+
+        // Default fallback: last 12 months ending current month (NOT 24).
+        $first = $earliest ?? now()->copy()->subMonths(11)->startOfMonth();
+        // Upper bound is ALWAYS the current month — the user may navigate to
+        // "this month" even when no data has been entered yet. Per the plan
+        // example (single 2025-03 expense, current month 2026-07): the
+        // dropdown spans Mar-2025..Jul-2026 inclusive.
+        $last = now()->copy()->startOfMonth();
+
+        // Clamp: never show months past the current month, and never have
+        // first > last.
+        if ($last->greaterThan(now()->startOfMonth())) {
+            $last = now()->startOfMonth();
+        }
+        if ($first->greaterThan($last)) {
+            $first = $last->copy()->subMonths(11);
+        }
+
+        return [
+            'first' => ['year' => $first->year, 'month' => $first->month],
+            'last' => ['year' => $last->year, 'month' => $last->month],
+        ];
+    }
+
+    /**
+     * Build a YYYY-MM-01 string for the earliest monthly_closing row.
+     * monthly_closings stores year+month as separate int columns.
+     */
+    private function closingMinYearMonth(int $messId): ?string
+    {
+        $row = DB::table('monthly_closings')
+            ->where('mess_id', $messId)
+            ->orderBy('year')
+            ->orderBy('month')
+            ->first(['year', 'month']);
+
+        if (! $row) {
+            return null;
+        }
+
+        return sprintf('%04d-%02d-01', (int) $row->year, (int) $row->month);
+    }
+
+    private function closingMaxYearMonth(int $messId): ?string
+    {
+        $row = DB::table('monthly_closings')
+            ->where('mess_id', $messId)
+            ->orderByDesc('year')
+            ->orderByDesc('month')
+            ->first(['year', 'month']);
+
+        if (! $row) {
+            return null;
+        }
+
+        return sprintf('%04d-%02d-01', (int) $row->year, (int) $row->month);
+    }
 
     /**
      * @return array{year:int,month:int,total_bazar:float,total_meals:float,meal_rate:float,total_fixed:float,days_in_month:int,members:array<int,array<string,mixed>>,source:string}

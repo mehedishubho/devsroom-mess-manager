@@ -3,9 +3,23 @@
     'month',
     'route' => 'mess.reports.monthly',
     'extra' => [], // additional query params to carry over (e.g. member_id)
+    // from / to: data-driven range (associative array with year + month keys).
+    // null falls back to the last 12 months ending at the current month.
+    'from' => null,
+    'to' => null,
 ])
 
 @php
+    /**
+     * Task 4 (quick-260717-2q3) — data-driven month picker.
+     *
+     * Replaces the hardcoded 24-month window (back=23..0) with a passed-in
+     * from/to range computed by ReportService::availableMonthRange(). When
+     * $from/$to are NOT supplied (e.g. a view that hasn't been wired yet),
+     * the component falls back to the last 12 months ending at the current
+     * month — a tighter default than the old 24-month window so the picker
+     * never shows stale "dummy" months.
+     */
     $carbon = \Carbon\Carbon::create((int) $year, (int) $month, 1);
     $prev = ['year' => $carbon->copy()->subMonth()->year, 'month' => $carbon->copy()->subMonth()->month];
     $next = ['year' => $carbon->copy()->addMonth()->year, 'month' => $carbon->copy()->addMonth()->month];
@@ -13,6 +27,21 @@
     $buildQuery = function (array $ym) use ($extra) {
         return array_merge($ym, $extra);
     };
+
+    // Compute the iteration window from $from/$to (or default 12-month window).
+    $start = $from
+        ? \Carbon\Carbon::create((int) $from['year'], (int) $from['month'], 1)->startOfMonth()
+        : now()->copy()->subMonths(11)->startOfMonth();
+    $end = $to
+        ? \Carbon\Carbon::create((int) $to['year'], (int) $to['month'], 1)->startOfMonth()
+        : now()->copy()->startOfMonth();
+    // Defensive clamps — never show months past current, never start after end.
+    if ($end->greaterThan(now()->startOfMonth())) {
+        $end = now()->startOfMonth();
+    }
+    if ($start->greaterThan($end)) {
+        $start = $end->copy()->subMonths(11);
+    }
 @endphp
 
 <div class="flex flex-wrap items-center gap-2" data-month-nav>
@@ -26,9 +55,11 @@
 
     <select data-month-select
             class="input w-auto">
-        @for ($back = 23; $back >= 0; $back--)
+        @php
+            $cursor = $start->copy();
+        @endphp
+        @while ($cursor->lessThanOrEqualTo($end))
             @php
-                $cursor = now()->copy()->subMonths($back);
                 $y = $cursor->year;
                 $m = $cursor->month;
             @endphp
@@ -36,7 +67,10 @@
                 @selected(((int) $y === (int) $year && (int) $m === (int) $month))>
                 {{ $cursor->translatedFormat('F Y') }}
             </option>
-        @endfor
+            @php
+                $cursor->addMonth();
+            @endphp
+        @endwhile
     </select>
 
     <a href="{{ route($route, $buildQuery($next)) }}"

@@ -30,7 +30,9 @@ class ReportController extends Controller
         $data = $this->reports->monthlyReport($year, $month);
         $mess = Mess::findOrFail(Mess::activeId());
 
-        return view('mess.reports.monthly', compact('data', 'year', 'month', 'mess'));
+        $monthRange = $this->reports->availableMonthRange(Mess::activeId());
+
+        return view('mess.reports.monthly', compact('data', 'year', 'month', 'mess', 'monthRange'));
     }
 
     public function memberStatement(MemberStatementRequest $request): View
@@ -51,7 +53,9 @@ class ReportController extends Controller
 
         $mess = Mess::findOrFail(Mess::activeId());
 
-        return view('mess.reports.member-statement', compact('statement', 'member', 'members', 'year', 'month', 'mess'));
+        $monthRange = $this->reports->availableMonthRange(Mess::activeId());
+
+        return view('mess.reports.member-statement', compact('statement', 'member', 'members', 'year', 'month', 'mess', 'monthRange'));
     }
 
     public function expenses(ExpenseReportRequest $request): View

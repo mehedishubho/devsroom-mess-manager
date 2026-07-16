@@ -4,6 +4,7 @@ namespace App\Http\Controllers\My;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\My\MyMonthNavigationRequest;
+use App\Models\Mess;
 use App\Services\MemberStatementService;
 use App\Services\ReportService;
 use Illuminate\View\View;
@@ -44,12 +45,14 @@ class MyReportController extends Controller
 
         // SECURITY: NO member_id from URL. $member always comes from auth.
         $statement = $this->statements->forMember($member->id, $year, $month);
+        $monthRange = $this->reports->availableMonthRange(Mess::activeId());
 
         return view('my.reports.statement', [
             'statement' => $statement,
             'member' => $member,
             'year' => $year,
             'month' => $month,
+            'monthRange' => $monthRange,
         ]);
     }
 
@@ -70,11 +73,13 @@ class MyReportController extends Controller
         $month = (int) $request->integer('month', now()->month);
 
         $data = $this->reports->monthlyReport($year, $month);
+        $monthRange = $this->reports->availableMonthRange(Mess::activeId());
 
         return view('my.reports.monthly', [
             'data' => $data,
             'year' => $year,
             'month' => $month,
+            'monthRange' => $monthRange,
         ]);
     }
 }

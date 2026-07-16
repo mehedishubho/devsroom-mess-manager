@@ -55,7 +55,7 @@
         <input type="hidden" name="year" value="{{ $year }}" data-ms-year />
         <input type="hidden" name="month" value="{{ $month }}" data-ms-month />
         <div class="flex items-end">
-            <x-month-nav :year="$year" :month="$month" route="mess.reports.member-statement" :extra="['member_id' => $member->id]" />
+            <x-month-nav :year="$year" :month="$month" route="mess.reports.member-statement" :extra="['member_id' => $member->id]" :from="$monthRange['first'] ?? null" :to="$monthRange['last'] ?? null" />
         </div>
         <noscript>
             <button type="submit" class="btn btn-dark btn-sm">{{ __('Apply') }}</button>
@@ -63,7 +63,7 @@
     </form>
 
     <div class="mb-6">
-        <x-report-toolbar route="mess.reports.member-statement" :year="$year" :month="$month" showExports="true" :extra="['member_id' => $member->id]" />
+        <x-report-toolbar route="mess.reports.member-statement" :year="$year" :month="$month" showExports="true" :extra="['member_id' => $member->id]" :from="$monthRange['first'] ?? null" :to="$monthRange['last'] ?? null" />
     </div>
     {{-- The report-toolbar reads member_id from $extra above; no $filters needed for month-scoped reports. --}}
 
