@@ -89,6 +89,57 @@ return [
             'throw' => true,
         ],
 
+        // Google Drive backup destination (Task 1 — quick-260717-2q3).
+        // The driver 'google-drive' is registered by AppServiceProvider via
+        // Storage::extend() with a class_exists guard so the app boots cleanly
+        // even when masbug/flysystem-google-drive-ext is not installed.
+        'backups-gdrive' => [
+            'driver' => 'google-drive',
+            'clientId' => env('GOOGLE_DRIVE_CLIENT_ID'),
+            'clientSecret' => env('GOOGLE_DRIVE_CLIENT_SECRET'),
+            'refreshToken' => env('GOOGLE_DRIVE_REFRESH_TOKEN'),
+            'folderId' => env('GOOGLE_DRIVE_FOLDER_ID'),
+            'throw' => false,
+        ],
+
+        // Google Drive uploads-mirror destination (Task 1). Same creds; the
+        // StorageProvider mirror layer namespaces keys by subpath so backups
+        // and uploads never collide within the shared Drive folder.
+        'uploads-gdrive' => [
+            'driver' => 'google-drive',
+            'clientId' => env('GOOGLE_DRIVE_CLIENT_ID'),
+            'clientSecret' => env('GOOGLE_DRIVE_CLIENT_SECRET'),
+            'refreshToken' => env('GOOGLE_DRIVE_REFRESH_TOKEN'),
+            'folderId' => env('GOOGLE_DRIVE_FOLDER_ID'),
+            'throw' => false,
+        ],
+
+        // Cloudflare R2 backup destination (S3-compatible endpoint, Task 1).
+        // Reuses the already-installed league/flysystem-aws-s3-v3 driver — no
+        // new package needed. 'region' => 'auto' is the documented R2 value.
+        'backups-r2' => [
+            'driver' => 's3',
+            'key' => env('R2_KEY'),
+            'secret' => env('R2_SECRET'),
+            'region' => env('R2_REGION', 'auto'),
+            'bucket' => env('R2_BUCKET'),
+            'endpoint' => env('R2_ENDPOINT'),
+            'use_path_style_endpoint' => env('R2_USE_PATH_STYLE_ENDPOINT', false),
+            'throw' => false,
+        ],
+
+        // Cloudflare R2 uploads-mirror destination (Task 1).
+        'uploads-r2' => [
+            'driver' => 's3',
+            'key' => env('R2_KEY'),
+            'secret' => env('R2_SECRET'),
+            'region' => env('R2_REGION', 'auto'),
+            'bucket' => env('R2_BUCKET'),
+            'endpoint' => env('R2_ENDPOINT'),
+            'use_path_style_endpoint' => env('R2_USE_PATH_STYLE_ENDPOINT', false),
+            'throw' => false,
+        ],
+
     ],
 
     /*

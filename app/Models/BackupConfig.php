@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -30,6 +31,10 @@ class BackupConfig extends Model
         'keep_all_days',
         'max_mb',
         'enabled_spaces',
+        'gdrive_backup',
+        'gdrive_uploads',
+        'r2_backup',
+        'r2_uploads',
     ];
 
     protected function casts(): array
@@ -38,6 +43,30 @@ class BackupConfig extends Model
             'keep_all_days' => 'integer',
             'max_mb' => 'integer',
             'enabled_spaces' => 'boolean',
+            'gdrive_backup' => 'boolean',
+            'gdrive_uploads' => 'boolean',
+            'r2_backup' => 'boolean',
+            'r2_uploads' => 'boolean',
+        ];
+    }
+
+    /**
+     * Keyed view-helper: which providers are enabled for which group.
+     * Consumed by the Configure Backups UI to render the toggle matrix.
+     *
+     * @return array<string, array{backup: bool, uploads: bool}>
+     */
+    public function enabledProviders(): array
+    {
+        return [
+            'gdrive' => [
+                'backup' => (bool) $this->gdrive_backup,
+                'uploads' => (bool) $this->gdrive_uploads,
+            ],
+            'r2' => [
+                'backup' => (bool) $this->r2_backup,
+                'uploads' => (bool) $this->r2_uploads,
+            ],
         ];
     }
 
@@ -48,7 +77,7 @@ class BackupConfig extends Model
     public function runAtLabel(): string
     {
         try {
-            return \Carbon\Carbon::parse($this->run_at)->format('H:i');
+            return Carbon::parse($this->run_at)->format('H:i');
         } catch (\Throwable) {
             return '01:30';
         }
@@ -94,6 +123,10 @@ class BackupConfig extends Model
             'keep_all_days' => 7,
             'max_mb' => 5000,
             'enabled_spaces' => false,
+            'gdrive_backup' => false,
+            'gdrive_uploads' => false,
+            'r2_backup' => false,
+            'r2_uploads' => false,
         ]);
     }
 }

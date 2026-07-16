@@ -113,22 +113,32 @@ class BackupController extends Controller
     }
 
     /**
-     * Show the Configure form: backup schedule (frequency + time) and
-     * retention/rotation (keep-all-days + storage cap).
+     * Show the Configure form: backup schedule (frequency + time),
+     * retention/rotation (keep-all-days + storage cap), and per-provider,
+     * per-group storage toggles (Google Drive / Cloudflare R2 × backup/uploads).
      */
     public function edit(): View
     {
         $config = BackupConfig::current();
         $spacesConfigured = BackupDestinations::spacesConfigured();
+        $gdriveConfigured = BackupDestinations::gdriveConfigured();
+        $r2Configured = BackupDestinations::r2Configured();
 
-        return view('dashboard.backups.configure', compact('config', 'spacesConfigured'));
+        return view('dashboard.backups.configure', compact(
+            'config',
+            'spacesConfigured',
+            'gdriveConfigured',
+            'r2Configured',
+        ));
     }
 
     /**
      * Save the Configure form. Persists the singleton row, then clears the
-     * config cache so the new schedule + retention take effect immediately
-     * (the scheduler reads BackupConfig at each schedule:run; backup:purge
-     * reads it at runtime; spatie picks up the refreshed destination list).
+     * config cache so the new schedule + retention + provider toggles take
+     * effect immediately (the scheduler reads BackupConfig at each
+     * schedule:run; backup:purge reads it at runtime; spatie picks up the
+     * refreshed destination list; StorageProvider reads the upload-mirror
+     * flags at the next request).
      */
     public function update(UpdateBackupConfigRequest $request): RedirectResponse
     {
@@ -139,6 +149,10 @@ class BackupController extends Controller
             'run_at' => $data['run_at'],
             'keep_all_days' => $data['keep_all_days'],
             'max_mb' => $data['max_mb'],
+            'gdrive_backup' => (bool) ($data['gdrive_backup'] ?? false),
+            'gdrive_uploads' => (bool) ($data['gdrive_uploads'] ?? false),
+            'r2_backup' => (bool) ($data['r2_backup'] ?? false),
+            'r2_uploads' => (bool) ($data['r2_uploads'] ?? false),
         ]);
         BackupConfig::flushCache();
 

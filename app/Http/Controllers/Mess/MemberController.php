@@ -11,13 +11,13 @@ use App\Models\Member;
 use App\Models\Mess;
 use App\Models\Payment;
 use App\Models\User;
+use App\Support\StorageProvider;
 use HasinHayder\Tyro\Models\Role;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -178,7 +178,7 @@ class MemberController extends Controller
         }
 
         if ($member->photo_path) {
-            Storage::disk('public')->delete($member->photo_path);
+            StorageProvider::delete($member->photo_path);
         }
 
         $name = $member->name;
@@ -208,14 +208,10 @@ class MemberController extends Controller
         $path = "photos/{$member->id}.{$ext}";
 
         if ($member->photo_path) {
-            Storage::disk('public')->delete($member->photo_path);
+            StorageProvider::delete($member->photo_path);
         }
 
-        Storage::disk('public')->putFileAs(
-            dirname($path),
-            $photo,
-            basename($path),
-        );
+        StorageProvider::store($path, $photo);
 
         $member->update(['photo_path' => $path]);
     }

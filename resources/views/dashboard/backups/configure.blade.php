@@ -31,6 +31,55 @@
             </div>
         </fieldset>
 
+        {{-- Storage providers (DB-toggled; T-2q3-01 super-admin-only write) --}}
+        <fieldset class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <legend class="mb-2 text-sm font-semibold text-slate-900">{{ __('Storage providers') }}</legend>
+
+            {{-- Google Drive column --}}
+            <div class="rounded-lg border border-slate-200 bg-white p-3 text-sm">
+                <p class="font-medium text-slate-900">{{ __('Google Drive') }}</p>
+                @if ($gdriveConfigured)
+                    <p class="mt-0.5 text-xs text-emerald-700">{{ __('Credentials configured') }} ✓</p>
+                @else
+                    <p class="mt-0.5 text-xs text-rose-700">{{ __('Not configured — set GOOGLE_DRIVE_* env vars to enable.') }}</p>
+                @endif
+                <div class="mt-3 space-y-2">
+                    <label class="flex items-center gap-2 text-slate-700">
+                        <input type="hidden" name="gdrive_backup" value="0" />
+                        <input type="checkbox" name="gdrive_backup" value="1" @checked(old('gdrive_backup', (bool) $config->gdrive_backup)) class="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
+                        {{ __('Use for backups') }}
+                    </label>
+                    <label class="flex items-center gap-2 text-slate-700">
+                        <input type="hidden" name="gdrive_uploads" value="0" />
+                        <input type="checkbox" name="gdrive_uploads" value="1" @checked(old('gdrive_uploads', (bool) $config->gdrive_uploads)) class="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
+                        {{ __('Use for uploads mirror') }}
+                    </label>
+                </div>
+            </div>
+
+            {{-- Cloudflare R2 column --}}
+            <div class="rounded-lg border border-slate-200 bg-white p-3 text-sm">
+                <p class="font-medium text-slate-900">{{ __('Cloudflare R2') }}</p>
+                @if ($r2Configured)
+                    <p class="mt-0.5 text-xs text-emerald-700">{{ __('Credentials configured') }} ✓</p>
+                @else
+                    <p class="mt-0.5 text-xs text-rose-700">{{ __('Not configured — set R2_* env vars to enable.') }}</p>
+                @endif
+                <div class="mt-3 space-y-2">
+                    <label class="flex items-center gap-2 text-slate-700">
+                        <input type="hidden" name="r2_backup" value="0" />
+                        <input type="checkbox" name="r2_backup" value="1" @checked(old('r2_backup', (bool) $config->r2_backup)) class="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
+                        {{ __('Use for backups') }}
+                    </label>
+                    <label class="flex items-center gap-2 text-slate-700">
+                        <input type="hidden" name="r2_uploads" value="0" />
+                        <input type="checkbox" name="r2_uploads" value="1" @checked(old('r2_uploads', (bool) $config->r2_uploads)) class="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
+                        {{ __('Use for uploads mirror') }}
+                    </label>
+                </div>
+            </div>
+        </fieldset>
+
         {{-- Schedule --}}
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div class="flex flex-col gap-1">

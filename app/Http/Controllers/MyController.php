@@ -2,19 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\My\ChangeMyPasswordRequest;
 use App\Http\Requests\My\StoreMealOffRequest;
 use App\Http\Requests\My\UpdateMyProfileRequest;
-use App\Http\Requests\My\ChangeMyPasswordRequest;
 use App\Models\MealOffRequest;
 use App\Models\Mess;
 use App\Models\Payment;
 use App\Services\MemberDashboardService;
 use App\Support\MealOffStatus;
+use App\Support\StorageProvider;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class MyController extends Controller
@@ -103,10 +103,10 @@ class MyController extends Controller
             $path = "photos/{$member->id}.{$ext}";
 
             if ($member->photo_path) {
-                Storage::disk('public')->delete($member->photo_path);
+                StorageProvider::delete($member->photo_path);
             }
 
-            Storage::disk('public')->putFileAs(dirname($path), $photo, basename($path));
+            StorageProvider::store($path, $photo);
             $member->update(['photo_path' => $path]);
         }
 

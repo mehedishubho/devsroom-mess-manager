@@ -4,9 +4,9 @@ namespace App\Services;
 
 use App\Models\Expense;
 use App\Models\Mess;
+use App\Support\StorageProvider;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 
 class ExpenseService
 {
@@ -39,7 +39,9 @@ class ExpenseService
         if ($receipt) {
             $ext = $receipt->getClientOriginalExtension();
             $path = "receipts/{$expense->id}.{$ext}";
-            Storage::disk('public')->putFileAs(dirname($path), $receipt, basename($path));
+            // StorageProvider writes the 'public'-disk path verbatim (canonical
+            // URL surface) and best-effort mirrors to active cloud disks.
+            StorageProvider::store($path, $receipt);
             $expense->update(['receipt_path' => $path]);
         }
 

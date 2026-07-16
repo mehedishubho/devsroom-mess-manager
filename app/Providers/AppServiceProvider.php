@@ -13,10 +13,16 @@ use App\Models\MessClosedDay;
 use App\Models\Payment;
 use App\Services\BillPreviewInvalidator;
 use Carbon\Carbon;
+use Google\Client;
+use Google\Service\Drive;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\ServiceProvider;
+use League\Flysystem\Filesystem;
+use Masbug\Flysystem\GoogleDriveAdapter;
 use Spatie\Backup\Events\BackupHasFailed;
 use Spatie\Backup\Events\UnhealthyBackupWasFound;
 
@@ -31,8 +37,42 @@ class AppServiceProvider extends ServiceProvider
     {
         Carbon::setLocale('en');
 
+        $this->registerGoogleDriveDriver();
         $this->registerBillPreviewInvalidation();
         $this->registerBackupFailureListeners();
+    }
+
+    /**
+     * Register the custom 'google-drive' filesystem driver (Task 1 of
+     * quick-260717-2q3). Laravel ships no built-in Google Drive adapter, so
+     * Storage::extend() is the canonical registration path.
+     *
+     * class_exists-guarded so the app boots cleanly even when
+     * masbug/flysystem-google-drive-ext is not installed — the disks become
+     * unreachable at runtime, and StorageProvider/BackupDestinations skip
+     * them gracefully (T-2q3-03 DoS mitigation).
+     */
+    private function registerGoogleDriveDriver(): void
+    {
+        if (! class_exists(GoogleDriveAdapter::class)) {
+            return;
+        }
+
+        Storage::extend('google-drive', function (\Illuminate\Contracts\Filesystem\Filesystem $app, array $config) {
+            $client = new Client;
+            $client->setClientId($config['clientId'] ?? '');
+            $client->setClientSecret($config['clientSecret'] ?? '');
+            $client->refreshTokenWithRefreshToken($config['refreshToken'] ?? '');
+
+            $service = new Drive($client);
+            $adapter = new GoogleDriveAdapter($service, $config['folderId'] ?? null);
+
+            return new FilesystemAdapter(
+                new Filesystem($adapter),
+                $adapter,
+                $config
+            );
+        });
     }
 
     /**
