@@ -276,11 +276,16 @@ class BackupController extends Controller
      */
     private function preflightWritable(): ?string
     {
-        // storage/app/backups  — spatie writes the final zip here (backups-local disk root).
-        // storage/app/laravel-backup — spatie's working/temp dir for the DB dump.
+        // storage/app/backups        — final zip destination (backups-local disk root).
+        // storage/app/backup-temp    — spatie's temporary_directory: THIS is where the
+        //                              zip is actually staged (BackupJob line 253), so a
+        //                              missing/root-owned backup-temp makes close() fail
+        //                              even when the destination looks writable.
+        // storage/app/laravel-backup — spatie's DB-dump workdir.
         $paths = [
             'destination' => storage_path('app/backups'),
-            'temp' => storage_path('app/laravel-backup'),
+            'spatie-temp' => (string) config('backup.backup.temporary_directory', storage_path('app/backup-temp')),
+            'dump-workdir' => storage_path('app/laravel-backup'),
         ];
 
         foreach ($paths as $label => $path) {
@@ -288,8 +293,16 @@ class BackupController extends Controller
                 @mkdir($path, 0o775, true);
             }
             if (! is_dir($path) || ! is_writable($path)) {
-                return __('Backup :label directory (:path) is missing or not writable by the web server. Create it and fix permissions: chmod -R 775 storage && chown -R <web-user> storage.', ['label' => $label, 'path' => $path]);
+                return __('Backup :label directory (:path) is missing or not writable by the web server. Create it and fix ownership: chown -R <site-user>:<site-user> storage && chmod -R 775 storage.', ['label' => $label, 'path' => $path]);
             }
+        }
+
+        // Disk space / quota: open() can create a 0-byte file (success) but
+        // close() fails when there is no room to write the actual content — a
+        // classic shared-host "Invalid argument" on close().
+        $free = @disk_free_space(storage_path('app'));
+        if ($free !== false && $free < 50 * 1024 * 1024) {
+            return __('Less than 50 MB free on the storage partition (:free MB). The backup needs room to stage the zip — free disk space or check the account quota.', ['free' => number_format($free / 1024 / 1024, 1)]);
         }
 
         // open_basedir / sys_temp_dir restriction: ZipArchive uses the system

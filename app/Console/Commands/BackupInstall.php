@@ -27,6 +27,7 @@ class BackupInstall extends Command
 
         $dirs = [
             'destination (zip output)' => storage_path('app/backups'),
+            'spatie-temp (zip staging)' => (string) config('backup.backup.temporary_directory', storage_path('app/backup-temp')),
             'temp (spatie dump workdir)' => storage_path('app/laravel-backup'),
             'tmp (ZipArchive scratch)' => storage_path('app/tmp'),
         ];
@@ -62,6 +63,23 @@ class BackupInstall extends Command
             $this->line('  find storage bootstrap/cache -type d -exec chmod 775 {} \\;');
             $this->line('  find storage bootstrap/cache -type f -exec chmod 664 {} \\;');
             $this->line('CloudPanel/cPanel: <site-user> is the account that owns /home/<user>/ .');
+        }
+
+        // Disk space / quota — open() can create a 0-byte zip (success) but
+        // close() fails when there's no room to write the content.
+        $this->newLine();
+        $this->info('Disk space:');
+        $free = @disk_free_space(storage_path('app'));
+        $total = @disk_total_space(storage_path('app'));
+        if ($free !== false && $total !== false) {
+            $freeMb = number_format($free / 1024 / 1024, 1);
+            $totalMb = number_format($total / 1024 / 1024, 1);
+            $this->line(sprintf('  %s MB free of %s MB on the storage partition', $freeMb, $totalMb));
+            if ($free < 50 * 1024 * 1024) {
+                $this->line('  <fg=red>Low space — backup close() will fail. Free space or check the account quota.</>');
+            }
+        } else {
+            $this->line('  <fg=yellow>could not read disk_free_space (disabled?)</>');
         }
 
         // mysqldump
