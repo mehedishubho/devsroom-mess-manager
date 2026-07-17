@@ -37,6 +37,11 @@
                 </form>
             @endif
         </div>
+        @if (! empty($backupLogUnavailable))
+            <p class="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                {{ __('Activity log is unavailable — the backup_logs table is missing. Run "php artisan migrate --force" on the server to enable it.') }}
+            </p>
+        @endif
         <div class="mt-4 overflow-x-auto">
             <table class="min-w-full divide-y divide-slate-200">
                 <thead class="bg-slate-50">

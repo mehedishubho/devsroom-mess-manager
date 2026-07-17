@@ -13,7 +13,9 @@ use App\Models\RestoreTest;
 use App\Support\BackupDestinations;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use OwenIt\Auditing\Models\Audit;
@@ -34,6 +36,9 @@ use OwenIt\Auditing\Models\Audit;
  */
 class BackupController extends Controller
 {
+    /** True when the backup_logs table isn't readable (e.g. not migrated yet). */
+    private bool $backupLogUnavailable = false;
+
     public function index(): View
     {
         return view('dashboard.backups.index', $this->indexData());
@@ -223,8 +228,30 @@ class BackupController extends Controller
             'spacesConfigured' => BackupDestinations::spacesConfigured(),
             'gdriveConfigured' => BackupDestinations::gdriveConfigured(),
             'r2Configured' => BackupDestinations::r2Configured(),
-            'backupLogs' => BackupLog::latest('id')->limit(25)->get(),
+            // The activity log is non-critical — a fresh deploy that hasn't run
+            // `php artisan migrate` yet (backup_logs table missing) must NOT 500
+            // the whole Backups page and lock the super-admin out of configuring.
+            'backupLogs' => $this->safeRecentLogs(),
+            'backupLogUnavailable' => $this->backupLogUnavailable,
         ];
+    }
+
+    /**
+     * Read the latest backup log rows, tolerating a missing backup_logs table
+     * (fresh deploy that hasn't run `php artisan migrate`). Sets the
+     * $backupLogUnavailable flag so the view can show a "run migrate" banner.
+     *
+     * @return Collection
+     */
+    private function safeRecentLogs()
+    {
+        try {
+            return BackupLog::latest('id')->limit(25)->get();
+        } catch (\Throwable) {
+            $this->backupLogUnavailable = true;
+
+            return collect();
+        }
     }
 
     /**
@@ -310,15 +337,22 @@ class BackupController extends Controller
      */
     private function recordLog(string $action, string $status, ?string $message = null, ?string $path = null, string $key = 'backup', bool $flash = true, ?string $output = null): ?RedirectResponse
     {
-        BackupLog::create([
-            'action' => $action,
-            'status' => $status,
-            'path' => $path,
-            // Keep the diagnostic output alongside the short message so the
-            // activity log shows the real reason (mysqldump path, etc.).
-            'message' => $output && $message ? $message."\n\n".$output : ($message ?: $output),
-            'user_id' => request()->user()?->id,
-        ]);
+        try {
+            BackupLog::create([
+                'action' => $action,
+                'status' => $status,
+                'path' => $path,
+                // Keep the diagnostic output alongside the short message so the
+                // activity log shows the real reason (mysqldump path, etc.).
+                'message' => $output && $message ? $message."\n\n".$output : ($message ?: $output),
+                'user_id' => request()->user()?->id,
+            ]);
+        } catch (\Throwable $e) {
+            // Logging must never break the operation it logs — e.g. a fresh
+            // deploy whose `php artisan migrate` hasn't created backup_logs yet.
+            // The Backup now / download / delete flow still completes.
+            Log::warning('backup_logs write failed: '.$e->getMessage());
+        }
 
         if (! $flash) {
             return null;
