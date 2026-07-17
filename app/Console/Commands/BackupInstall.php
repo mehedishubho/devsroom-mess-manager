@@ -115,6 +115,55 @@ class BackupInstall extends Command
             }
         }
 
+        // ZipArchive self-test — reproduces the EXACT spatie sequence
+        // (open → addFile → setCompressionName → close) that fails with
+        // "ZipArchive::close(): Invalid argument" on some libzip builds.
+        // Trying CM_DEFAULT vs CM_STORE tells us whether compression is it.
+        $this->newLine();
+        $this->info('ZipArchive self-test (reproduces the spatie close() call):');
+        $this->line('  PHP zip extension: '.(phpversion('zip') ?: 'not loaded'));
+        $staging = (string) config('backup.backup.temporary_directory', storage_path('app/backup-temp'));
+        if (! is_dir($staging)) {
+            @mkdir($staging, 0o775, true);
+        }
+        $src = $staging.DIRECTORY_SEPARATOR.'__ziptest_src.txt';
+        @file_put_contents($src, 'backup zip self-test');
+        $zipPath = $staging.DIRECTORY_SEPARATOR.'__ziptest.zip';
+        $storeWorks = null;
+        foreach (['CM_DEFAULT (compressed)' => [\ZipArchive::CM_DEFAULT, 9], 'CM_STORE (no compression)' => [\ZipArchive::CM_STORE, 0]] as $label => $cfg) {
+            [$method, $level] = $cfg;
+            @unlink($zipPath);
+            $zip = new \ZipArchive;
+            $opened = @$zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+            if ($opened !== true) {
+                $this->line("  $label: open() failed ($opened)");
+
+                continue;
+            }
+            @$zip->addFile($src, 'src.txt');
+            try {
+                @$zip->setCompressionName('src.txt', $method, $level);
+            } catch (\Throwable) {
+            }
+            $ok = false;
+            try {
+                $ok = (bool) @$zip->close();
+            } catch (\Throwable) {
+                $ok = false;
+            }
+            if ($method === \ZipArchive::CM_STORE) {
+                $storeWorks = $ok;
+            }
+            $this->line($ok
+                ? "  <fg=green>$label: close() OK</>"
+                : "  <fg=red>$label: close() FAILED — this method breaks on this server's libzip.</>");
+        }
+        @unlink($src);
+        @unlink($zipPath);
+        if ($storeWorks === true) {
+            $this->line('  -> <fg=yellow>If CM_DEFAULT failed but CM_STORE worked, add BACKUP_ZIP_COMPRESS=false to .env.</>');
+        }
+
         // Schedule cron
         $this->newLine();
         $this->info('Scheduler cron (required for automatic backups):');

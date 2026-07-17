@@ -1,5 +1,6 @@
 <?php
 
+use App\Support\BackupDestinations;
 use Spatie\Backup\Notifications\Notifiable;
 use Spatie\Backup\Notifications\Notifications\BackupHasFailedNotification;
 use Spatie\Backup\Notifications\Notifications\BackupWasSuccessfulNotification;
@@ -104,8 +105,17 @@ return [
         'destination' => [
             /*
              * The compression algorithm used for creating the zip archive.
+             *
+             * Some server libzip builds fail at ZipArchive::close() with
+             * "Invalid argument" when per-entry compression is applied
+             * (spatie calls setCompressionName on every file). Setting
+             * BACKUP_ZIP_COMPRESS=false in .env forces CM_STORE (no
+             * compression) — larger backups, but it sidesteps that bug.
+             * Defaults to CM_DEFAULT (normal compression) when unset.
              */
-            'compression_method' => ZipArchive::CM_DEFAULT,
+            'compression_method' => filter_var(env('BACKUP_ZIP_COMPRESS', true), FILTER_VALIDATE_BOOLEAN)
+                ? ZipArchive::CM_DEFAULT
+                : ZipArchive::CM_STORE,
 
             /*
              * The compression level corresponding to the used algorithm (0-9).
@@ -124,7 +134,7 @@ return [
              * (DigitalOcean Spaces) when its credentials are configured —
              * resolved by App\Support\BackupDestinations (env-only, config-safe).
              */
-            'disks' => \App\Support\BackupDestinations::all(),
+            'disks' => BackupDestinations::all(),
 
             /*
              * Determines whether to allow backups to continue when some targets fail.
@@ -250,7 +260,7 @@ return [
     'monitor_backups' => [
         [
             'name' => env('APP_NAME', 'devsroom-mess'),
-            'disks' => \App\Support\BackupDestinations::all(),
+            'disks' => BackupDestinations::all(),
             'health_checks' => [
                 MaximumAgeInDays::class => 1,
                 MaximumStorageInMegabytes::class => 5000,
