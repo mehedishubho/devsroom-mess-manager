@@ -22,43 +22,58 @@
         </div>
     </header>
 
-    {{-- Configuration details --}}
+    {{-- Backup activity log (shown FIRST so a failed Backup now is immediately visible) --}}
     <section class="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
-                <h2 class="text-lg font-semibold leading-tight text-slate-900">{{ __('Configuration') }}</h2>
-                <p class="mt-1 text-sm text-slate-600">{{ __('Where backups are stored, how often they run, and how long they are kept.') }}</p>
+                <h2 class="text-lg font-semibold leading-tight text-slate-900">{{ __('Activity log') }}</h2>
+                <p class="mt-1 text-sm text-slate-600">{{ __('Every backup / restore / configure attempt — failures show the real reason (e.g. mysqldump missing).') }}</p>
             </div>
-            <a href="{{ route('dashboard.backups.configure') }}" class="btn btn-primary">
-                {{ __('Configure') }}
-            </a>
         </div>
-        <dl class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div>
-                <dt class="text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Local destination') }}</dt>
-                <dd class="mt-1 text-sm font-medium text-emerald-700">{{ __('Local — default') }} ✓</dd>
-                <dd class="text-xs text-slate-500">storage/app/backups</dd>
-            </div>
-            <div>
-                <dt class="text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Off-server mirror') }}</dt>
-                @if ($spacesConfigured)
-                    <dd class="mt-1 text-sm font-medium text-emerald-700">{{ __('Spaces — configured') }} ✓</dd>
-                    <dd class="text-xs text-slate-500">{{ config('filesystems.disks.backups.bucket') }} · {{ config('filesystems.disks.backups.region') }}</dd>
-                @else
-                    <dd class="mt-1 text-sm font-medium text-slate-500">{{ __('Spaces — not configured') }}</dd>
-                    <dd class="text-xs text-slate-500">{{ __('Backups stay local only.') }}</dd>
-                @endif
-            </div>
-            <div>
-                <dt class="text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Schedule') }}</dt>
-                <dd class="mt-1 text-sm font-medium text-slate-900">{{ $config->scheduleLabel() }}</dd>
-            </div>
-            <div>
-                <dt class="text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Retention') }}</dt>
-                <dd class="mt-1 text-sm font-medium text-slate-900">{{ __('Keep all :n days', ['n' => $config->keep_all_days]) }}</dd>
-                <dd class="text-xs text-slate-500">{{ __('Cap :n MB', ['n' => number_format($config->max_mb)]) }}</dd>
-            </div>
-        </dl>
+        <div class="mt-4 overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-50">
+                    <tr>
+                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500">{{ __('When') }}</th>
+                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500">{{ __('Action') }}</th>
+                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500">{{ __('Status') }}</th>
+                        <th scope="col" class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500">{{ __('Message') }}</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200 bg-white">
+                    @forelse ($backupLogs as $log)
+                        <tr class="align-top">
+                            <td class="px-3 py-2 text-xs text-slate-500">{{ $log->created_at?->diffForHumans() }}</td>
+                            <td class="px-3 py-2 text-sm font-medium text-slate-900">{{ $log->action }}</td>
+                            <td class="px-3 py-2 text-sm">
+                                @if ($log->status === 'success')
+                                    <span class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">{{ __('success') }}</span>
+                                @else
+                                    <span class="inline-flex items-center rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-800">{{ __('failed') }}</span>
+                                @endif
+                            </td>
+                            <td class="max-w-xl px-3 py-2 text-xs text-slate-600">
+                                @if ($log->path)<span class="break-all font-mono text-slate-500">{{ basename($log->path) }}</span>@if ($log->message)<br />@endif @endif
+                                @if ($log->message)<span class="break-words whitespace-pre-wrap">{{ $log->message }}</span>@endif
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="4" class="px-3 py-6 text-center text-sm text-slate-500">{{ __('No activity yet. Click "Backup now" to create a backup.') }}</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    {{-- Schedule + retention + storage-provider toggles (Configure form, inline) --}}
+    <section class="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
+        <div class="mb-4">
+            <h2 class="text-lg font-semibold leading-tight text-slate-900">{{ __('Configuration') }}</h2>
+            <p class="mt-1 text-sm text-slate-600">{{ __('Schedule, retention, and storage providers. Changes take effect immediately.') }}</p>
+        </div>
+        @include('dashboard.backups._configure_form')
     </section>
 
     {{-- Health badge (D-04) --}}
@@ -69,8 +84,11 @@
         </div>
     </section>
 
-    {{-- Backup list --}}
+    {{-- Backup list (download / restore / delete) --}}
     <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div class="border-b border-slate-200 px-4 py-3 md:px-6">
+            <h2 class="text-lg font-semibold leading-tight text-slate-900">{{ __('Backups') }}</h2>
+        </div>
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-slate-200">
                 <thead class="bg-slate-50">
