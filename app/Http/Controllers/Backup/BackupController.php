@@ -9,7 +9,6 @@ use App\Http\Requests\Backup\UpdateBackupConfigRequest;
 use App\Models\BackupConfig;
 use App\Models\BackupLog;
 use App\Models\Mess;
-use App\Models\RestoreTest;
 use App\Support\BackupDestinations;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -227,7 +226,6 @@ class BackupController extends Controller
 
         return [
             'backups' => $backups,
-            'latestRestoreTest' => RestoreTest::latest('id')->first(),
             'config' => BackupConfig::current(),
             'spacesConfigured' => BackupDestinations::spacesConfigured(),
             'gdriveConfigured' => BackupDestinations::gdriveConfigured(),

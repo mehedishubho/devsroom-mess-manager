@@ -98,17 +98,6 @@
         @include('dashboard.backups._configure_form')
     </section>
 
-    {{-- Health badge (D-04) --}}
-    <section class="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
-        <h2 class="text-lg font-semibold leading-tight text-slate-900">{{ __('Restore-test health') }}</h2>
-        <div class="mt-3">
-            @include('dashboard.backups._health_badge', ['latestRestoreTest' => $latestRestoreTest])
-        </div>
-        @if (! $restoreTestEnabled)
-            <p class="mt-2 text-xs text-slate-500">{{ __('Restore-test is disabled (BACKUP_RESTORE_TEST_ENABLED=false). Backups still run; only the automated verification is off. Create the scratch database and re-enable to verify restorability.') }}</p>
-        @endif
-    </section>
-
     {{-- Backup list (download / restore / delete) --}}
     <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
         <div class="border-b border-slate-200 px-4 py-3 md:px-6">
