@@ -5,113 +5,111 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use Spatie\Backup\Config\Config;
-use Spatie\Backup\Tasks\Backup\BackupJobFactory;
 use Spatie\Backup\Tasks\Backup\DbDumperFactory;
 use Spatie\Backup\Tasks\Backup\FileSelection;
-use ZipArchive;
+use Spatie\Backup\Tasks\Backup\Manifest;
+use Spatie\Backup\Tasks\Backup\Zip;
 
 /**
- * Pinpoints the exact cause of "ZipArchive::close(): Invalid argument" by
- * reproducing spatie's FULL archive build (real DB dump + the real
- * storage/app/public files, with their real relative entry names + the real
- * setCompressionName call) and toggling variables until it fails.
- *
- * Everything else (permissions, disk, mysqldump, open_basedir, the engine in
- * isolation) having checked out healthy, this isolates whether the trigger is
- * per-entry compression, the compression method, the source files, or the
- * dump — and prints the exact fix (e.g. BACKUP_ZIP_COMPRESS=false).
+ * Calls spatie's ACTUAL Zip::createForManifest() (the exact code path that
+ * fails in backup:run) with a manifest built exactly like BackupJob — real
+ * mysqldump + real storage/app/public files via spatie's FileSelection — and
+ * prints every manifest entry path alongside the entry NAME spatie's
+ * determineNameOfFileInZip computes for it. An empty / absolute / duplicate
+ * name is the likely close() killer, and it's the one variable my earlier
+ * manual reproductions approximated instead of replicated.
  */
 class BackupDiagnose extends Command
 {
     protected $signature = 'backup:diagnose';
 
-    protected $description = 'Reproduce spatie\'s full zip build and isolate the ZipArchive::close() failure.';
+    protected $description = 'Call spatie\'s real Zip::createForManifest and print each entry + computed name.';
 
     public function handle(): int
     {
-        $tempDir = (string) config('backup.backup.temporary_directory', storage_path('app/backup-temp'));
-        if (! is_dir($tempDir)) {
-            @mkdir($tempDir, 0o775, true);
+        $tempRoot = (string) config('backup.backup.temporary_directory', storage_path('app/backup-temp'));
+        $tempDir = $tempRoot.DIRECTORY_SEPARATOR.'diag';
+        if (! is_dir($tempDir.DIRECTORY_SEPARATOR.'db-dumps')) {
+            @mkdir($tempDir.DIRECTORY_SEPARATOR.'db-dumps', 0o775, true);
         }
 
-        // 1. Real DB dump (same config spatie uses).
-        $dump = $tempDir.DIRECTORY_SEPARATOR.'__diag.sql';
+        // 1. Real dump (BackupJob::dumpDatabases equivalent).
+        $dump = $tempDir.DIRECTORY_SEPARATOR.'db-dumps'.DIRECTORY_SEPARATOR.'dump.sql';
         @unlink($dump);
         try {
-            $dumper = DbDumperFactory::createFromConnection(config('database.default'));
-            $dumper->dumpToFile($dump);
+            DbDumperFactory::createFromConnection(config('database.default'))->dumpToFile($dump);
         } catch (\Throwable $e) {
-            $this->error('Could not create DB dump: '.$e->getMessage());
+            $this->error('dump failed: '.$e->getMessage());
 
             return self::FAILURE;
         }
 
-        // 2. Use spatie's OWN FileSelection so we see EXACTLY what spatie backs
-        //    up (Symfony Finder may surface a file/dir my RecursiveIterator
-        //    missed — spatie logs "Zipping 3 files and directories" but my
-        //    earlier scan found 2, so there is a 3rd entry to find).
-        $include = config('backup.backup.source.files.include', []);
-        $exclude = config('backup.backup.source.files.exclude', []);
-        $selection = FileSelection::create($include);
-        foreach ($exclude as $ex) {
+        // 2. Real file selection (BackupJob::filesToBeBackedUp equivalent).
+        $selection = FileSelection::create(config('backup.backup.source.files.include', []));
+        foreach (config('backup.backup.source.files.exclude', []) as $ex) {
             $selection->excludeFilesFrom($ex);
         }
         $selection->shouldFollowLinks((bool) config('backup.backup.source.files.follow_links', false));
         $selection->shouldIgnoreUnreadableDirs((bool) config('backup.backup.source.files.ignore_unreadable_directories', false));
-
-        $public = (string) storage_path('app/public');
-        $entries = [];
-        foreach ($selection->selectedFiles() as $path) {
-            // Mirror spatie's determineNameOfFileInZip relativePath branch.
-            $name = str_starts_with($path, $public.DIRECTORY_SEPARATOR) ? substr($path, strlen($public) + 1) : $path;
-            $entries[] = ['path' => $path, 'name' => $name];
-        }
-        $entries[] = ['path' => $dump, 'name' => 'db-dumps'.DIRECTORY_SEPARATOR.basename($dump)];
-
-        $this->info('Entries spatie would zip ('.count($entries).' total):');
-        foreach ($entries as $e) {
-            $p = $e['path'];
-            $type = match (true) {
-                is_link($p) => 'SYMLINK->'.(@readlink($p) ?: '?'),
-                is_dir($p) => 'DIR',
-                is_file($p) => 'FILE',
-                default => 'MISSING/NONE',
-            };
-            $readable = is_readable($p) ? 'readable' : 'NOT-READABLE';
-            $owner = function_exists('posix_getpwuid') ? ((@posix_getpwuid(@fileowner($p)) ?: [])['name'] ?? '?') : '?';
-            $this->line('  "'.$e['name'].'"  ['.$type.' | '.$readable.' | owner='.$owner.']');
+        $files = [];
+        foreach ($selection->selectedFiles() as $p) {
+            $files[] = $p;
         }
 
-        @unlink($dump);
+        // 3. Build the manifest exactly like BackupJob (dumps first, then files).
+        $manifestPath = $tempDir.DIRECTORY_SEPARATOR.'manifest.txt';
+        @unlink($manifestPath);
+        $manifest = Manifest::create($manifestPath)->addFiles([$dump])->addFiles($files);
 
-        // The manual reproductions all pass, yet `backup:run` fails — so run
-        // spatie's ACTUAL BackupJob (exactly what backup:run does) and report
-        // the real exception. This is the definitive test: if it fails here it
-        // reproduces the live failure in an instrumented context; if it
-        // succeeds, the issue is in the Artisan command/event layer.
+        // 4. pathToZip + relativePath, exactly as spatie resolves them.
+        $pathToZip = $tempDir.DIRECTORY_SEPARATOR.'test.zip';
+        $relativePathRaw = (string) config('backup.backup.source.files.relative_path', '');
+        $relativePath = $relativePathRaw !== '' ? rtrim($relativePathRaw, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR : '';
+
+        // 5. Print each manifest entry + the NAME spatie's determineNameOfFileInZip
+        //    will compute for it (replicated here only for display).
+        $this->info('Manifest entries — "computed zip name" <- real path:');
+        $names = [];
+        foreach ($manifest->files() as $file) {
+            $name = $this->nameInZip($file, $pathToZip, $relativePath);
+            $names[] = $name;
+            $flag = $name === '' ? '  <EMPTY NAME>' : (in_array($name, array_slice($names, 0, -1), true) ? '  <DUPLICATE NAME>' : '');
+            $this->line('  "'.$name.'"  <-  '.$file.$flag);
+        }
+
+        // 6. Call spatie's ACTUAL Zip::createForManifest — the exact failing path.
         $this->newLine();
-        $this->info('Real spatie BackupJob::run() (the definitive test):');
+        $this->info("Calling spatie's Zip::createForManifest() directly…");
+        @unlink($pathToZip);
         try {
-            $job = BackupJobFactory::createFromConfig(app(Config::class));
-            $job->run();
-            $this->line('  <fg=green>BackupJob::run() SUCCEEDED — a backup was written to the destination.</>');
-            $this->line('  If the web "Backup now" still fails but this succeeds, the issue is in the Artisan');
-            $this->line('  command/event layer, not the backup engine.');
+            $zip = Zip::createForManifest($manifest, $pathToZip);
+            $this->line('  <fg=green>SUCCEEDED — '.$zip->count().' entries, '.$zip->humanReadableSize().'. Zip at '.$zip->path().'</>');
+            $this->line('  createForManifest works in isolation -> BackupJob must pass a different manifest/path.');
         } catch (\Throwable $e) {
-            $this->line('  <fg=red>BackupJob::run() FAILED:</>');
-            $this->line('  '.$e->getMessage());
-            $this->newLine();
-            $this->line('  <fg=yellow>Underlying cause:</>');
-            $prev = $e->getPrevious() ?? $e;
-            $this->line('  '.($prev->getMessage() ?: '(no message)'));
-            $this->line('  origin: '.$prev->getFile().':'.$prev->getLine());
-            $originFrame = $prev->getTrace()[0] ?? null;
-            if ($originFrame) {
-                $this->line(sprintf('  trace[0]: %s:%s', $originFrame['file'] ?? '?', $originFrame['line'] ?? '?'));
-            }
+            $this->line('  <fg=red>FAILED: '.$e->getMessage().'</>');
+            $this->line('  origin: '.$e->getFile().':'.$e->getLine());
         }
+        @unlink($pathToZip);
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Faithful replica of spatie's Zip::determineNameOfFileInZip, for display.
+     */
+    private function nameInZip(string $file, string $pathToZip, string $relativePath): string
+    {
+        $fileDirectory = pathinfo($file, PATHINFO_DIRNAME).DIRECTORY_SEPARATOR;
+        $zipDirectory = pathinfo($pathToZip, PATHINFO_DIRNAME).DIRECTORY_SEPARATOR;
+
+        if (str_starts_with($fileDirectory, $zipDirectory)) {
+            return substr($file, strlen($zipDirectory));
+        }
+
+        if ($relativePath && $relativePath !== DIRECTORY_SEPARATOR && str_starts_with($fileDirectory, $relativePath)) {
+            return substr($file, strlen($relativePath));
+        }
+
+        return $file;
     }
 }
