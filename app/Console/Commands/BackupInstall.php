@@ -164,6 +164,55 @@ class BackupInstall extends Command
             $this->line('  -> <fg=yellow>If CM_DEFAULT failed but CM_STORE worked, add BACKUP_ZIP_COMPRESS=false to .env.</>');
         }
 
+        // Source-files self-test — the ZipArchive engine works in isolation
+        // (above), so if the real backup still fails at close() the culprit is
+        // a specific source file. spatie ignores addFile()'s return value, so a
+        // rejected file (bad name / unreadable / symlink / missing dir for
+        // relative_path) silently corrupts the archive and close() then fails.
+        // This reproduces the addFile loop over the REAL storage/app/public.
+        $this->newLine();
+        $this->info('Source files self-test (storage/app/public):');
+        $public = storage_path('app/public');
+        if (! is_dir($public)) {
+            $this->line('  <fg=red>storage/app/public does NOT exist. spatie\'s relative_path resolves to nothing and ZipArchive gets invalid entry names — the likely close() cause. Fix: mkdir -p storage/app/public && touch storage/app/public/.gitignore</>');
+        } else {
+            $files = [];
+            foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($public, \FilesystemIterator::SKIP_DOTS)) as $f) {
+                if ($f->isFile()) {
+                    $files[] = $f->getPathname();
+                }
+            }
+            $this->line(sprintf('  %d file(s) under storage/app/public', count($files)));
+            $testZip = $staging.DIRECTORY_SEPARATOR.'__sourcetest.zip';
+            $bad = [];
+            foreach ($files as $i => $path) {
+                @unlink($testZip);
+                $z = new \ZipArchive;
+                if (@$z->open($testZip, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+                    continue;
+                }
+                $added = @$z->addFile($path, 'file'.$i);
+                $ok = false;
+                try {
+                    $ok = (bool) @$z->close();
+                } catch (\Throwable) {
+                    $ok = false;
+                }
+                if (! $added || ! $ok) {
+                    $bad[] = $path.' (addFile='.($added ? 'ok' : 'FAIL').', close='.($ok ? 'ok' : 'FAIL').')';
+                }
+            }
+            @unlink($testZip);
+            if ($bad === []) {
+                $this->line('  <fg=green>All source files zipped cleanly — the file source is not the cause (it would be the DB dump).</>');
+            } else {
+                $this->line('  <fg=red>Problem source file(s):</>');
+                foreach ($bad as $b) {
+                    $this->line('    '.$b);
+                }
+            }
+        }
+
         // Schedule cron
         $this->newLine();
         $this->info('Scheduler cron (required for automatic backups):');
