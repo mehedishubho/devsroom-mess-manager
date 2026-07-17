@@ -58,10 +58,12 @@ class RestoreConfirmationTest extends TestCase
         Mess::forgetActiveIdCache();
         $this->activeMessName = $mess->name;
 
-        // The show() + store() controllers read from the backups disk; fake it
-        // + seed a stub zip so $disk->exists($path) passes in the show test.
-        Storage::fake('backups');
-        Storage::disk('backups')->put(self::PATH, 'fake-zip-content');
+        // The show() + store() controllers read from destination disks.0,
+        // which is always 'backups-local' (BackupDestinations prepends it; DO
+        // Spaces creds are not set in tests). Fake that disk + seed a stub zip
+        // so $disk->exists($path) passes in the show test.
+        Storage::fake('backups-local');
+        Storage::disk('backups-local')->put(self::PATH, 'fake-zip-content');
     }
 
     protected function tearDown(): void

@@ -41,8 +41,12 @@ class BackupDownloadAccessLogTest extends TestCase
         config(['mess.active_mess_id' => Mess::first()->id]);
         Mess::forgetActiveIdCache();
 
-        Storage::fake('backups');
-        Storage::disk('backups')->put(self::PATH, 'fake-zip-content');
+        // The download controller reads destination disks.0, which is always
+        // 'backups-local' (BackupDestinations prepends it; DO Spaces creds are
+        // not set in tests so 'backups' never joins the list). Fake that disk
+        // and seed the stub zip there so $disk->exists($path) passes.
+        Storage::fake('backups-local');
+        Storage::disk('backups-local')->put(self::PATH, 'fake-zip-content');
     }
 
     private function superAdmin(): User

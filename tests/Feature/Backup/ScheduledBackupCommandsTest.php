@@ -11,7 +11,7 @@ use Tests\TestCase;
 /**
  * Plan 06-02 Task 2 — nightly backup schedule (research Pattern 8).
  *
- * backup:clean / backup:run / backup:monitor / backup:restore-test are
+ * backup:purge / backup:run / backup:monitor / backup:restore-test are
  * scheduled nightly, mirroring the existing telescope:prune class_exists
  * guard pattern. backup:run + backup:restore-test use withoutOverlapping
  * (a slow run must not double up) and onOneServer (database cache store
@@ -30,7 +30,9 @@ class ScheduledBackupCommandsTest extends TestCase
             ->map(fn ($event) => $event->command)
             ->implode("\n");
 
-        $this->assertStringContainsString('backup:clean', $commands, 'backup:clean is not scheduled.');
+        // backup:purge (the app's DB-driven cap cleaner) replaces spatie's
+        // config-only backup:clean — see routes/console.php.
+        $this->assertStringContainsString('backup:purge', $commands, 'backup:purge is not scheduled.');
         $this->assertStringContainsString('backup:run', $commands, 'backup:run is not scheduled.');
         $this->assertStringContainsString('backup:monitor', $commands, 'backup:monitor is not scheduled.');
         $this->assertStringContainsString('backup:restore-test', $commands, 'backup:restore-test is not scheduled.');

@@ -29,6 +29,11 @@ class UserFactory extends Factory
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
+            // Default to "already changed" so factory-built users pass the
+            // password.change (RequirePasswordChange) middleware on /my* routes.
+            // Tests covering the first-login forced-password-change flow opt
+            // OUT by passing ['password_changed_at' => null] explicitly.
+            'password_changed_at' => now(),
             'remember_token' => Str::random(10),
         ];
     }
