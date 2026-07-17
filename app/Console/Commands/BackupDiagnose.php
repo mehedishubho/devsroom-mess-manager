@@ -67,9 +67,18 @@ class BackupDiagnose extends Command
         }
         $entries[] = ['path' => $dump, 'name' => 'db-dumps'.DIRECTORY_SEPARATOR.basename($dump)];
 
-        $this->info('Entries spatie would zip ('.count($entries).' total — spatie logs "3 files and directories"):');
+        $this->info('Entries spatie would zip ('.count($entries).' total):');
         foreach ($entries as $e) {
-            $this->line('  "'.$e['name'].'"  <-  '.$e['path']);
+            $p = $e['path'];
+            $type = match (true) {
+                is_link($p) => 'SYMLINK->'.(@readlink($p) ?: '?'),
+                is_dir($p) => 'DIR',
+                is_file($p) => 'FILE',
+                default => 'MISSING/NONE',
+            };
+            $readable = is_readable($p) ? 'readable' : 'NOT-READABLE';
+            $owner = function_exists('posix_getpwuid') ? ((@posix_getpwuid(@fileowner($p)) ?: [])['name'] ?? '?') : '?';
+            $this->line('  "'.$e['name'].'"  ['.$type.' | '.$readable.' | owner='.$owner.']');
         }
 
         // 3. Variants — auto-isolate the trigger.
@@ -99,13 +108,24 @@ class BackupDiagnose extends Command
                 if (($cfg['skipFiles'] ?? false) && ! str_contains($e['name'], 'db-dumps')) {
                     continue;
                 }
-                @$z->addFile($e['path'], $e['name']);
-                if ($cfg['compress']) {
+                // Mirror spatie's Zip::add(): dirs -> addEmptyDir, files ->
+                // addFile (+ setCompressionName). My earlier version addFile'd
+                // directories directly, which produced a false failure.
+                if (is_dir($e['path'])) {
                     try {
-                        @$z->setCompressionName($e['name'], $cfg['method'], $cfg['level']);
+                        @$z->addEmptyDir($e['name']);
                     } catch (\Throwable) {
                     }
+                } elseif (is_file($e['path'])) {
+                    @$z->addFile($e['path'], $e['name']);
+                    if ($cfg['compress']) {
+                        try {
+                            @$z->setCompressionName($e['name'], $cfg['method'], $cfg['level']);
+                        } catch (\Throwable) {
+                        }
+                    }
                 }
+                // else: broken symlink / missing — spatie skips (fileCount++ only).
             }
             $ok = false;
             try {
