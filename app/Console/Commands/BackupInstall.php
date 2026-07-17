@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Spatie\Backup\Tasks\Backup\DbDumperFactory;
 
 /**
  * One-shot setup + diagnostic for the backup system on shared hosting
@@ -213,7 +214,50 @@ class BackupInstall extends Command
             }
         }
 
-        // Schedule cron
+        // DB dump self-test — the source files zipped cleanly, so the remaining
+        // suspect is the DB dump spatie adds to the same archive. This runs the
+        // REAL mysqldump (via spatie's own DbDumperFactory) and then addFile +
+        // close on it, exactly like BackupJob does.
+        $this->newLine();
+        $this->info('DB dump self-test (mysqldump -> addFile -> close):');
+        $dumpFile = $staging.DIRECTORY_SEPARATOR.'__dumptest.sql';
+        $dumpZip = $staging.DIRECTORY_SEPARATOR.'__dumptest.zip';
+        @unlink($dumpFile);
+        @unlink($dumpZip);
+        try {
+            $dumper = DbDumperFactory::createFromConnection(config('database.default'));
+            $dumper->dumpToFile($dumpFile);
+            $size = is_file($dumpFile) ? (int) filesize($dumpFile) : 0;
+            $this->line(sprintf('  dump created: %s (%s bytes)', basename($dumpFile), number_format($size)));
+            $z = new \ZipArchive;
+            $opened = @$z->open($dumpZip, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+            if ($opened !== true) {
+                $this->line("  <fg=red>zip open() failed ($opened)</>");
+            } else {
+                $entry = 'db-dumps'.DIRECTORY_SEPARATOR.basename($dumpFile);
+                @$z->addFile($dumpFile, $entry);
+                try {
+                    @$z->setCompressionName($entry, \ZipArchive::CM_DEFAULT, 9);
+                } catch (\Throwable) {
+                }
+                $ok = false;
+                try {
+                    $ok = (bool) @$z->close();
+                } catch (\Throwable) {
+                    $ok = false;
+                }
+                $this->line($ok
+                    ? '  <fg=green>dump zipped cleanly (close() OK) — the dump is not the cause either.</>'
+                    : '  <fg=red>dump addFile/close() FAILED — the DB dump is what breaks the zip.</>');
+            }
+        } catch (\Throwable $e) {
+            $this->line('  <fg=red>dump test error: '.$e->getMessage().'</>');
+        } finally {
+            @unlink($dumpFile);
+            @unlink($dumpZip);
+        }
+
+        // Scheduler cron
         $this->newLine();
         $this->info('Scheduler cron (required for automatic backups):');
         $this->line('  * * * * * cd '.base_path().' && php artisan schedule:run >> /dev/null 2>&1');
