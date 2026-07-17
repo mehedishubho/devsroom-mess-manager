@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Spatie\Backup\Config\Config;
 use Spatie\Backup\Tasks\Backup\DbDumperFactory;
 use Spatie\Backup\Tasks\Backup\FileSelection;
 use Spatie\Backup\Tasks\Backup\Manifest;
@@ -78,16 +79,45 @@ class BackupDiagnose extends Command
         }
 
         // 6. Call spatie's ACTUAL Zip::createForManifest — the exact failing path.
+        //    First: report encryption status. spatie's Zip enables encryption
+        //    (setEncryptionName on every entry) whenever backup.backup.password
+        //    is non-null — and env('BACKUP_ARCHIVE_PASSWORD') returns '' (not
+        //    null) for an empty `BACKUP_ARCHIVE_PASSWORD=` line, silently
+        //    turning encryption ON with an empty password. AES setEncryptionName
+        //    is a known ZipArchive::close() killer on some libzip builds.
+        $pw = config('backup.backup.password');
+        $pwStatus = $pw === null ? 'null (encryption OFF)' : ('set (length='.(is_string($pw) ? strlen($pw) : '?').' — encryption ON)');
         $this->newLine();
-        $this->info("Calling spatie's Zip::createForManifest() directly…");
+        $this->info('Encryption status:');
+        $this->line('  backup.backup.password: '.$pwStatus);
+        $this->line('  BACKUP_ARCHIVE_PASSWORD env: '.(getenv('BACKUP_ARCHIVE_PASSWORD') === false ? '(unset)' : '(set — even an empty = line enables encryption!)'));
+
+        $this->newLine();
+        $this->info('Test A — Zip::createForManifest with CURRENT config:');
         @unlink($pathToZip);
         try {
             $zip = Zip::createForManifest($manifest, $pathToZip);
-            $this->line('  <fg=green>SUCCEEDED — '.$zip->count().' entries, '.$zip->humanReadableSize().'. Zip at '.$zip->path().'</>');
-            $this->line('  createForManifest works in isolation -> BackupJob must pass a different manifest/path.');
+            $this->line('  <fg=green>SUCCEEDED</>');
         } catch (\Throwable $e) {
             $this->line('  <fg=red>FAILED: '.$e->getMessage().'</>');
-            $this->line('  origin: '.$e->getFile().':'.$e->getLine());
+        }
+        @unlink($pathToZip);
+
+        // Test B: force encryption OFF (password=null) and retry. If this
+        // succeeds, encryption is confirmed as the close() cause and the fix
+        // is to UNSET BACKUP_ARCHIVE_PASSWORD in .env.
+        $this->newLine();
+        $this->info('Test B — same, with encryption FORCED OFF (password=null):');
+        $configArray = config('backup');
+        $configArray['backup']['password'] = null;
+        app()->instance(Config::class, Config::fromArray($configArray));
+        @unlink($pathToZip);
+        try {
+            $zip = Zip::createForManifest($manifest, $pathToZip);
+            $this->line('  <fg=green>SUCCEEDED — encryption was the cause. FIX: remove BACKUP_ARCHIVE_PASSWORD from .env (or set it null).</>');
+        } catch (\Throwable $e) {
+            $this->line('  <fg=red>FAILED too: '.$e->getMessage().'</>');
+            $this->line('  (encryption was not the cause — keep digging.)');
         }
         @unlink($pathToZip);
 

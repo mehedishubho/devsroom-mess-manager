@@ -155,7 +155,7 @@ return [
          * DO Spaces already provides server-side encryption at rest; this is belt-and-suspenders.
          * Operator supplies a strong value in prod via BACKUP_ARCHIVE_PASSWORD; empty = no encryption.
          */
-        'password' => env('BACKUP_ARCHIVE_PASSWORD'),
+        'password' => env('BACKUP_ARCHIVE_PASSWORD') ?: null,
 
         /*
          * The encryption algorithm to be used for archive encryption.
