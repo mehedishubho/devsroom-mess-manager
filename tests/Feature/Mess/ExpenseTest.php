@@ -49,10 +49,10 @@ class ExpenseTest extends TestCase
 
         $controller = app(ExpenseController::class);
         $reflection = new \ReflectionClass($controller);
-        $storeBazar = $reflection->getMethod('storeBazar');
-        $storeBazar->setAccessible(true);
+        $store = $reflection->getMethod('store');
+        $store->setAccessible(true);
 
-        $request = StoreExpenseRequest::create(route('mess.expenses.bazar.store'), 'POST', [
+        $request = StoreExpenseRequest::create(route('mess.expenses.store'), 'POST', [
             'expense_category_id' => $category->id,
             'date' => now()->toDateString(),
             'purchased_by' => $member->id,
@@ -65,7 +65,7 @@ class ExpenseTest extends TestCase
         $request->setUserResolver(fn () => $admin);
         $request->validateResolved();
 
-        $response = $storeBazar->invoke($controller, $request);
+        $response = $store->invoke($controller, $request);
         $this->assertInstanceOf(RedirectResponse::class, $response);
 
         $this->assertDatabaseHas('expenses', [
@@ -83,10 +83,10 @@ class ExpenseTest extends TestCase
 
         $controller = app(ExpenseController::class);
         $reflection = new \ReflectionClass($controller);
-        $storeFixed = $reflection->getMethod('storeFixed');
-        $storeFixed->setAccessible(true);
+        $store = $reflection->getMethod('store');
+        $store->setAccessible(true);
 
-        $request = StoreExpenseRequest::create(route('mess.expenses.fixed.store'), 'POST', [
+        $request = StoreExpenseRequest::create(route('mess.expenses.store'), 'POST', [
             'expense_category_id' => $category->id,
             'date' => now()->toDateString(),
             'description' => 'November rent',
@@ -97,7 +97,7 @@ class ExpenseTest extends TestCase
         $request->setUserResolver(fn () => $admin);
         $request->validateResolved();
 
-        $response = $storeFixed->invoke($controller, $request);
+        $response = $store->invoke($controller, $request);
         $this->assertInstanceOf(RedirectResponse::class, $response);
 
         $this->assertDatabaseHas('expenses', [

@@ -11,6 +11,14 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
+/**
+ * Task 6 (quick-260717-2q3) — unified Add Expense form.
+ *
+ * Replaces the two split controllers (createBazar/storeBazar/createFixed/
+ * storeFixed) with one create() + one store(). The category's kind is the
+ * single source of truth — bazar/fixed/other all live behind one entry
+ * point and a grouped dropdown.
+ */
 class ExpenseController extends Controller
 {
     public function __construct(private readonly ExpenseService $service) {}
@@ -22,43 +30,26 @@ class ExpenseController extends Controller
         return view('mess.expenses.index', compact('expenses'));
     }
 
-    public function createBazar(): View
+    public function create(): View
     {
-        $categories = ExpenseCategory::where('kind', ExpenseKind::BAZAR)->orderBy('name')->get();
+        // Group every category for the active mess by kind, in the canonical
+        // ExpenseKind::ALL order so the optgroups stay stable.
+        $grouped = ExpenseCategory::query()
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name', 'kind'])
+            ->groupBy('kind')
+            ->sortKeysUsing(fn ($a, $b) => array_search($a, ExpenseKind::ALL) <=> array_search($b, ExpenseKind::ALL));
 
-        return view('mess.expenses.bazar.create', compact('categories'));
+        return view('mess.expenses.create', compact('grouped'));
     }
 
-    public function storeBazar(StoreExpenseRequest $request): RedirectResponse
+    public function store(StoreExpenseRequest $request): RedirectResponse
     {
-        $expense = $this->service->create(
-            $request->validated(),
-            $request->file('receipt'),
-            ExpenseKind::BAZAR,
-        );
+        $expense = $this->service->create($request->validated(), $request->file('receipt'));
 
         return redirect()
             ->route('mess.expenses.index')
-            ->with('success', __('Bazar expense of :amount recorded.', ['amount' => number_format((float) $expense->amount, 2)]));
-    }
-
-    public function createFixed(): View
-    {
-        $categories = ExpenseCategory::where('kind', ExpenseKind::FIXED)->orderBy('name')->get();
-
-        return view('mess.expenses.fixed.create', compact('categories'));
-    }
-
-    public function storeFixed(StoreExpenseRequest $request): RedirectResponse
-    {
-        $expense = $this->service->create(
-            $request->validated(),
-            $request->file('receipt'),
-            ExpenseKind::FIXED,
-        );
-
-        return redirect()
-            ->route('mess.expenses.index')
-            ->with('success', __('Fixed expense of :amount recorded.', ['amount' => number_format((float) $expense->amount, 2)]));
+            ->with('success', __('Expense of :amount recorded.', ['amount' => number_format((float) $expense->amount, 2)]));
     }
 }

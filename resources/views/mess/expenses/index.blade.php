@@ -6,11 +6,8 @@
             <p class="mt-1 text-sm text-slate-600">{{ __('All bazar and fixed expenses, most recent first.') }}</p>
         </div>
         <div class="flex flex-wrap gap-2">
-            <a href="{{ route('mess.expenses.bazar.create') }}" class="btn btn-amber">
-                {{ __('Add bazar') }}
-            </a>
-            <a href="{{ route('mess.expenses.fixed.create') }}" class="btn btn-sky">
-                {{ __('Add fixed') }}
+            <a href="{{ route('mess.expenses.create') }}" class="btn btn-primary">
+                {{ __('Add expense') }}
             </a>
         </div>
     </header>
