@@ -14,6 +14,13 @@ use Spatie\Backup\Tasks\Monitor\HealthChecks\MaximumStorageInMegabytes;
 
 return [
 
+    // Optional restore-test (loads the latest backup into a scratch DB to
+    // verify row-count parity). Needs a SEPARATE database the app's MySQL
+    // user can create/drop tables in (DB_RESTORE_TEST_DATABASE). On shared
+    // hosting where you can't provision that scratch DB, set
+    // BACKUP_RESTORE_TEST_ENABLED=false to skip the nightly test + the button.
+    'restore_test_enabled' => env('BACKUP_RESTORE_TEST_ENABLED', true),
+
     'backup' => [
         /*
          * The name of this application. You can use this name to monitor

@@ -92,6 +92,10 @@ class BackupController extends Controller
 
     public function runRestoreTest(): RedirectResponse
     {
+        if (! config('backup.restore_test_enabled', true)) {
+            return back()->with('success', __('Restore-test is disabled (BACKUP_RESTORE_TEST_ENABLED=false). Backups still run; only the verification step is off.'));
+        }
+
         if ($preflight = $this->preflightWritable()) {
             return $this->recordLog('restore_test', 'failure', $preflight, key: 'restore-test');
         }
@@ -233,6 +237,7 @@ class BackupController extends Controller
             // the whole Backups page and lock the super-admin out of configuring.
             'backupLogs' => $this->safeRecentLogs(),
             'backupLogUnavailable' => $this->backupLogUnavailable,
+            'restoreTestEnabled' => (bool) config('backup.restore_test_enabled', true),
         ];
     }
 

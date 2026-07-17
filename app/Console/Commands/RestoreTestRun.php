@@ -39,7 +39,13 @@ class RestoreTestRun extends Command
 
             return self::FAILURE;
         } catch (Throwable $e) {
-            $this->error("Restore-test errored: {$e->getMessage()}");
+            $msg = $e->getMessage();
+            $hint = '';
+            if (preg_match('/Access denied|Unknown database|Unknown column/i', $msg)) {
+                $db = config('database.connections.mysql_restore_test.database', 'devsroom_mess_restore_test');
+                $hint = " The restore-test scratch database '{$db}' is missing or the MySQL user lacks privileges on it. Either create it + GRANT the app user, or disable the test with BACKUP_RESTORE_TEST_ENABLED=false.";
+            }
+            $this->error("Restore-test error: {$msg}{$hint}");
             report($e);
 
             return self::FAILURE;

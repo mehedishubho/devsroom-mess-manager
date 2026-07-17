@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\BackupConfig;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -27,7 +28,7 @@ if (class_exists(BackupServiceProvider::class)) {
 
     // Backup cadence is admin-configurable via BackupConfig (off/daily/weekly/monthly + time).
     // The scheduler is rebuilt each schedule:run, so a change takes effect within a minute.
-    $cfg = \App\Models\BackupConfig::current();
+    $cfg = BackupConfig::current();
 
     if (in_array($cfg->frequency, ['daily', 'weekly', 'monthly'], true)) {
         Schedule::command('backup:run')
@@ -41,7 +42,10 @@ if (class_exists(BackupServiceProvider::class)) {
     // D-04: nightly restore-test. Tunable — change cadence here to weekly if
     // VPS load matters. Guarded on spatie (WR-07): the RestoreTestRun command
     // ships in the app regardless, but the test needs a spatie backup zip to
-    // load, so it is meaningless without the backup pipeline.
-    Schedule::command('backup:restore-test')->daily()->at('03:00')
-        ->withoutOverlapping()->onOneServer();
+    // load, so it is meaningless without the backup pipeline. Skipped entirely
+    // when BACKUP_RESTORE_TEST_ENABLED=false (shared hosting without a scratch DB).
+    if (config('backup.restore_test_enabled', true)) {
+        Schedule::command('backup:restore-test')->daily()->at('03:00')
+            ->withoutOverlapping()->onOneServer();
+    }
 }

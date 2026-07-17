@@ -13,12 +13,14 @@
                     {{ __('Backup now') }}
                 </button>
             </form>
-            <form action="{{ route('dashboard.backups.restore-test.run') }}" method="POST">
-                @csrf
-                <button type="submit" class="btn btn-secondary">
-                    {{ __('Run restore-test') }}
-                </button>
-            </form>
+            @if ($restoreTestEnabled)
+                <form action="{{ route('dashboard.backups.restore-test.run') }}" method="POST">
+                    @csrf
+                    <button type="submit" class="btn btn-secondary">
+                        {{ __('Run restore-test') }}
+                    </button>
+                </form>
+            @endif
         </div>
     </header>
 
@@ -102,6 +104,9 @@
         <div class="mt-3">
             @include('dashboard.backups._health_badge', ['latestRestoreTest' => $latestRestoreTest])
         </div>
+        @if (! $restoreTestEnabled)
+            <p class="mt-2 text-xs text-slate-500">{{ __('Restore-test is disabled (BACKUP_RESTORE_TEST_ENABLED=false). Backups still run; only the automated verification is off. Create the scratch database and re-enable to verify restorability.') }}</p>
+        @endif
     </section>
 
     {{-- Backup list (download / restore / delete) --}}
