@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Spatie\Backup\Tasks\Backup\DbDumperFactory;
+use Spatie\Backup\Tasks\Backup\FileSelection;
 use ZipArchive;
 
 /**
@@ -44,21 +45,29 @@ class BackupDiagnose extends Command
             return self::FAILURE;
         }
 
-        // 2. Real source files with their REAL relative entry names (this is
-        //    what my earlier self-test skipped — it used 'file0' and no
-        //    setCompressionName).
-        $public = storage_path('app/public');
+        // 2. Use spatie's OWN FileSelection so we see EXACTLY what spatie backs
+        //    up (Symfony Finder may surface a file/dir my RecursiveIterator
+        //    missed — spatie logs "Zipping 3 files and directories" but my
+        //    earlier scan found 2, so there is a 3rd entry to find).
+        $include = config('backup.backup.source.files.include', []);
+        $exclude = config('backup.backup.source.files.exclude', []);
+        $selection = FileSelection::create($include);
+        foreach ($exclude as $ex) {
+            $selection->excludeFilesFrom($ex);
+        }
+        $selection->shouldFollowLinks((bool) config('backup.backup.source.files.follow_links', false));
+        $selection->shouldIgnoreUnreadableDirs((bool) config('backup.backup.source.files.ignore_unreadable_directories', false));
+
+        $public = (string) storage_path('app/public');
         $entries = [];
-        if (is_dir($public)) {
-            foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($public, \FilesystemIterator::SKIP_DOTS)) as $f) {
-                if ($f->isFile()) {
-                    $entries[] = ['path' => $f->getPathname(), 'name' => substr($f->getPathname(), strlen($public) + 1)];
-                }
-            }
+        foreach ($selection->selectedFiles() as $path) {
+            // Mirror spatie's determineNameOfFileInZip relativePath branch.
+            $name = str_starts_with($path, $public.DIRECTORY_SEPARATOR) ? substr($path, strlen($public) + 1) : $path;
+            $entries[] = ['path' => $path, 'name' => $name];
         }
         $entries[] = ['path' => $dump, 'name' => 'db-dumps'.DIRECTORY_SEPARATOR.basename($dump)];
 
-        $this->info('Entries spatie would zip:');
+        $this->info('Entries spatie would zip ('.count($entries).' total — spatie logs "3 files and directories"):');
         foreach ($entries as $e) {
             $this->line('  "'.$e['name'].'"  <-  '.$e['path']);
         }
