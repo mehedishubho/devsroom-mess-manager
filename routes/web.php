@@ -72,6 +72,10 @@ Route::middleware(['auth', 'role:super-admin'])
         Route::put('/configure', [BackupController::class, 'update'])->name('configure.update');
         Route::post('/run', [BackupController::class, 'runNow'])->name('run');
         Route::post('/restore-test', [BackupController::class, 'runRestoreTest'])->name('restore-test.run');
+        // Activity-log delete (registered BEFORE the {path} wildcard so
+        // /logs and /logs/{log} are not swallowed by /{path}).
+        Route::delete('/logs', [BackupController::class, 'clearLogs'])->name('logs.clear');
+        Route::delete('/logs/{log}', [BackupController::class, 'destroyLog'])->name('logs.destroy');
         Route::get('/{path}/download', [BackupController::class, 'download'])
             ->where('path', '.*')->name('download');
         Route::delete('/{path}', [BackupController::class, 'destroy'])

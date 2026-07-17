@@ -29,6 +29,13 @@
                 <h2 class="text-lg font-semibold leading-tight text-slate-900">{{ __('Activity log') }}</h2>
                 <p class="mt-1 text-sm text-slate-600">{{ __('Every backup / restore / configure attempt — failures show the real reason (e.g. mysqldump missing).') }}</p>
             </div>
+            @if ($backupLogs->isNotEmpty())
+                <form action="{{ route('dashboard.backups.logs.clear') }}" method="POST" onsubmit="return confirm('{{ __('Delete ALL log entries?') }}');">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="btn btn-secondary">{{ __('Clear all') }}</button>
+                </form>
+            @endif
         </div>
         <div class="mt-4 overflow-x-auto">
             <table class="min-w-full divide-y divide-slate-200">
@@ -38,6 +45,7 @@
                         <th scope="col" class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500">{{ __('Action') }}</th>
                         <th scope="col" class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500">{{ __('Status') }}</th>
                         <th scope="col" class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500">{{ __('Message') }}</th>
+                        <th scope="col" class="px-3 py-2 text-right text-xs font-medium uppercase tracking-wider text-slate-500">{{ __('Actions') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200 bg-white">
@@ -56,10 +64,17 @@
                                 @if ($log->path)<span class="break-all font-mono text-slate-500">{{ basename($log->path) }}</span>@if ($log->message)<br />@endif @endif
                                 @if ($log->message)<span class="break-words whitespace-pre-wrap">{{ $log->message }}</span>@endif
                             </td>
+                            <td class="px-3 py-2 text-right">
+                                <form method="POST" action="{{ route('dashboard.backups.logs.destroy', $log) }}" class="inline" onsubmit="return confirm('{{ __('Delete this log entry?') }}');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="text-xs font-medium text-red-700 hover:underline">{{ __('Delete') }}</button>
+                                </form>
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="4" class="px-3 py-6 text-center text-sm text-slate-500">{{ __('No activity yet. Click "Backup now" to create a backup.') }}</td>
+                            <td colspan="5" class="px-3 py-6 text-center text-sm text-slate-500">{{ __('No activity yet. Click "Backup now" to create a backup.') }}</td>
                         </tr>
                     @endforelse
                 </tbody>

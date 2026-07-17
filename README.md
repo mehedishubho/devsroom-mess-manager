@@ -76,7 +76,7 @@ A web-based mess management system built for Bangladesh messes — bachelor host
 | **Auth & Admin** | Tyro Dashboard + Tyro Login (roles: `super-admin` / `admin` / `manager` / `user`) |
 | **Auditing** | `owen-it/laravel-auditing` — append-only entry on every write |
 | **Exports** | Dompdf (PDF) + Maatwebsite Excel (`.xlsx`) |
-| **Backups** | `spatie/laravel-backup` → local folder + DigitalOcean Spaces (S3) |
+| **Backups** | `spatie/laravel-backup` → Local + DigitalOcean Spaces / Cloudflare R2 (S3-compatible) + Google Drive, DB-toggled per group, with an on-page activity log and one-click restore |
 | **Queue** | `database` connection — `CloseMonthJob` (idempotent, `onOneServer`) |
 
 ---
@@ -235,6 +235,64 @@ The app ships with four roles. Every manager route is gated by `roles:` middlewa
 | **user / mess-member** | Self-service only: own bill, payments, meal-off requests, own statement & monthly report | `/my` |
 
 **Notifications** are role-aware too: members receive due-reminders, payment confirmations, and meal-off decisions on their configured channels; managers/super-admin receive month-close and backup-failure broadcasts.
+
+---
+
+## Backups
+
+The backup system (`super-admin` only, at **Dashboard → Backups**) is built on `spatie/laravel-backup` and is designed to work on both a VPS **and** restrictive shared hosting (CloudPanel, cPanel, Plesk).
+
+**What gets backed up:** the full MySQL database + `storage/app/public` (member photos, expense receipts). The `.env` file is **never** included. Backups land as date-stamped `.zip` files in `storage/app/backups`.
+
+**Destinations / providers** — toggle each independently for two groups (backup destination vs. uploads mirror), DB-backed so no redeploy is needed to switch:
+
+| Provider | Type | Env vars |
+|---|---|---|
+| **Local** | Always on | none — writes to `storage/app/backups` |
+| **DigitalOcean Spaces** | S3-compatible | `DO_SPACES_KEY`, `DO_SPACES_SECRET`, `DO_SPACES_REGION`, `DO_SPACES_BUCKET`, `DO_SPACES_ENDPOINT` |
+| **Cloudflare R2** | S3-compatible | `R2_KEY`, `R2_SECRET`, `R2_BUCKET`, `R2_ENDPOINT` |
+| **Google Drive** | `masbug/flysystem-google-drive-ext` | `GOOGLE_DRIVE_CLIENT_ID`, `GOOGLE_DRIVE_CLIENT_SECRET`, `GOOGLE_DRIVE_REFRESH_TOKEN`, `GOOGLE_DRIVE_FOLDER_ID` |
+
+**The Backups page:**
+- **Backup now** / **Run restore-test** — manual triggers.
+- **Activity log** — every attempt (backup / restore-test / download / delete) is recorded with status **and the captured error**, so a failure shows the real reason instead of vanishing. Each row has a **Delete** button; **Clear all** empties the log.
+- **Configuration** (inline) — schedule (frequency + time), retention (keep-days + storage cap), and the per-provider toggles above. Saved changes take effect immediately.
+- **Restore-test health badge** — the nightly restore-test verifies the latest backup by loading it into a scratch DB and asserting row-count parity.
+- **Backup list** — download / restore / delete each archive. Restore is a guarded, typed-mess-name, audit-logged flow.
+
+### Shared-hosting setup (CloudPanel / cPanel / Plesk)
+
+Backups need three things that shared hosting sometimes lacks: **writable `storage/`**, the **`mysqldump` binary**, and a **scheduler cron**. Run the diagnostic once and it prints exactly what to fix for your panel:
+
+```bash
+php artisan backup:install
+```
+
+It creates `storage/app/{backups,laravel-backup,tmp}`, reports writability + owner, checks `mysqldump`, checks `open_basedir` vs. `sys_temp_dir`, and prints the cron line.
+
+**The #1 CloudPanel/cPanel gotcha — ownership.** Deploying over SSH as `root` makes files root-owned, so PHP-FPM (which runs as the site user) can't write — the symptom is an opaque `ZipArchive::close(): Invalid argument`. Fix as root:
+
+```bash
+cd /home/<site-user>/htdocs/<domain>          # CloudPanel; cPanel: /home/<user>/public_html
+chown -R <site-user>:<site-user> .            # re-own to the account PHP runs as
+find storage bootstrap/cache -type d -exec chmod 775 {} \;
+find storage bootstrap/cache -type f -exec chmod 664 {} \;
+```
+
+**`open_basedir` / `sys_temp_dir`:** `ZipArchive` uses the system temp dir internally; if your panel's `open_basedir` excludes it, set an in-account temp dir (panel PHP settings or `.user.ini`):
+```ini
+sys_temp_dir = /home/<site-user>/htdocs/<domain>/storage/app/tmp
+upload_tmp_dir = /home/<site-user>/htdocs/<domain>/storage/app/tmp
+```
+
+**Automatic backups** require the Laravel scheduler running every minute (CloudPanel/cPanel Cron Jobs, or `/etc/cron.d`):
+```
+* * * * * cd /path/to/app && php artisan schedule:run >> /dev/null 2>&1
+```
+
+The app also catches failures that `backup:run` silently swallows: if a run reports success but no zip was produced (e.g. `mysqldump` missing or the temp dir blocked), the pre-flight + post-run checks mark it failed and the activity log shows why.
+
+For the full VPS/Forge disaster-recovery runbook (restore steps, credential rotation, retention), see [**DEPLOYMENT.md §11**](./DEPLOYMENT.md).
 
 ---
 

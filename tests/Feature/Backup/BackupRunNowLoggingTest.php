@@ -124,6 +124,36 @@ class BackupRunNowLoggingTest extends TestCase
             ->assertSee('mysqldump: command not found');
     }
 
+    public function test_super_admin_can_delete_a_single_log_entry(): void
+    {
+        $log = BackupLog::create([
+            'action' => 'backup',
+            'status' => 'failure',
+            'message' => 'stale failure',
+            'user_id' => $this->superAdmin()->id,
+        ]);
+
+        $this->actingAs($this->superAdmin())
+            ->from(route('dashboard.backups.index'))
+            ->delete(route('dashboard.backups.logs.destroy', $log))
+            ->assertRedirect(route('dashboard.backups.index'));
+
+        $this->assertDatabaseMissing('backup_logs', ['id' => $log->id]);
+    }
+
+    public function test_super_admin_can_clear_the_whole_activity_log(): void
+    {
+        BackupLog::create(['action' => 'backup', 'status' => 'success']);
+        BackupLog::create(['action' => 'download', 'status' => 'success']);
+
+        $this->actingAs($this->superAdmin())
+            ->from(route('dashboard.backups.index'))
+            ->delete(route('dashboard.backups.logs.clear'))
+            ->assertRedirect(route('dashboard.backups.index'));
+
+        $this->assertSame(0, BackupLog::count());
+    }
+
     public function test_configure_form_is_inlined_on_the_backups_page(): void
     {
         // Request 1 of the follow-up: Configure lives ON Dashboard > Backups,

@@ -145,6 +145,26 @@ class BackupController extends Controller
     }
 
     /**
+     * Delete a single backup activity-log entry.
+     */
+    public function destroyLog(BackupLog $log): RedirectResponse
+    {
+        $log->delete();
+
+        return back()->with('success', __('Log entry deleted.'));
+    }
+
+    /**
+     * Clear the entire backup activity log.
+     */
+    public function clearLogs(): RedirectResponse
+    {
+        BackupLog::query()->delete();
+
+        return back()->with('success', __('Activity log cleared.'));
+    }
+
+    /**
      * Save the Configure form. Persists the singleton row, then clears the
      * config cache so the new schedule + retention + provider toggles take
      * effect immediately (the scheduler reads BackupConfig at each
