@@ -97,8 +97,14 @@ class BackupRestoreService
     {
         $cfg = config('database.connections.mysql');
 
+        // Resolve the mysql client the same way mysqldump is resolved: from
+        // DUMP_BINARY_PATH's directory (they ship together in mysql-client).
+        // Falls back to a bare 'mysql' (PATH lookup) if the dir is unset.
+        $dumpDir = rtrim((string) ($cfg['dump']['dump_binary_path'] ?? ''), DIRECTORY_SEPARATOR);
+        $mysqlBinary = ($dumpDir !== '' ? $dumpDir.DIRECTORY_SEPARATOR : '').'mysql';
+
         $process = new Process([
-            'mysql',
+            $mysqlBinary,
             '--host='.$cfg['host'],
             '--port='.$cfg['port'],
             '--user='.$cfg['username'],

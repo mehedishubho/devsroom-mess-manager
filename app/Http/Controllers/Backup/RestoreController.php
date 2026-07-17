@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Backup;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Backup\RestoreRequest;
+use App\Models\BackupLog;
 use App\Services\BackupRestoreService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Log;
@@ -62,6 +63,8 @@ class RestoreController extends Controller
                 'ip' => $request->ip(),
             ], $request);
 
+            $this->recordLog('restore', 'success', __('Restore completed.'), $path);
+
             return redirect()
                 ->route('dashboard.backups.index')
                 ->with('success', __('Restore completed. The app is back online.'));
@@ -76,10 +79,35 @@ class RestoreController extends Controller
                 'ip' => $request->ip(),
             ], $request);
 
+            // Surface the REAL error (mysql missing, dump not found, etc.) in
+            // both the activity log and the flash — "check logs" is not
+            // actionable on shared hosting.
+            $message = $e->getMessage();
+            $this->recordLog('restore', 'failure', $message, $path);
+
             // BackupRestoreService::restoreFromDisk (Plan 06-02) ALWAYS calls
             // Artisan::call('up') in its finally block — the app stays live
             // even when the restore itself failed.
-            return back()->withErrors(['restore' => __('Restore failed. App is back online; check logs.')]);
+            return back()->withErrors(['restore' => __('Restore failed. App is back online. Reason: :msg', ['msg' => $message])]);
+        }
+    }
+
+    /**
+     * Write a backup_logs row (restores belong in the same activity log as
+     * backups). Tolerates a missing backup_logs table.
+     */
+    private function recordLog(string $action, string $status, ?string $message = null, ?string $path = null): void
+    {
+        try {
+            BackupLog::create([
+                'action' => $action,
+                'status' => $status,
+                'path' => $path,
+                'message' => $message,
+                'user_id' => request()->user()?->id,
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('backup_logs write failed: '.$e->getMessage());
         }
     }
 
