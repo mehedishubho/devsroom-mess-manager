@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Spatie\Backup\Config\Config;
+use Spatie\Backup\Tasks\Backup\BackupJobFactory;
 use Spatie\Backup\Tasks\Backup\DbDumperFactory;
 use Spatie\Backup\Tasks\Backup\FileSelection;
 use ZipArchive;
@@ -81,79 +83,33 @@ class BackupDiagnose extends Command
             $this->line('  "'.$e['name'].'"  ['.$type.' | '.$readable.' | owner='.$owner.']');
         }
 
-        // 3. Variants — auto-isolate the trigger.
-        $variants = [
-            'V1 full reproduction (addFile + setCompressionName CM_DEFAULT/9)' => ['compress' => true, 'method' => ZipArchive::CM_DEFAULT, 'level' => 9],
-            'V2 no setCompressionName at all' => ['compress' => false, 'method' => 0, 'level' => 0],
-            'V3 setCompressionName CM_STORE (BACKUP_ZIP_COMPRESS=false)' => ['compress' => true, 'method' => ZipArchive::CM_STORE, 'level' => 0],
-            'V4 source files only, with setCompressionName' => ['compress' => true, 'method' => ZipArchive::CM_DEFAULT, 'level' => 9, 'skipDump' => true],
-            'V5 dump only, with setCompressionName' => ['compress' => true, 'method' => ZipArchive::CM_DEFAULT, 'level' => 9, 'skipFiles' => true],
-        ];
-
-        $results = [];
-        foreach ($variants as $label => $cfg) {
-            $zipFile = $tempDir.DIRECTORY_SEPARATOR.'__diag_'.uniqid('v', true).'.zip';
-            $z = new ZipArchive;
-            $opened = @$z->open($zipFile, ZipArchive::CREATE | ZipArchive::OVERWRITE);
-            if ($opened !== true) {
-                $this->line("  <fg=red>$label: open() failed ($opened)</>");
-                @unlink($zipFile);
-
-                continue;
-            }
-            foreach ($entries as $e) {
-                if (($cfg['skipDump'] ?? false) && str_contains($e['name'], 'db-dumps')) {
-                    continue;
-                }
-                if (($cfg['skipFiles'] ?? false) && ! str_contains($e['name'], 'db-dumps')) {
-                    continue;
-                }
-                // Mirror spatie's Zip::add(): dirs -> addEmptyDir, files ->
-                // addFile (+ setCompressionName). My earlier version addFile'd
-                // directories directly, which produced a false failure.
-                if (is_dir($e['path'])) {
-                    try {
-                        @$z->addEmptyDir($e['name']);
-                    } catch (\Throwable) {
-                    }
-                } elseif (is_file($e['path'])) {
-                    @$z->addFile($e['path'], $e['name']);
-                    if ($cfg['compress']) {
-                        try {
-                            @$z->setCompressionName($e['name'], $cfg['method'], $cfg['level']);
-                        } catch (\Throwable) {
-                        }
-                    }
-                }
-                // else: broken symlink / missing — spatie skips (fileCount++ only).
-            }
-            $ok = false;
-            try {
-                $ok = (bool) @$z->close();
-            } catch (\Throwable) {
-                $ok = false;
-            }
-            $results[$label] = $ok;
-            $this->line($ok ? "  <fg=green>$label: close() OK</>" : "  <fg=red>$label: close() FAILED</>");
-            @unlink($zipFile);
-        }
         @unlink($dump);
 
+        // The manual reproductions all pass, yet `backup:run` fails — so run
+        // spatie's ACTUAL BackupJob (exactly what backup:run does) and report
+        // the real exception. This is the definitive test: if it fails here it
+        // reproduces the live failure in an instrumented context; if it
+        // succeeds, the issue is in the Artisan command/event layer.
         $this->newLine();
-        $this->info('Interpretation:');
-        if (($results['V1 full reproduction (addFile + setCompressionName CM_DEFAULT/9)'] ?? true) === true) {
-            $this->line('  V1 succeeded here but fails in spatie — the difference is likely the entry NAME spatie');
-            $this->line('  computes (absolute path / empty). Paste the "Entries spatie would zip" list above.');
-        } elseif (($results['V3 setCompressionName CM_STORE (BACKUP_ZIP_COMPRESS=false)'] ?? false) === true) {
-            $this->line('  <fg=green>FIX: add BACKUP_ZIP_COMPRESS=false to .env (CM_STORE works, CM_DEFAULT does not).</>');
-        } elseif (($results['V2 no setCompressionName at all'] ?? false) === true) {
-            $this->line('  setCompressionName itself (any method) breaks close() on this server. Avoid it by');
-            $this->line('  setting BACKUP_ZIP_COMPRESS=false AND the code path still calls it — report this so');
-            $this->line('  we can patch the Zip override.');
-        } elseif (($results['V4 source files only, with setCompressionName'] ?? true) === false) {
-            $this->line('  The source files break it. Look at the entry names above for a bad path/name.');
-        } elseif (($results['V5 dump only, with setCompressionName'] ?? true) === false) {
-            $this->line('  The dump entry breaks it (size/name).');
+        $this->info('Real spatie BackupJob::run() (the definitive test):');
+        try {
+            $job = BackupJobFactory::createFromConfig(app(Config::class));
+            $job->run();
+            $this->line('  <fg=green>BackupJob::run() SUCCEEDED — a backup was written to the destination.</>');
+            $this->line('  If the web "Backup now" still fails but this succeeds, the issue is in the Artisan');
+            $this->line('  command/event layer, not the backup engine.');
+        } catch (\Throwable $e) {
+            $this->line('  <fg=red>BackupJob::run() FAILED:</>');
+            $this->line('  '.$e->getMessage());
+            $this->newLine();
+            $this->line('  <fg=yellow>Underlying cause:</>');
+            $prev = $e->getPrevious() ?? $e;
+            $this->line('  '.($prev->getMessage() ?: '(no message)'));
+            $this->line('  origin: '.$prev->getFile().':'.$prev->getLine());
+            $originFrame = $prev->getTrace()[0] ?? null;
+            if ($originFrame) {
+                $this->line(sprintf('  trace[0]: %s:%s', $originFrame['file'] ?? '?', $originFrame['line'] ?? '?'));
+            }
         }
 
         return self::SUCCESS;
