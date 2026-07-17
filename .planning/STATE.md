@@ -20,7 +20,7 @@ progress:
 **Project:** Devsroom Mess Management
 **Current Phase:** 06
 **Current Plan:** 4 (final plan of Phase 06 — complete)
-**Last activity:** 2026-07-12 - Completed quick task 260712-s5g: Member delete, slug URLs, multi-channel notifications, duplicate prevention, role-based sidebar, app audit, README
+**Last activity:** 2026-07-17 - Completed quick task 260717-2q3: Multi-provider backup (Local/GDrive/R2), editable expense categories, close-month modal fix, data-driven month picker, member-statement access fix, unified Add Expense form. Full suite green (338/338); also fixed 20 pre-existing test failures (red at base 7e1c596) in a separate commit.
 
 ## Project Reference
 
@@ -107,6 +107,7 @@ None.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260712-s5g | Member delete, slug URLs, multi-channel notifications, duplicate prevention, role-based sidebar, app audit, README | 2026-07-12 | 916369d | [260712-s5g-member-delete-slug-urls-multi-channel-no](./quick/260712-s5g-member-delete-slug-urls-multi-channel-no/) |
+| 260717-2q3 | Multi-provider backup (Local/GDrive/R2), editable expense categories, close-month modal fix, data-driven month picker, member-statement access fix, unified Add Expense form | 2026-07-17 | 002a00a | [260717-2q3-batch-of-6-mess-management-improvements-](./quick/260717-2q3-batch-of-6-mess-management-improvements-/) |
 
 ## Session Notes
 
