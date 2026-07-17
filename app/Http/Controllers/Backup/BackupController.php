@@ -59,6 +59,10 @@ class BackupController extends Controller
         // non-zero exit code, which the old code ignored, producing a false
         // "Backup completed." flash. Detect failure three ways: exit code,
         // the captured output, and "no new zip actually appeared on disk".
+        if ($preflight = $this->preflightWritable()) {
+            return $this->recordLog('backup', 'failure', $preflight);
+        }
+
         $disk = Storage::disk($this->backupDisk());
         $before = $this->countZips($disk);
 
@@ -83,6 +87,10 @@ class BackupController extends Controller
 
     public function runRestoreTest(): RedirectResponse
     {
+        if ($preflight = $this->preflightWritable()) {
+            return $this->recordLog('restore_test', 'failure', $preflight, key: 'restore-test');
+        }
+
         try {
             $exitCode = (int) Artisan::call('backup:restore-test');
             $output = (string) Artisan::output();
@@ -209,6 +217,47 @@ class BackupController extends Controller
         return collect($disk->allFiles())
             ->filter(fn ($p) => str_ends_with($p, '.zip'))
             ->count();
+    }
+
+    /**
+     * Pre-flight check: ensure spatie's destination + temp + temp-archive
+     * directories exist and are writable by the web/PHP user BEFORE we hand
+     * off to `backup:run`. The classic shared-host failure is
+     * "ZipArchive::close(): Invalid argument" — spatie silently can't write
+     * the final zip because storage/app/backups is missing or not writable.
+     * This turns that opaque error into an actionable one.
+     */
+    private function preflightWritable(): ?string
+    {
+        // storage/app/backups  — spatie writes the final zip here (backups-local disk root).
+        // storage/app/laravel-backup — spatie's working/temp dir for the DB dump.
+        $paths = [
+            'destination' => storage_path('app/backups'),
+            'temp' => storage_path('app/laravel-backup'),
+        ];
+
+        foreach ($paths as $label => $path) {
+            if (! is_dir($path)) {
+                @mkdir($path, 0o775, true);
+            }
+            if (! is_dir($path) || ! is_writable($path)) {
+                return __('Backup :label directory (:path) is missing or not writable by the web server. Create it and fix permissions: chmod -R 775 storage && chown -R <web-user> storage.', ['label' => $label, 'path' => $path]);
+            }
+        }
+
+        // open_basedir / sys_temp_dir restriction: ZipArchive uses the system
+        // temp dir internally; if PHP's open_basedir excludes it, close() can
+        // fail even when the destination is writable.
+        $openBasedir = ini_get('open_basedir');
+        if ($openBasedir) {
+            $systemTemp = sys_get_temp_dir();
+            $allowed = array_map(fn ($p) => realpath(rtrim($p, DIRECTORY_SEPARATOR)), explode(PATH_SEPARATOR, $openBasedir));
+            if (! in_array(realpath($systemTemp), $allowed, true)) {
+                return __('PHP open_basedir excludes the system temp dir (:temp), which breaks ZipArchive. Set sys_temp_dir/upload_tmp_dir to a writable path inside the account (e.g. storage/app/tmp), or ask the host to widen open_basedir to include :temp.', ['temp' => $systemTemp]);
+            }
+        }
+
+        return null;
     }
 
     /**
