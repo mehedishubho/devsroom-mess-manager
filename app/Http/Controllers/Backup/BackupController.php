@@ -130,7 +130,11 @@ class BackupController extends Controller
         $this->writeAudit('backup.download', ['path' => $path]);
         $this->recordLog('download', 'success', path: $path, flash: false);
 
-        return response()->streamDownload(fn () => $disk->readStream($path), basename($path));
+        // Flysystem's download() returns a BinaryFileResponse/StreamedResponse
+        // that actually emits the file bytes. (Do NOT use a streamDownload
+        // closure that just RETURNS readStream() — Symfony discards the return
+        // value and you get a 0-byte download.)
+        return $disk->download($path, basename($path));
     }
 
     /**

@@ -80,10 +80,15 @@ class BackupDownloadAccessLogTest extends TestCase
      */
     public function test_super_admin_download_streams_file_and_writes_audit(): void
     {
-        $this->actingAs($this->superAdmin())
-            ->get(route('dashboard.backups.download', ['path' => self::PATH]))
-            ->assertOk()
-            ->assertHeader('content-disposition');
+        $response = $this->actingAs($this->superAdmin())
+            ->get(route('dashboard.backups.download', ['path' => self::PATH]));
+
+        $response->assertOk()->assertHeader('content-disposition');
+
+        // Regression guard: the download must actually emit the file bytes.
+        // A streamDownload closure that only RETURNs readStream() yields a
+        // 0-byte file (Symfony discards the return value).
+        $this->assertSame('fake-zip-content', $response->streamedContent() ?: '', 'Download body is empty.');
 
         $audit = Audit::where('event', 'backup.download')->latest('id')->first();
         $this->assertNotNull($audit, 'Expected an audit row with event=backup.download.');
