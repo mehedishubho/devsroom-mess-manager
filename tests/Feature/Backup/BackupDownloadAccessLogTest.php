@@ -30,7 +30,9 @@ class BackupDownloadAccessLogTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const PATH = 'test-backup.zip';
+    // Slash-containing path mimics the real backup path (<APP_NAME>/<file>.zip)
+    // — the reason actions use ?path= query params instead of URL segments.
+    private const PATH = 'app-name/test-backup.zip';
 
     protected function setUp(): void
     {
@@ -79,7 +81,7 @@ class BackupDownloadAccessLogTest extends TestCase
     public function test_super_admin_download_streams_file_and_writes_audit(): void
     {
         $this->actingAs($this->superAdmin())
-            ->get('/dashboard/backups/'.self::PATH.'/download')
+            ->get(route('dashboard.backups.download', ['path' => self::PATH]))
             ->assertOk()
             ->assertHeader('content-disposition');
 
@@ -97,7 +99,7 @@ class BackupDownloadAccessLogTest extends TestCase
     public function test_super_admin_download_missing_path_returns_404(): void
     {
         $this->actingAs($this->superAdmin())
-            ->get('/dashboard/backups/does-not-exist.zip/download')
+            ->get(route('dashboard.backups.download', ['path' => 'app-name/does-not-exist.zip']))
             ->assertNotFound();
 
         $this->assertSame(0, Audit::where('event', 'backup.download')->count());
@@ -109,7 +111,7 @@ class BackupDownloadAccessLogTest extends TestCase
     public function test_admin_gets_403_on_download(): void
     {
         $this->actingAs($this->admin())
-            ->get('/dashboard/backups/'.self::PATH.'/download')
+            ->get(route('dashboard.backups.download', ['path' => self::PATH]))
             ->assertForbidden();
     }
 }

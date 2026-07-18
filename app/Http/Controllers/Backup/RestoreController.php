@@ -9,6 +9,7 @@ use App\Http\Requests\Backup\RestoreRequest;
 use App\Models\BackupLog;
 use App\Services\BackupRestoreService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
@@ -34,11 +35,12 @@ class RestoreController extends Controller
 {
     public function __construct(private readonly BackupRestoreService $service) {}
 
-    public function show(string $path): View
+    public function show(Request $request): View
     {
+        $path = (string) $request->query('path', '');
         $this->guardPath($path);
         $disk = Storage::disk((string) config('backup.backup.destination.disks.0', 'backups'));
-        abort_unless($disk->exists($path), 404);
+        abort_unless($path !== '' && $disk->exists($path), 404);
 
         return view('dashboard.backups.restore', [
             'path' => $path,

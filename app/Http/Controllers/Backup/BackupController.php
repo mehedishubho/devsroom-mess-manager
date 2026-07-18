@@ -120,11 +120,12 @@ class BackupController extends Controller
      * Super-admin-only zip download. Access-logged via a manual Audit row
      * (T-06-03-05 — PII leak prevention: every download leaves a trail).
      */
-    public function download(string $path)
+    public function download(Request $request)
     {
+        $path = (string) $request->query('path', '');
         $this->guardPath($path);
         $disk = Storage::disk($this->backupDisk());
-        abort_unless($disk->exists($path), 404);
+        abort_unless($path !== '' && $disk->exists($path), 404);
 
         $this->writeAudit('backup.download', ['path' => $path]);
         $this->recordLog('download', 'success', path: $path, flash: false);
@@ -137,12 +138,13 @@ class BackupController extends Controller
      * a restore (only removes one zip), so a JS confirm on the button is enough
      * — no typed-mess-name gate. Audit-logged (T-06-03-05).
      */
-    public function destroy(string $path): RedirectResponse
+    public function destroy(Request $request): RedirectResponse
     {
+        $path = (string) $request->input('path', '');
         $this->guardPath($path);
         $disk = Storage::disk($this->backupDisk());
 
-        if (! $disk->exists($path)) {
+        if ($path === '' || ! $disk->exists($path)) {
             return back()->withErrors(['backup' => __('Backup not found.')]);
         }
 

@@ -43,7 +43,8 @@ class RestoreConfirmationTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const PATH = 'test-backup.zip';
+    // Slash-containing path mimics the real backup path (<APP_NAME>/<file>.zip).
+    private const PATH = 'app-name/test-backup.zip';
 
     private string $activeMessName;
 
@@ -99,7 +100,7 @@ class RestoreConfirmationTest extends TestCase
     public function test_super_admin_sees_typed_confirm_form(): void
     {
         $this->actingAs($this->superAdmin())
-            ->get('/dashboard/backups/restore/'.self::PATH)
+            ->get(route('dashboard.backups.restore.show', ['path' => self::PATH]))
             ->assertOk()
             ->assertSee(__('WARNING: This is a destructive operation.'))
             ->assertSee(__('Restore this backup'))

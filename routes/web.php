@@ -12,11 +12,15 @@ use App\Http\Controllers\Mess\ExpenseController;
 use App\Http\Controllers\Mess\GuestMealController;
 use App\Http\Controllers\Mess\ManagerMealOffController;
 use App\Http\Controllers\Mess\MealGridController;
+use App\Http\Controllers\Mess\MealMonthlyGridController;
 use App\Http\Controllers\Mess\MealOffApprovalController;
 use App\Http\Controllers\Mess\MemberController;
+use App\Http\Controllers\Mess\MemberDisabledDayController;
 use App\Http\Controllers\Mess\MemberInviteController;
 use App\Http\Controllers\Mess\MemberSearchController;
+use App\Http\Controllers\Mess\MessClosedDayController;
 use App\Http\Controllers\Mess\MessConfigController;
+use App\Http\Controllers\Mess\MessNotificationController;
 use App\Http\Controllers\Mess\MonthCloseController;
 use App\Http\Controllers\Mess\MonthlyClosingController;
 use App\Http\Controllers\Mess\MonthlyCorrectionController;
@@ -72,16 +76,16 @@ Route::middleware(['auth', 'role:super-admin'])
         Route::put('/configure', [BackupController::class, 'update'])->name('configure.update');
         Route::post('/run', [BackupController::class, 'runNow'])->name('run');
         Route::post('/restore-test', [BackupController::class, 'runRestoreTest'])->name('restore-test.run');
-        // Activity-log delete (registered BEFORE the {path} wildcard so
-        // /logs and /logs/{log} are not swallowed by /{path}).
+        // Activity-log delete.
         Route::delete('/logs', [BackupController::class, 'clearLogs'])->name('logs.clear');
         Route::delete('/logs/{log}', [BackupController::class, 'destroyLog'])->name('logs.destroy');
-        Route::get('/{path}/download', [BackupController::class, 'download'])
-            ->where('path', '.*')->name('download');
-        Route::delete('/{path}', [BackupController::class, 'destroy'])
-            ->where('path', '.*')->name('destroy');
-        Route::get('/restore/{path}', [RestoreController::class, 'show'])
-            ->where('path', '.*')->name('restore.show');
+        // Per-backup actions. The backup path is "<APP_NAME>/<file>.zip" and
+        // the embedded slash + .zip extension trip nginx static-file matching
+        // on shared hosting, so the path is passed via ?path= (GET) or the
+        // form body (DELETE) — never as a URL segment.
+        Route::get('/download', [BackupController::class, 'download'])->name('download');
+        Route::delete('/delete', [BackupController::class, 'destroy'])->name('destroy');
+        Route::get('/restore', [RestoreController::class, 'show'])->name('restore.show');
         // Throttle the destructive POST: 5 attempts per minute.
         Route::post('/restore', [RestoreController::class, 'store'])
             ->middleware('throttle:5,1')
@@ -103,9 +107,9 @@ Route::middleware(['auth', 'roles:admin,super-admin,manager', EnsureMessExists::
     Route::patch('/mess/settings', [MessConfigController::class, 'update'])->name('mess.settings.update');
 
     // Multi-channel notification configuration (email / WhatsApp / Telegram / SMS).
-    Route::get('/mess/notifications', [\App\Http\Controllers\Mess\MessNotificationController::class, 'edit'])
+    Route::get('/mess/notifications', [MessNotificationController::class, 'edit'])
         ->name('mess.notifications.edit');
-    Route::put('/mess/notifications', [\App\Http\Controllers\Mess\MessNotificationController::class, 'update'])
+    Route::put('/mess/notifications', [MessNotificationController::class, 'update'])
         ->name('mess.notifications.update');
 
     Route::get('/mess/audit', [AuditController::class, 'index'])->name('mess.audit');
@@ -146,8 +150,8 @@ Route::middleware(['auth', 'roles:admin,super-admin,manager', EnsureMessExists::
     Route::get('mess/meals', [MealGridController::class, 'index'])->name('mess.meals.index');
     Route::post('mess/meals', [MealGridController::class, 'save'])->name('mess.meals.save')
         ->middleware('month.open');
-    Route::get('mess/meals/monthly', [\App\Http\Controllers\Mess\MealMonthlyGridController::class, 'index'])->name('mess.meals.monthly');
-    Route::post('mess/meals/monthly', [\App\Http\Controllers\Mess\MealMonthlyGridController::class, 'save'])->name('mess.meals.monthly.save')
+    Route::get('mess/meals/monthly', [MealMonthlyGridController::class, 'index'])->name('mess.meals.monthly');
+    Route::post('mess/meals/monthly', [MealMonthlyGridController::class, 'save'])->name('mess.meals.monthly.save')
         ->middleware('month.open');
 
     Route::get('mess/guest-meals', [GuestMealController::class, 'index'])->name('mess.guest-meals.index');
@@ -176,14 +180,14 @@ Route::middleware(['auth', 'roles:admin,super-admin,manager', EnsureMessExists::
     Route::delete('mess/categories/{category}', [ExpenseCategoryController::class, 'destroy'])->name('mess.categories.destroy');
 
     // Closed days (global day control)
-    Route::get('mess/closed-days', [\App\Http\Controllers\Mess\MessClosedDayController::class, 'index'])->name('mess.closed-days.index');
-    Route::post('mess/closed-days', [\App\Http\Controllers\Mess\MessClosedDayController::class, 'store'])->name('mess.closed-days.store');
-    Route::delete('mess/closed-days/{closedDay}', [\App\Http\Controllers\Mess\MessClosedDayController::class, 'destroy'])->name('mess.closed-days.destroy');
+    Route::get('mess/closed-days', [MessClosedDayController::class, 'index'])->name('mess.closed-days.index');
+    Route::post('mess/closed-days', [MessClosedDayController::class, 'store'])->name('mess.closed-days.store');
+    Route::delete('mess/closed-days/{closedDay}', [MessClosedDayController::class, 'destroy'])->name('mess.closed-days.destroy');
 
     // Member disabled days (individual day control)
-    Route::get('mess/members/{member}/disabled-days', [\App\Http\Controllers\Mess\MemberDisabledDayController::class, 'index'])->name('mess.members.disabled-days.index');
-    Route::post('mess/members/{member}/disabled-days', [\App\Http\Controllers\Mess\MemberDisabledDayController::class, 'store'])->name('mess.members.disabled-days.store');
-    Route::delete('mess/members/{member}/disabled-days/{disabledDay}', [\App\Http\Controllers\Mess\MemberDisabledDayController::class, 'destroy'])->name('mess.members.disabled-days.destroy');
+    Route::get('mess/members/{member}/disabled-days', [MemberDisabledDayController::class, 'index'])->name('mess.members.disabled-days.index');
+    Route::post('mess/members/{member}/disabled-days', [MemberDisabledDayController::class, 'store'])->name('mess.members.disabled-days.store');
+    Route::delete('mess/members/{member}/disabled-days/{disabledDay}', [MemberDisabledDayController::class, 'destroy'])->name('mess.members.disabled-days.destroy');
 
     Route::resource('mess/payments', PaymentController::class)
         ->only(['index', 'create', 'show', 'edit'])

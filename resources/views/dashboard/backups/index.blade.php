@@ -129,9 +129,10 @@
                                        class="text-xs font-medium text-amber-700 hover:underline">
                                         {{ __('Restore') }}
                                     </a>
-                                    <form method="POST" action="{{ route('dashboard.backups.destroy', ['path' => $backup['path']]) }}" class="inline" onsubmit="return confirm('{{ __('Delete this backup? This cannot be undone.') }}');">
+                                    <form method="POST" action="{{ route('dashboard.backups.destroy') }}" class="inline" onsubmit="return confirm('{{ __('Delete this backup? This cannot be undone.') }}');">
                                         @csrf
                                         @method('DELETE')
+                                        <input type="hidden" name="path" value="{{ $backup['path'] }}" />
                                         <button type="submit" class="text-xs font-medium text-red-700 hover:underline">
                                             {{ __('Delete') }}
                                         </button>
