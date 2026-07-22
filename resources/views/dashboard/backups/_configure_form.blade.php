@@ -75,10 +75,29 @@
         </div>
     </fieldset>
 
-    {{-- Cloud credentials (UI-editable; secrets encrypted at rest). Save first, then Test. --}}
-    <fieldset class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <legend class="mb-2 text-sm font-semibold text-slate-900">{{ __('Cloud credentials') }}</legend>
-        <p class="col-span-full -mt-2 text-xs text-slate-500">{{ __('Stored encrypted in the database. Leave secret fields blank to keep the saved value. Save before testing. .env values still work as a fallback.') }}</p>
+    <style>
+        /* Chevron rotates when the Cloud credentials accordion is open. */
+        details.backup-creds > summary .chev { transition: transform .15s ease; }
+        details.backup-creds[open] > summary .chev { transform: rotate(90deg); }
+    </style>
+
+    {{-- Cloud credentials — collapsible (collapsed by default to keep the form tidy).
+         Auto-opens when there are validation errors so a failed submit doesn't
+         hide error fields inside the collapsed section. --}}
+    <details class="backup-creds rounded-lg border border-slate-200 bg-slate-50/60" @if ($errors->any()) open @endif>
+        <summary class="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-semibold text-slate-900 [&::-webkit-details-marker]:hidden">
+            <svg class="chev h-4 w-4 text-slate-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" /></svg>
+            <span>{{ __('Cloud credentials') }}</span>
+            @if (($gdriveConfigured ?? false) || ($r2Configured ?? false))
+                <span class="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-normal text-emerald-700">{{ __('configured') }}</span>
+            @else
+                <span class="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-normal text-slate-600">{{ __('not configured') }}</span>
+            @endif
+        </summary>
+
+        <div class="border-t border-slate-200 bg-white p-4">
+            <p class="mb-3 text-xs text-slate-500">{{ __('Stored encrypted in the database. Leave secret fields blank to keep the saved value. Save before testing. .env values still work as a fallback.') }}</p>
+            <fieldset class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 
         {{-- Google Drive credentials --}}
         <div class="rounded-lg border border-slate-200 bg-white p-3 text-sm">
@@ -142,7 +161,9 @@
                 </label>
             </div>
         </div>
-    </fieldset>
+            </fieldset>
+        </div>
+    </details>
 
     {{-- Test-connection result target (filled by the fetch handler below) --}}
     <p id="backup-test-result" class="hidden text-xs"></p>
