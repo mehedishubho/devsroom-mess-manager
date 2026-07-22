@@ -17,6 +17,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -54,13 +55,22 @@ class MemberController extends Controller
     {
         $data = $request->validated();
         $photo = $data['photo'] ?? null;
+        $createAccount = $request->boolean('create_account');
         unset($data['photo'], $data['create_account'], $data['password'], $data['password_confirmation']);
 
         $data['mess_id'] = Mess::activeId();
         $member = Member::create($data);
 
+        // Store the photo for EVERY member. Previously this ran only in the
+        // non-account branch below — the create_account path returned first and
+        // silently dropped any uploaded photo (the "member image never shows"
+        // bug when creating a login at the same time).
+        if ($photo) {
+            $this->storePhoto($member, $photo);
+        }
+
         // Handle account creation
-        if ($request->boolean('create_account')) {
+        if ($createAccount) {
             $email = $member->email;
             $plainPassword = $request->input('password', Str::random(12));
 
@@ -70,8 +80,25 @@ class MemberController extends Controller
                 'password' => Hash::make($plainPassword),
             ]);
 
-            $user->assignRole(Role::firstOrCreate(['slug' => 'user'], ['name' => 'User']));
             $member->update(['user_id' => $user->id]);
+
+            // Role assignment must NEVER take down member creation. assignRole()
+            // attaches the role, then writes an audit row via TyroAudit::log()
+            // (and clears the role cache). If the tyro_audit_logs table or the
+            // cache store is unavailable on the server, that post-attach call
+            // throws — but the role is already attached and the User row is
+            // committed, so we catch, log the real cause, and keep going. This
+            // was surfacing as a 500 after the user already appeared under
+            // /dashboard/users.
+            try {
+                $user->assignRole(Role::firstOrCreate(['slug' => 'user'], ['name' => 'User']));
+            } catch (\Throwable $e) {
+                Log::error('member.create.role_assign_failed', [
+                    'member_id' => $member->id,
+                    'user_id' => $user->id,
+                    'exception' => $e->getMessage(),
+                ]);
+            }
 
             // Send credentials email if mail configured and email exists
             if ($email && app()->bound('mailer') && count(config('mail.mailers.smtp', [])) > 0) {
@@ -89,10 +116,6 @@ class MemberController extends Controller
                     'email' => $email,
                     'password' => $plainPassword,
                 ]));
-        }
-
-        if ($photo) {
-            $this->storePhoto($member, $photo);
         }
 
         return redirect()
