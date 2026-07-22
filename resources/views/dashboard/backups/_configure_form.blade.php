@@ -75,6 +75,78 @@
         </div>
     </fieldset>
 
+    {{-- Cloud credentials (UI-editable; secrets encrypted at rest). Save first, then Test. --}}
+    <fieldset class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <legend class="mb-2 text-sm font-semibold text-slate-900">{{ __('Cloud credentials') }}</legend>
+        <p class="col-span-full -mt-2 text-xs text-slate-500">{{ __('Stored encrypted in the database. Leave secret fields blank to keep the saved value. Save before testing. .env values still work as a fallback.') }}</p>
+
+        {{-- Google Drive credentials --}}
+        <div class="rounded-lg border border-slate-200 bg-white p-3 text-sm">
+            <div class="mb-2 flex items-center justify-between">
+                <p class="font-medium text-slate-900">{{ __('Google Drive') }}</p>
+                <button type="button" data-test-provider="gdrive" class="rounded border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50">{{ __('Test connection') }}</button>
+            </div>
+            <div class="space-y-2">
+                <label class="block">
+                    <span class="text-xs text-slate-600">{{ __('Client ID') }}</span>
+                    <input type="text" name="gdrive_client_id" value="{{ old('gdrive_client_id', $config->gdrive_client_id) }}" class="input mt-0.5" autocomplete="off" />
+                </label>
+                <label class="block">
+                    <span class="text-xs text-slate-600">{{ __('Client secret') }} @if ($gdriveSecretSaved ?? false)<span class="text-emerald-700">(saved ✓)</span>@endif</span>
+                    <input type="password" name="gdrive_client_secret" class="input mt-0.5" placeholder="{{ ($gdriveSecretSaved ?? false) ? '•••••• (leave blank to keep saved)' : '' }}" autocomplete="new-password" />
+                </label>
+                <label class="block">
+                    <span class="text-xs text-slate-600">{{ __('Refresh token') }} @if ($gdriveRefreshSaved ?? false)<span class="text-emerald-700">(saved ✓)</span>@endif</span>
+                    <input type="password" name="gdrive_refresh_token" class="input mt-0.5" placeholder="{{ ($gdriveRefreshSaved ?? false) ? '•••••• (leave blank to keep saved)' : '' }}" autocomplete="new-password" />
+                </label>
+                <label class="block">
+                    <span class="text-xs text-slate-600">{{ __('Folder ID') }}</span>
+                    <input type="text" name="gdrive_folder_id" value="{{ old('gdrive_folder_id', $config->gdrive_folder_id) }}" class="input mt-0.5" autocomplete="off" />
+                </label>
+            </div>
+        </div>
+
+        {{-- Cloudflare R2 credentials --}}
+        <div class="rounded-lg border border-slate-200 bg-white p-3 text-sm">
+            <div class="mb-2 flex items-center justify-between">
+                <p class="font-medium text-slate-900">{{ __('Cloudflare R2') }}</p>
+                <button type="button" data-test-provider="r2" class="rounded border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50">{{ __('Test connection') }}</button>
+            </div>
+            <div class="space-y-2">
+                <label class="block">
+                    <span class="text-xs text-slate-600">{{ __('Access key ID') }}</span>
+                    <input type="text" name="r2_key" value="{{ old('r2_key', $config->r2_key) }}" class="input mt-0.5" autocomplete="off" />
+                </label>
+                <label class="block">
+                    <span class="text-xs text-slate-600">{{ __('Secret access key') }} @if ($r2SecretSaved ?? false)<span class="text-emerald-700">(saved ✓)</span>@endif</span>
+                    <input type="password" name="r2_secret" class="input mt-0.5" placeholder="{{ ($r2SecretSaved ?? false) ? '•••••• (leave blank to keep saved)' : '' }}" autocomplete="new-password" />
+                </label>
+                <div class="grid grid-cols-2 gap-2">
+                    <label class="block">
+                        <span class="text-xs text-slate-600">{{ __('Region') }}</span>
+                        <input type="text" name="r2_region" value="{{ old('r2_region', $config->r2_region ?? 'auto') }}" class="input mt-0.5" autocomplete="off" />
+                    </label>
+                    <label class="block">
+                        <span class="text-xs text-slate-600">{{ __('Bucket') }}</span>
+                        <input type="text" name="r2_bucket" value="{{ old('r2_bucket', $config->r2_bucket) }}" class="input mt-0.5" autocomplete="off" />
+                    </label>
+                </div>
+                <label class="block">
+                    <span class="text-xs text-slate-600">{{ __('S3 endpoint') }}</span>
+                    <input type="text" name="r2_endpoint" value="{{ old('r2_endpoint', $config->r2_endpoint) }}" class="input mt-0.5" placeholder="https://<account>.r2.cloudflarestorage.com" autocomplete="off" />
+                </label>
+                <label class="flex items-center gap-2 text-slate-700">
+                    <input type="hidden" name="r2_use_path_style" value="0" />
+                    <input type="checkbox" name="r2_use_path_style" value="1" @checked(old('r2_use_path_style', (bool) $config->r2_use_path_style)) class="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
+                    {{ __('Use path-style endpoint') }}
+                </label>
+            </div>
+        </div>
+    </fieldset>
+
+    {{-- Test-connection result target (filled by the fetch handler below) --}}
+    <p id="backup-test-result" class="hidden text-xs"></p>
+
     {{-- Schedule --}}
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div class="flex flex-col gap-1">
@@ -113,4 +185,39 @@
     <div class="flex justify-end">
         <button type="submit" class="btn btn-primary">{{ __('Save configuration') }}</button>
     </div>
+
+    <script>
+        // Test connection — POSTs to the test route (JSON) against the SAVED
+        // credentials. Reuses the page's CSRF token. No build step / dep.
+        document.querySelectorAll('[data-test-provider]').forEach(function (btn) {
+            btn.addEventListener('click', async function () {
+                var provider = btn.getAttribute('data-test-provider');
+                var result = document.getElementById('backup-test-result');
+                btn.disabled = true;
+                var original = btn.textContent;
+                btn.textContent = '{{ __('Testing…') }}';
+                result.className = 'text-xs text-slate-600';
+                result.textContent = '{{ __('Testing…') }}';
+                result.classList.remove('hidden');
+                try {
+                    var resp = await fetch('{{ url('/dashboard/backups/test') }}/' + encodeURIComponent(provider), {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Accept': 'application/json'
+                        }
+                    });
+                    var data = await resp.json();
+                    result.className = 'text-xs ' + (data.ok ? 'text-emerald-700' : 'text-rose-700');
+                    result.textContent = data.message;
+                } catch (e) {
+                    result.className = 'text-xs text-rose-700';
+                    result.textContent = e.message;
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = original;
+                }
+            });
+        });
+    </script>
 </form>
