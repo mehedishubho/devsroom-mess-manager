@@ -20,7 +20,7 @@ progress:
 **Project:** Devsroom Mess Management
 **Current Phase:** 06
 **Current Plan:** 4 (final plan of Phase 06 — complete)
-**Last activity:** 2026-07-17 - Completed quick task 260717-2q3: Multi-provider backup (Local/GDrive/R2), editable expense categories, close-month modal fix, data-driven month picker, member-statement access fix, unified Add Expense form. Full suite green (338/338); also fixed 20 pre-existing test failures (red at base 7e1c596) in a separate commit.
+**Last activity:** 2026-07-22 - Completed quick task 260722-xba: fixed 500 on member create (assignRole/audit unguarded in MemberController::store), photo silently dropped when account created, backup:install cron line now uses PHP_BINARY (CloudPanel PATH fix) + added public/storage symlink check. Member suite green (13/13). Operator still needs to set the server cron line + run storage:link on prod.
 
 ## Project Reference
 
@@ -108,6 +108,7 @@ None.
 |---|-------------|------|--------|-----------|
 | 260712-s5g | Member delete, slug URLs, multi-channel notifications, duplicate prevention, role-based sidebar, app audit, README | 2026-07-12 | 916369d | [260712-s5g-member-delete-slug-urls-multi-channel-no](./quick/260712-s5g-member-delete-slug-urls-multi-channel-no/) |
 | 260717-2q3 | Multi-provider backup (Local/GDrive/R2), editable expense categories, close-month modal fix, data-driven month picker, member-statement access fix, unified Add Expense form | 2026-07-17 | 002a00a | [260717-2q3-batch-of-6-mess-management-improvements-](./quick/260717-2q3-batch-of-6-mess-management-improvements-/) |
+| 260722-xba | Fix 500 on member create (assignRole/audit unguarded), photo dropped on account-create, cron line uses PHP_BINARY, storage:link check | 2026-07-22 | 7104804 | [260722-xba-fix-cron-command-500-on-member-create-ba](./quick/260722-xba-fix-cron-command-500-on-member-create-ba/) |
 
 ## Session Notes
 
