@@ -233,4 +233,26 @@ class MemberCrudTest extends TestCase
         $this->assertTrue($validator->fails());
         $this->assertArrayHasKey('photo', $validator->errors()->toArray());
     }
+
+    public function test_create_account_requires_an_email(): void
+    {
+        // A phone-only member (no email) + "create account" must fail validation
+        // with a clear "email required" error — NOT 500 on a NOT NULL violation
+        // at User::create (users.email is NOT NULL).
+        $request = StoreMemberRequest::create(route('mess.members.store'), 'POST', [
+            'name' => 'Phone Only',
+            'mobile' => '01700000000',
+            'status' => 'active',
+            'create_account' => true,
+            'password' => 'supersecret',
+            'password_confirmation' => 'supersecret',
+            // intentionally no email
+        ]);
+        $request->setContainer(app());
+        $request->setRedirector(app('redirect'));
+
+        $validator = Validator::make($request->all(), $request->rules());
+        $this->assertTrue($validator->fails());
+        $this->assertArrayHasKey('email', $validator->errors()->toArray());
+    }
 }

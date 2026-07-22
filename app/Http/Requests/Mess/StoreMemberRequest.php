@@ -29,7 +29,11 @@ class StoreMemberRequest extends FormRequest
         $rules = [
             'name' => ['required', 'string', 'max:255'],
             'mobile' => ['nullable', 'string', 'max:30', 'regex:/^(01)[3-9]\d{8}$/', $perMessUnique('mobile')],
-            'email' => ['nullable', 'email', 'max:255', $perMessUnique('email')],
+            // Email is optional for a plain member, BUT required to create a
+            // login account — users.email is NOT NULL and is the login
+            // identifier. Without this, a phone-only member + "create account"
+            // hit a NOT NULL violation at User::create and surfaced as a 500.
+            'email' => ['nullable', 'email', 'max:255', $perMessUnique('email'), Rule::requiredIf(fn () => $this->boolean('create_account'))],
             'nid' => ['nullable', 'string', 'max:50'],
             'profession' => ['nullable', 'string', 'max:100'],
             'room_or_seat' => ['nullable', 'string', 'max:50'],
@@ -52,6 +56,7 @@ class StoreMemberRequest extends FormRequest
             'mobile.regex' => __('Mobile must be a valid BD number (e.g. 01700000000).'),
             'mobile.unique' => __('A member with this mobile number already exists in this mess.'),
             'email.unique' => __('A member with this email already exists in this mess.'),
+            'email.required' => __('An email is required to create a login account.'),
             'leaving_date.required_if' => __('Leaving date is required when status is former.'),
             'photo.max' => __('Photo must be 2 MB or smaller.'),
         ];
