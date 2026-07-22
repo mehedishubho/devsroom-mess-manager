@@ -33,6 +33,20 @@ class UpdateBackupConfigRequest extends FormRequest
             'gdrive_uploads' => ['sometimes', 'boolean'],
             'r2_backup' => ['sometimes', 'boolean'],
             'r2_uploads' => ['sometimes', 'boolean'],
+
+            // Cloud credentials (UI-editable). Secret fields are nullable so an
+            // empty password box means "keep the stored value" — the controller
+            // only overwrites a secret when the submitted value is non-empty.
+            'gdrive_client_id' => ['nullable', 'string', 'max:255'],
+            'gdrive_client_secret' => ['nullable', 'string'],
+            'gdrive_refresh_token' => ['nullable', 'string'],
+            'gdrive_folder_id' => ['nullable', 'string', 'max:255'],
+            'r2_key' => ['nullable', 'string', 'max:255'],
+            'r2_secret' => ['nullable', 'string', 'max:255'],
+            'r2_region' => ['nullable', 'string', 'max:32'],
+            'r2_bucket' => ['nullable', 'string', 'max:255'],
+            'r2_endpoint' => ['nullable', 'string', 'max:255'],
+            'r2_use_path_style' => ['sometimes', 'boolean'],
         ];
     }
 }

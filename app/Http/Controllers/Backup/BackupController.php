@@ -10,6 +10,8 @@ use App\Models\BackupConfig;
 use App\Models\BackupLog;
 use App\Models\Mess;
 use App\Support\BackupDestinations;
+use App\Support\CloudBackupCredentials;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -190,7 +192,11 @@ class BackupController extends Controller
     {
         $data = $request->validated();
 
-        BackupConfig::updateOrCreate(['id' => 1], [
+        // Secret fields are overwritten ONLY when a new value was typed. The
+        // secret inputs render blank (never pre-filled with the decrypted
+        // value), so an empty box means "keep the stored value" — the operator
+        // can change schedule/retention without re-entering the secret each save.
+        $payload = [
             'frequency' => $data['frequency'],
             'run_at' => $data['run_at'],
             'keep_all_days' => $data['keep_all_days'],
@@ -199,7 +205,23 @@ class BackupController extends Controller
             'gdrive_uploads' => (bool) ($data['gdrive_uploads'] ?? false),
             'r2_backup' => (bool) ($data['r2_backup'] ?? false),
             'r2_uploads' => (bool) ($data['r2_uploads'] ?? false),
-        ]);
+            // Identifiers — written as-is (empty clears them).
+            'gdrive_client_id' => $data['gdrive_client_id'] ?? null,
+            'gdrive_folder_id' => $data['gdrive_folder_id'] ?? null,
+            'r2_key' => $data['r2_key'] ?? null,
+            'r2_region' => ($data['r2_region'] ?? null) ?: 'auto',
+            'r2_bucket' => $data['r2_bucket'] ?? null,
+            'r2_endpoint' => $data['r2_endpoint'] ?? null,
+            'r2_use_path_style' => (bool) ($data['r2_use_path_style'] ?? false),
+        ];
+
+        foreach (['gdrive_client_secret', 'gdrive_refresh_token', 'r2_secret'] as $secret) {
+            if (filled($data[$secret] ?? null)) {
+                $payload[$secret] = $data[$secret];
+            }
+        }
+
+        BackupConfig::updateOrCreate(['id' => 1], $payload);
         BackupConfig::flushCache();
 
         try {
@@ -208,9 +230,71 @@ class BackupController extends Controller
             // Non-fatal: a failed config:clear must not block the save.
         }
 
+        // Apply the freshly-saved creds to THIS process so a follow-up Test
+        // connection (or a backup:run triggered in the same lifecycle) sees
+        // them without waiting for a new process to boot.
+        try {
+            CloudBackupCredentials::applyToRuntimeConfig();
+        } catch (\Throwable) {
+        }
+
         return redirect()
             ->route('dashboard.backups.index')
             ->with('success', __('Backup configuration updated.'));
+    }
+
+    /**
+     * Probe a cloud provider's credentials by writing + reading + deleting a
+     * tiny file on its disk. Surfaces the real error (auth, wrong bucket,
+     * network) so mis-entered creds are visible immediately instead of failing
+     * backups silently.
+     *
+     * Returns JSON for an AJAX/fetch call, or redirects back with a flash for a
+     * plain form POST (matches the page's other actions and works without JS).
+     */
+    public function testConnection(Request $request, string $provider): JsonResponse|RedirectResponse
+    {
+        $disk = match ($provider) {
+            'gdrive' => 'backups-gdrive',
+            'r2' => 'backups-r2',
+            default => null,
+        };
+
+        if ($disk === null) {
+            return $this->testResult($request, false, __('Unknown provider.'));
+        }
+
+        // Apply the latest DB creds — a just-saved value may not yet be live in
+        // this process, so re-read the singleton and re-key runtime config.
+        try {
+            CloudBackupCredentials::applyToRuntimeConfig();
+        } catch (\Throwable) {
+            // proceed; the probe will surface the real failure
+        }
+
+        $probe = '__connection_test.txt';
+
+        try {
+            Storage::disk($disk)->put($probe, 'connection test');
+            $exists = Storage::disk($disk)->exists($probe);
+            Storage::disk($disk)->delete($probe);
+
+            return $exists
+                ? $this->testResult($request, true, __(':provider connection successful — credentials work.', ['provider' => ucfirst($provider)]))
+                : $this->testResult($request, false, __('Wrote the test file but could not read it back — check the bucket/folder permissions.'));
+        } catch (\Throwable $e) {
+            return $this->testResult($request, false, $e->getMessage());
+        }
+    }
+
+    /** Format a Test-connection outcome as JSON (AJAX) or a redirect flash (form POST). */
+    private function testResult(Request $request, bool $ok, string $message): JsonResponse|RedirectResponse
+    {
+        if ($request->expectsJson()) {
+            return response()->json(['ok' => $ok, 'message' => $message]);
+        }
+
+        return $ok ? back()->with('success', $message) : back()->withErrors(['test' => $message]);
     }
 
     /**
@@ -219,6 +303,7 @@ class BackupController extends Controller
     private function indexData(): array
     {
         $disk = Storage::disk($this->backupDisk());
+        $config = BackupConfig::current();
 
         $backups = collect($disk->allFiles())
             ->filter(fn ($p) => str_ends_with($p, '.zip'))
@@ -232,10 +317,17 @@ class BackupController extends Controller
 
         return [
             'backups' => $backups,
-            'config' => BackupConfig::current(),
+            'config' => $config,
             'spacesConfigured' => BackupDestinations::spacesConfigured(),
-            'gdriveConfigured' => BackupDestinations::gdriveConfigured(),
-            'r2Configured' => BackupDestinations::r2Configured(),
+            // "Configured" reflects EITHER a DB-stored value (UI) or the env
+            // fallback — both are legitimate sources.
+            'gdriveConfigured' => BackupDestinations::gdriveConfigured() || CloudBackupCredentials::gdriveConfiguredFromDb(),
+            'r2Configured' => BackupDestinations::r2Configured() || CloudBackupCredentials::r2ConfiguredFromDb(),
+            // Secret inputs render blank (never pre-filled); these flags drive
+            // the small "saved ✓" badge so the operator knows a value is stored.
+            'gdriveSecretSaved' => filled($config->gdrive_client_secret),
+            'gdriveRefreshSaved' => filled($config->gdrive_refresh_token),
+            'r2SecretSaved' => filled($config->r2_secret),
             // The activity log is non-critical — a fresh deploy that hasn't run
             // `php artisan migrate` yet (backup_logs table missing) must NOT 500
             // the whole Backups page and lock the super-admin out of configuring.

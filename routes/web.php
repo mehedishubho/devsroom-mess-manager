@@ -74,6 +74,11 @@ Route::middleware(['auth', 'role:super-admin'])
         Route::get('/', [BackupController::class, 'index'])->name('index');
         Route::get('/configure', [BackupController::class, 'edit'])->name('configure');
         Route::put('/configure', [BackupController::class, 'update'])->name('configure.update');
+        // Probe a cloud provider's saved credentials (write+read+delete a tiny
+        // file). Throttled; returns JSON for a fetch-driven button on the form.
+        Route::post('/test/{provider}', [BackupController::class, 'testConnection'])
+            ->middleware('throttle:10,1')
+            ->name('test');
         Route::post('/run', [BackupController::class, 'runNow'])->name('run');
         Route::post('/restore-test', [BackupController::class, 'runRestoreTest'])->name('restore-test.run');
         // Activity-log delete.
