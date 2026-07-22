@@ -73,40 +73,73 @@ class MemberController extends Controller
         if ($createAccount) {
             $email = $member->email;
             $plainPassword = $request->input('password', Str::random(12));
+            $userExisted = false;
 
-            $user = User::create([
-                'name' => $member->name,
-                'email' => $email,
-                'password' => Hash::make($plainPassword),
-            ]);
-
-            $member->update(['user_id' => $user->id]);
-
-            // Role assignment must NEVER take down member creation. assignRole()
-            // attaches the role, then writes an audit row via TyroAudit::log()
-            // (and clears the role cache). If the tyro_audit_logs table or the
-            // cache store is unavailable on the server, that post-attach call
-            // throws — but the role is already attached and the User row is
-            // committed, so we catch, log the real cause, and keep going. This
-            // was surfacing as a 500 after the user already appeared under
-            // /dashboard/users.
             try {
-                $user->assignRole(Role::firstOrCreate(['slug' => 'user'], ['name' => 'User']));
+                // firstOrCreate (NOT create): users.email is GLOBALLY unique,
+                // while members.email is only unique per-mess. A User with this
+                // email can already exist — a leftover from an earlier failed
+                // create (the old assignRole 500 committed the User before it
+                // threw) or from a prior invite. User::create would throw a
+                // duplicate-key QueryException here, surfacing as a 500 AFTER
+                // the Member already committed — the "member shows under
+                // /mess/members but not under /dashboard/users" symptom.
+                // firstOrCreate links the member to the existing user instead,
+                // mirroring MemberInviteController.
+                $user = User::firstOrCreate(
+                    ['email' => $email],
+                    [
+                        'name' => $member->name,
+                        'password' => Hash::make($plainPassword),
+                    ]
+                );
+                $userExisted = ! $user->wasRecentlyCreated;
+
+                $member->update(['user_id' => $user->id]);
+
+                // Role assignment must NEVER take down member creation.
+                // assignRole() attaches the role, then writes an audit row via
+                // TyroAudit::log() (and clears the role cache). If that
+                // post-attach call throws on the server, the role is already
+                // attached — catch, log, continue.
+                try {
+                    $user->assignRole(Role::firstOrCreate(['slug' => 'user'], ['name' => 'User']));
+                } catch (\Throwable $e) {
+                    Log::error('member.create.role_assign_failed', [
+                        'member_id' => $member->id,
+                        'user_id' => $user->id,
+                        'exception' => $e->getMessage(),
+                    ]);
+                }
+
+                // Send credentials email if mail configured and email exists.
+                if ($email && app()->bound('mailer') && count(config('mail.mailers.smtp', [])) > 0) {
+                    try {
+                        Mail::to($email)->send(new MemberCredentialsMail($user, $plainPassword));
+                    } catch (\Throwable) {
+                        // Silently fail — credentials are shown on screen.
+                    }
+                }
             } catch (\Throwable $e) {
-                Log::error('member.create.role_assign_failed', [
+                // Account creation failed for a reason firstOrCreate couldn't
+                // absorb. The Member is already saved, so do NOT 500 — log the
+                // real cause and point the operator to the Users page to link a
+                // login manually.
+                Log::error('member.create.account_failed', [
                     'member_id' => $member->id,
-                    'user_id' => $user->id,
+                    'email' => $email,
                     'exception' => $e->getMessage(),
                 ]);
+
+                return redirect()
+                    ->route('mess.members.show', $member)
+                    ->with('error', __('Member :name added, but the login account could not be created. The member is saved — link a login from the Users page.', ['name' => $member->name]));
             }
 
-            // Send credentials email if mail configured and email exists
-            if ($email && app()->bound('mailer') && count(config('mail.mailers.smtp', [])) > 0) {
-                try {
-                    Mail::to($email)->send(new MemberCredentialsMail($user, $plainPassword));
-                } catch (\Throwable) {
-                    // Silently fail — credentials are shown on screen
-                }
+            if ($userExisted) {
+                return redirect()
+                    ->route('mess.members.show', $member)
+                    ->with('success', __('Member :name added and linked to the existing account (:email).', ['name' => $member->name, 'email' => $email]));
             }
 
             return redirect()

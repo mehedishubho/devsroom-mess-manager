@@ -115,6 +115,46 @@ class MemberCrudTest extends TestCase
         Storage::disk('public')->assertExists($member->photo_path);
     }
 
+    public function test_member_create_links_existing_user_on_duplicate_email_instead_of_500(): void
+    {
+        // Regression: users.email is GLOBALLY unique, while members.email is
+        // only unique per-mess. If a user with the member's email already
+        // exists (leftover from a prior failed create — the old assignRole 500
+        // committed the User before throwing — or from an invite), User::create
+        // threw a duplicate-key QueryException AFTER the Member committed,
+        // surfacing as a 500: member visible under /mess/members, no user under
+        // /dashboard/users. firstOrCreate must link to the existing user.
+        $admin = User::factory()->create();
+        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $existing = User::factory()->create(['email' => 'dup@test.com', 'name' => 'Already Here']);
+
+        $controller = app(MemberController::class);
+        $reflection = new \ReflectionClass($controller);
+        $store = $reflection->getMethod('store');
+        $store->setAccessible(true);
+
+        $request = StoreMemberRequest::create(route('mess.members.store'), 'POST', [
+            'name' => 'New Member',
+            'email' => 'dup@test.com',
+            'status' => 'active',
+            'create_account' => true,
+            'password' => 'supersecret',
+            'password_confirmation' => 'supersecret',
+        ]);
+        $request->setContainer(app());
+        $request->setRedirector(app('redirect'));
+        $request->setUserResolver(fn () => $admin);
+        $request->validateResolved();
+
+        $response = $store->invoke($controller, $request);
+        $this->assertInstanceOf(RedirectResponse::class, $response);
+
+        $member = Member::where('email', 'dup@test.com')->first();
+        $this->assertNotNull($member, 'Member should be created even when its email matches an existing user.');
+        $this->assertEquals($existing->id, $member->user_id, 'Member should be linked to the existing user.');
+        $this->assertSame(1, User::where('email', 'dup@test.com')->count(), 'No duplicate user should be created.');
+    }
+
     public function test_admin_can_update_member(): void
     {
         $admin = User::factory()->create();
