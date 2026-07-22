@@ -257,10 +257,34 @@ class BackupInstall extends Command
             @unlink($dumpZip);
         }
 
-        // Scheduler cron
+        // Scheduler cron. Use the full path to the PHP binary that is running
+        // this command (PHP_BINARY) instead of a bare `php`: on shared hosting
+        // (CloudPanel/cPanel) the cron user's PATH does not include php, so a
+        // bare-`php` line silently fails to run the scheduler. That is what
+        // drives operators to hand-write the cron with the wrong `cd` target
+        // and a non-existent script.php. PHP_BINARY here resolves to the exact
+        // interpreter the operator just used (e.g. /usr/bin/php8.4).
         $this->newLine();
         $this->info('Scheduler cron (required for automatic backups):');
-        $this->line('  * * * * * cd '.base_path().' && php artisan schedule:run >> /dev/null 2>&1');
+        $cronLine = '* * * * * cd '.base_path().' && '.PHP_BINARY.' artisan schedule:run >> /dev/null 2>&1';
+        $this->line('  '.$cronLine);
+        $this->line('  <fg=yellow>Paste this exact line into your server crontab (crontab -e / CloudPanel cron job).</>');
+
+        // Public storage symlink. Uploaded files (member photos, bazar
+        // receipts, profile images) are written to storage/app/public and
+        // served from /storage/* via the public/storage symlink created by
+        // storage:link. If the link is missing the files upload fine but the
+        // browser gets a 404 — the classic "image uploads but won't display".
+        $this->newLine();
+        $this->info('Public storage symlink (required for uploaded images to display):');
+        $link = public_path('storage');
+        if (is_link($link)) {
+            $this->line('  <fg=green>LINKED</> — '.$link.' -> '.readlink($link));
+        } else {
+            $this->line('  <fg=red>MISSING</> — '.$link.' is not a symlink.');
+            $this->line('  Uploaded files are stored but NOT visible in the browser.');
+            $this->line('  Fix: '.PHP_BINARY.' '.base_path().'/artisan storage:link');
+        }
 
         $this->newLine();
         $ownerProblem
