@@ -76,6 +76,45 @@ class MemberCrudTest extends TestCase
         Storage::disk('public')->assertExists($member->photo_path);
     }
 
+    public function test_photo_is_stored_when_account_created_too(): void
+    {
+        // Regression for the "member image never shows" bug: the create_account
+        // branch returned before storePhoto(), so a photo uploaded at the same
+        // time as account creation was silently dropped.
+        Storage::fake('public');
+        $admin = User::factory()->create();
+        $admin->assignRole(Role::where('slug', 'admin')->first());
+
+        $photo = UploadedFile::fake()->image('avatar.jpg', 200, 200);
+
+        $controller = app(MemberController::class);
+        $reflection = new \ReflectionClass($controller);
+        $store = $reflection->getMethod('store');
+        $store->setAccessible(true);
+
+        $request = StoreMemberRequest::create(route('mess.members.store'), 'POST', [
+            'name' => 'With Account',
+            'email' => 'acct@test.com',
+            'status' => 'active',
+            'create_account' => true,
+            'password' => 'supersecret',
+            'password_confirmation' => 'supersecret',
+        ], [], ['photo' => $photo]);
+        $request->setContainer(app());
+        $request->setRedirector(app('redirect'));
+        $request->setUserResolver(fn () => $admin);
+        $request->validateResolved();
+
+        $response = $store->invoke($controller, $request);
+        $this->assertInstanceOf(RedirectResponse::class, $response);
+
+        $member = Member::where('email', 'acct@test.com')->first();
+        $this->assertNotNull($member);
+        $this->assertNotNull($member->user_id, 'Login account was not linked to the member.');
+        $this->assertNotNull($member->photo_path, 'Photo was dropped when create_account was checked.');
+        Storage::disk('public')->assertExists($member->photo_path);
+    }
+
     public function test_admin_can_update_member(): void
     {
         $admin = User::factory()->create();
