@@ -35,6 +35,18 @@ class BackupConfig extends Model
         'gdrive_uploads',
         'r2_backup',
         'r2_uploads',
+        // Cloud credentials (editable from the /dashboard/backups UI).
+        // Secret fields are encrypted at rest via the casts below.
+        'gdrive_client_id',
+        'gdrive_client_secret',
+        'gdrive_refresh_token',
+        'gdrive_folder_id',
+        'r2_key',
+        'r2_secret',
+        'r2_region',
+        'r2_bucket',
+        'r2_endpoint',
+        'r2_use_path_style',
     ];
 
     protected function casts(): array
@@ -47,6 +59,13 @@ class BackupConfig extends Model
             'gdrive_uploads' => 'boolean',
             'r2_backup' => 'boolean',
             'r2_uploads' => 'boolean',
+            // Encrypted at rest: backups include the DB dump, so plaintext
+            // secrets would leak into every off-site backup. APP_KEY (in the
+            // excluded .env) decrypts. Identifiers stay plaintext.
+            'gdrive_client_secret' => 'encrypted',
+            'gdrive_refresh_token' => 'encrypted',
+            'r2_secret' => 'encrypted',
+            'r2_use_path_style' => 'boolean',
         ];
     }
 

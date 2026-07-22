@@ -12,6 +12,7 @@ use App\Models\Mess;
 use App\Models\MessClosedDay;
 use App\Models\Payment;
 use App\Services\BillPreviewInvalidator;
+use App\Support\CloudBackupCredentials;
 use Carbon\Carbon;
 use Google\Client;
 use Google\Service\Drive;
@@ -37,9 +38,28 @@ class AppServiceProvider extends ServiceProvider
     {
         Carbon::setLocale('en');
 
+        // Apply DB-stored cloud credentials BEFORE the google-drive driver is
+        // registered and before any disk is resolved, so every request/command
+        // sees the UI-configured Google Drive + R2 values (with .env fallback).
+        $this->applyCloudCredentials();
+
         $this->registerGoogleDriveDriver();
         $this->registerBillPreviewInvalidation();
         $this->registerBackupFailureListeners();
+    }
+
+    /**
+     * Push DB-stored Google Drive + R2 credentials into the runtime filesystem
+     * config. Wrapped so a fresh clone (missing backup_configs columns / table)
+     * never fatals the boot path — degrades silently to env-derived values.
+     */
+    private function applyCloudCredentials(): void
+    {
+        try {
+            CloudBackupCredentials::applyToRuntimeConfig();
+        } catch (\Throwable) {
+            // Bootstrap-safe: env values remain in effect.
+        }
     }
 
     /**
