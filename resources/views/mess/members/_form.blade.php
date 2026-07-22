@@ -22,8 +22,10 @@
 
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div class="flex flex-col gap-1">
-            <label for="mobile" class="text-sm font-medium text-slate-900">{{ __('Mobile') }}</label>
-            <input type="tel" name="mobile" id="mobile" value="{{ old('mobile', $member->mobile) }}"
+            <label for="mobile" class="text-sm font-medium text-slate-900">
+                {{ __('Mobile') }}<span class="text-red-600" aria-hidden="true">*</span>
+            </label>
+            <input type="tel" name="mobile" id="mobile" value="{{ old('mobile', $member->mobile) }}" required
                 class="input"
                 aria-describedby="mobile-help">
             <p id="mobile-help" class="text-xs text-slate-500">{{ __('BD format, e.g. 01700000000') }}</p>

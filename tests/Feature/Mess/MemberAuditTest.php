@@ -36,6 +36,7 @@ class MemberAuditTest extends TestCase
 
         $request = StoreMemberRequest::create(route('mess.members.store'), 'POST', [
             'name' => 'Test Member',
+            'mobile' => '01700000000',
             'status' => 'active',
         ]);
         $request->setContainer(app());

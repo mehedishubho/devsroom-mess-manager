@@ -28,7 +28,9 @@ class StoreMemberRequest extends FormRequest
 
         $rules = [
             'name' => ['required', 'string', 'max:255'],
-            'mobile' => ['nullable', 'string', 'max:30', 'regex:/^(01)[3-9]\d{8}$/', $perMessUnique('mobile')],
+            // Phone is the member's unique identifier (email is optional).
+            // Required + unique within the active mess.
+            'mobile' => ['required', 'string', 'max:30', 'regex:/^(01)[3-9]\d{8}$/', $perMessUnique('mobile')],
             // Email is optional for a plain member, BUT required to create a
             // login account — users.email is NOT NULL and is the login
             // identifier. Without this, a phone-only member + "create account"
@@ -54,6 +56,7 @@ class StoreMemberRequest extends FormRequest
     {
         return [
             'mobile.regex' => __('Mobile must be a valid BD number (e.g. 01700000000).'),
+            'mobile.required' => __('Mobile number is required.'),
             'mobile.unique' => __('A member with this mobile number already exists in this mess.'),
             'email.unique' => __('A member with this email already exists in this mess.'),
             'email.required' => __('An email is required to create a login account.'),

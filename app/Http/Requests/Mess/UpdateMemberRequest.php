@@ -30,7 +30,9 @@ class UpdateMemberRequest extends FormRequest
 
         return [
             'name' => ['required', 'string', 'max:255'],
-            'mobile' => ['nullable', 'string', 'max:30', 'regex:/^(01)[3-9]\d{8}$/', $perMessUnique('mobile')],
+            // Phone is the member's unique identifier (email is optional).
+            // Required + unique within the active mess, ignoring self on edit.
+            'mobile' => ['required', 'string', 'max:30', 'regex:/^(01)[3-9]\d{8}$/', $perMessUnique('mobile')],
             'email' => ['nullable', 'email', 'max:255', $perMessUnique('email')],
             'nid' => ['nullable', 'string', 'max:50'],
             'profession' => ['nullable', 'string', 'max:100'],
@@ -47,6 +49,7 @@ class UpdateMemberRequest extends FormRequest
     {
         return [
             'mobile.regex' => __('Mobile must be a valid BD number (e.g. 01700000000).'),
+            'mobile.required' => __('Mobile number is required.'),
             'mobile.unique' => __('A member with this mobile number already exists in this mess.'),
             'email.unique' => __('A member with this email already exists in this mess.'),
             'leaving_date.required_if' => __('Leaving date is required when status is former.'),

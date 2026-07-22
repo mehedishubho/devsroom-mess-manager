@@ -94,6 +94,7 @@ class MemberCrudTest extends TestCase
 
         $request = StoreMemberRequest::create(route('mess.members.store'), 'POST', [
             'name' => 'With Account',
+            'mobile' => '01711111111',
             'email' => 'acct@test.com',
             'status' => 'active',
             'create_account' => true,
@@ -135,6 +136,7 @@ class MemberCrudTest extends TestCase
 
         $request = StoreMemberRequest::create(route('mess.members.store'), 'POST', [
             'name' => 'New Member',
+            'mobile' => '01722222222',
             'email' => 'dup@test.com',
             'status' => 'active',
             'create_account' => true,
@@ -173,7 +175,7 @@ class MemberCrudTest extends TestCase
         $request = UpdateMemberRequest::create(
             route('mess.members.update', $member),
             'PATCH',
-            ['name' => 'New Name', 'status' => 'active']
+            ['name' => 'New Name', 'mobile' => '01733333333', 'status' => 'active']
         );
         $request->setContainer(app());
         $request->setRedirector(app('redirect'));
@@ -254,5 +256,36 @@ class MemberCrudTest extends TestCase
         $validator = Validator::make($request->all(), $request->rules());
         $this->assertTrue($validator->fails());
         $this->assertArrayHasKey('email', $validator->errors()->toArray());
+    }
+
+    public function test_member_phone_is_required_and_unique(): void
+    {
+        // Phone is the member's unique identifier (email optional). A second
+        // member with the same phone in the same mess must be rejected, and a
+        // member with no phone must be rejected.
+        Member::factory()->create(['mobile' => '01755555555']);
+
+        // Duplicate phone -> rejected.
+        $dup = StoreMemberRequest::create(route('mess.members.store'), 'POST', [
+            'name' => 'Dup Phone',
+            'mobile' => '01755555555',
+            'status' => 'active',
+        ]);
+        $dup->setContainer(app());
+        $dup->setRedirector(app('redirect'));
+        $validator = Validator::make($dup->all(), $dup->rules());
+        $this->assertTrue($validator->fails());
+        $this->assertArrayHasKey('mobile', $validator->errors()->toArray());
+
+        // Missing phone -> rejected.
+        $missing = StoreMemberRequest::create(route('mess.members.store'), 'POST', [
+            'name' => 'No Phone',
+            'status' => 'active',
+        ]);
+        $missing->setContainer(app());
+        $missing->setRedirector(app('redirect'));
+        $validator = Validator::make($missing->all(), $missing->rules());
+        $this->assertTrue($validator->fails());
+        $this->assertArrayHasKey('mobile', $validator->errors()->toArray());
     }
 }
