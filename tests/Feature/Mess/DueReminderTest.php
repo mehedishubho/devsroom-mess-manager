@@ -29,7 +29,7 @@ class DueReminderTest extends TestCase
         $admin = User::factory()->create();
         $admin->assignRole(Role::where('slug', 'admin')->first());
         $memberUser = User::factory()->create();
-        $memberUser->assignRole(Role::where('slug', 'user')->first());
+        $memberUser->assignRole(Role::where('slug', 'mess-member')->first());
         $member = Member::factory()->create([
             'user_id' => $memberUser->id,
             'status' => MemberStatus::ACTIVE,
@@ -83,7 +83,7 @@ class DueReminderTest extends TestCase
     public function test_regular_member_cannot_access_due_reminder_index(): void
     {
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'user')->first());
+        $user->assignRole(Role::where('slug', 'mess-member')->first());
 
         $response = $this->actingAs($user)->get(route('mess.due-reminder.index'));
         $this->assertSame(403, $response->status());

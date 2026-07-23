@@ -39,7 +39,7 @@ class PdfExportTest extends TestCase
     private function memberUser(Member $member): User
     {
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'user')->first());
+        $user->assignRole(Role::where('slug', 'mess-member')->first());
         $member->update(['user_id' => $user->id]);
 
         return $user;
@@ -170,7 +170,7 @@ class PdfExportTest extends TestCase
     public function test_member_role_forbidden_on_manager_exports(): void
     {
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'user')->first());
+        $user->assignRole(Role::where('slug', 'mess-member')->first());
 
         $this->actingAs($user)
             ->get(route('mess.reports.monthly.pdf'))

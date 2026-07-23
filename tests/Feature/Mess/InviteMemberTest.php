@@ -71,7 +71,7 @@ class InviteMemberTest extends TestCase
     {
         Mail::fake();
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'user')->first());
+        $user->assignRole(Role::where('slug', 'mess-member')->first());
 
         $this->actingAs($user);
 

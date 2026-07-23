@@ -25,7 +25,7 @@ class PaymentHistoryTest extends TestCase
     public function test_member_sees_only_their_payments(): void
     {
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'user')->first());
+        $user->assignRole(Role::where('slug', 'mess-member')->first());
         $member = Member::factory()->create(['user_id' => $user->id]);
 
         Payment::factory()->create(['member_id' => $member->id, 'reference' => 'MINE-1']);
@@ -40,7 +40,7 @@ class PaymentHistoryTest extends TestCase
     public function test_member_history_does_not_show_filters(): void
     {
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'user')->first());
+        $user->assignRole(Role::where('slug', 'mess-member')->first());
         $member = Member::factory()->create(['user_id' => $user->id]);
         Payment::factory()->count(3)->create(['member_id' => $member->id]);
 

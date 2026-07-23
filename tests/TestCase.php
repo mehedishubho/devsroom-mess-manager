@@ -20,6 +20,6 @@ abstract class TestCase extends BaseTestCase
     {
         Role::firstOrCreate(['slug' => 'admin'], ['name' => 'Administrator']);
         Role::firstOrCreate(['slug' => 'super-admin'], ['name' => 'Super Admin']);
-        Role::firstOrCreate(['slug' => 'user'], ['name' => 'User']);
+        Role::firstOrCreate(['slug' => 'mess-member'], ['name' => 'Mess Member']);
     }
 }

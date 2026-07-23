@@ -177,7 +177,7 @@ class DataDrivenMonthRangeTest extends TestCase
     public function test_member_side_statement_route_uses_data_driven_range(): void
     {
         $user = User::factory()->create(['password_changed_at' => now()]);
-        $user->assignRole(Role::where('slug', 'user')->first());
+        $user->assignRole(Role::where('slug', 'mess-member')->first());
 
         $member = Member::factory()->create([
             'mess_id' => Mess::activeId(),

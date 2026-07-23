@@ -24,7 +24,7 @@ class MyBillPreviewTest extends TestCase
     public function test_member_sees_own_bill_preview(): void
     {
         $user = User::factory()->create(['password_changed_at' => now()]);
-        $user->assignRole(Role::where('slug', 'user')->first());
+        $user->assignRole(Role::where('slug', 'mess-member')->first());
         Member::factory()->create(['user_id' => $user->id]);
 
         $this->actingAs($user)
@@ -35,7 +35,7 @@ class MyBillPreviewTest extends TestCase
     public function test_member_without_mess_sees_placeholder(): void
     {
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'user')->first());
+        $user->assignRole(Role::where('slug', 'mess-member')->first());
 
         // A user with no Member record (no mess linkage) lands on the
         // no-member screen — bill preview is unreachable in that state.

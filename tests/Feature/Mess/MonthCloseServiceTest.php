@@ -287,7 +287,7 @@ class MonthCloseServiceTest extends TestCase
         $superAdmin = User::factory()->create();
         $superAdmin->assignRole(Role::where('slug', 'super-admin')->first());
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'user')->first());
+        $user->assignRole(Role::where('slug', 'mess-member')->first());
 
         app(MonthCloseService::class)->close(2026, 6, $admin->id);
 

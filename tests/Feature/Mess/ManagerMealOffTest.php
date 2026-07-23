@@ -59,7 +59,7 @@ class ManagerMealOffTest extends TestCase
     public function test_member_cannot_submit_meal_off_for_another_member(): void
     {
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'user')->first());
+        $user->assignRole(Role::where('slug', 'mess-member')->first());
         $member = Member::factory()->create();
 
         $request = StoreManagerMealOffRequest::create(route('mess.members.meal-off.store', $member), 'POST', [

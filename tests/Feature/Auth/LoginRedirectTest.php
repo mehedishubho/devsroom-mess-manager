@@ -66,7 +66,7 @@ class LoginRedirectTest extends TestCase
             'email' => 'member@test.com',
             'password' => bcrypt('password'),
         ]);
-        $user->assignRole(Role::where('slug', 'user')->first());
+        $user->assignRole(Role::where('slug', 'mess-member')->first());
 
         $this->actingAs($user)
             ->get('/post-login')

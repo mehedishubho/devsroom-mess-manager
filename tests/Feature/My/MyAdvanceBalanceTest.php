@@ -25,7 +25,7 @@ class MyAdvanceBalanceTest extends TestCase
     public function test_member_sees_their_advance_balance(): void
     {
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'user')->first());
+        $user->assignRole(Role::where('slug', 'mess-member')->first());
         $member = Member::factory()->create(['user_id' => $user->id]);
         AdvanceBalance::factory()->create([
             'member_id' => $member->id,
@@ -42,7 +42,7 @@ class MyAdvanceBalanceTest extends TestCase
     public function test_member_sees_their_due_balance(): void
     {
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'user')->first());
+        $user->assignRole(Role::where('slug', 'mess-member')->first());
         $member = Member::factory()->create(['user_id' => $user->id]);
         AdvanceBalance::factory()->create([
             'member_id' => $member->id,
@@ -59,7 +59,7 @@ class MyAdvanceBalanceTest extends TestCase
     public function test_member_without_balance_sees_zero(): void
     {
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'user')->first());
+        $user->assignRole(Role::where('slug', 'mess-member')->first());
         Member::factory()->create(['user_id' => $user->id]);
 
         $this->actingAs($user)

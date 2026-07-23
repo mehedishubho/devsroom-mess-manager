@@ -36,7 +36,7 @@ class RouteAccessTest extends TestCase
     public function test_home_returns_403_for_member(): void
     {
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'user')->first());
+        $user->assignRole(Role::where('slug', 'mess-member')->first());
 
         $this->actingAs($user)->get('/home')->assertForbidden();
     }
@@ -44,7 +44,7 @@ class RouteAccessTest extends TestCase
     public function test_my_returns_200_for_user(): void
     {
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'user')->first());
+        $user->assignRole(Role::where('slug', 'mess-member')->first());
 
         $this->actingAs($user)->get('/my')->assertOk();
     }
@@ -70,7 +70,7 @@ class RouteAccessTest extends TestCase
         ]);
 
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'user')->first());
+        $user->assignRole(Role::where('slug', 'mess-member')->first());
 
         $this->actingAs($user)->get('/dashboard')->assertForbidden();
     }

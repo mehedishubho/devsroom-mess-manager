@@ -28,7 +28,7 @@ class MyProfileTest extends TestCase
     public function test_member_can_view_my_page_with_profile(): void
     {
         $user = User::factory()->create(['password_changed_at' => now()]);
-        $user->assignRole(Role::where('slug', 'user')->first());
+        $user->assignRole(Role::where('slug', 'mess-member')->first());
         $messId = Mess::activeId();
         Member::factory()->create(['user_id' => $user->id, 'name' => 'Test Member', 'mess_id' => $messId]);
 
@@ -41,7 +41,7 @@ class MyProfileTest extends TestCase
     public function test_member_can_update_emergency_contact(): void
     {
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'user')->first());
+        $user->assignRole(Role::where('slug', 'mess-member')->first());
         $messId = Mess::activeId();
         $member = Member::factory()->create(['user_id' => $user->id, 'mess_id' => $messId]);
 

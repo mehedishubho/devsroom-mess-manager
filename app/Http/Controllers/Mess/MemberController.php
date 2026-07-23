@@ -103,7 +103,7 @@ class MemberController extends Controller
                 // post-attach call throws on the server, the role is already
                 // attached — catch, log, continue.
                 try {
-                    $user->assignRole(Role::firstOrCreate(['slug' => 'user'], ['name' => 'User']));
+                    $user->assignRole(Role::firstOrCreate(['slug' => 'mess-member'], ['name' => 'Mess Member']));
                 } catch (\Throwable $e) {
                     Log::error('member.create.role_assign_failed', [
                         'member_id' => $member->id,

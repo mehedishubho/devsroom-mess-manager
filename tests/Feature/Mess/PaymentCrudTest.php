@@ -191,7 +191,7 @@ class PaymentCrudTest extends TestCase
     public function test_member_cannot_create_payment(): void
     {
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'user')->first());
+        $user->assignRole(Role::where('slug', 'mess-member')->first());
 
         $request = StorePaymentRequest::create(route('mess.payments.store'), 'POST', [
             'member_id' => 1, 'date' => now()->toDateString(),

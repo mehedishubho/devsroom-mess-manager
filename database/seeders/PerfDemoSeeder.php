@@ -67,7 +67,7 @@ class PerfDemoSeeder extends Seeder
         // Ensure the three Tyro roles exist (idempotent) before we assign them below.
         Role::firstOrCreate(['slug' => 'super-admin'], ['name' => 'Super Admin']);
         Role::firstOrCreate(['slug' => 'admin'], ['name' => 'Administrator']);
-        Role::firstOrCreate(['slug' => 'user'], ['name' => 'User']);
+        Role::firstOrCreate(['slug' => 'mess-member'], ['name' => 'Mess Member']);
 
         DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
@@ -92,7 +92,7 @@ class PerfDemoSeeder extends Seeder
             'email' => 'member@demo.test',
             'password' => bcrypt('password'),
         ]);
-        $demoMemberUser->assignRole(Role::firstOrCreate(['slug' => 'user'], ['name' => 'User']));
+        $demoMemberUser->assignRole(Role::firstOrCreate(['slug' => 'mess-member'], ['name' => 'Mess Member']));
 
         // 2. ~50 members (48 active + 1 former + 1 inactive).
         $members = Member::factory()->count(48)->for($mess)->create();

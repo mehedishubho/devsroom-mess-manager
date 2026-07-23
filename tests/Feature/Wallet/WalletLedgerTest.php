@@ -51,7 +51,7 @@ class WalletLedgerTest extends TestCase
     {
         $member = Member::factory()->create(['status' => MemberStatus::ACTIVE, 'name' => 'Self']);
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'user')->first());
+        $user->assignRole(Role::where('slug', 'mess-member')->first());
         $member->update(['user_id' => $user->id]);
 
         $this->actingAs($user)
@@ -90,7 +90,7 @@ class WalletLedgerTest extends TestCase
         $memberA = Member::factory()->create(['status' => MemberStatus::ACTIVE, 'name' => 'Alpha']);
         $memberB = Member::factory()->create(['status' => MemberStatus::ACTIVE, 'name' => 'Bravo']);
         $userA = User::factory()->create();
-        $userA->assignRole(Role::where('slug', 'user')->first());
+        $userA->assignRole(Role::where('slug', 'mess-member')->first());
         $memberA->update(['user_id' => $userA->id]);
 
         $this->actingAs($userA)

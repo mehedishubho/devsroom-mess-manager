@@ -59,7 +59,7 @@ class MonthCloseControllerTest extends TestCase
     public function test_regular_member_cannot_trigger_close(): void
     {
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'user')->first());
+        $user->assignRole(Role::where('slug', 'mess-member')->first());
 
         $response = $this->actingAs($user)
             ->post(route('mess.close.trigger'), ['year' => 2026, 'month' => 6]);

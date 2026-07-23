@@ -36,7 +36,7 @@ class MemberInviteController extends Controller
             ]
         );
 
-        $user->assignRole(Role::firstOrCreate(['slug' => 'user'], ['name' => 'User']));
+        $user->assignRole(Role::firstOrCreate(['slug' => 'mess-member'], ['name' => 'Mess Member']));
 
         $token = Str::random(48);
         MemberInvitation::create([

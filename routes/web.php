@@ -272,7 +272,7 @@ Route::middleware(['auth', EnsureMessExists::class])->group(function () {
 });
 
 // Member (user / mess-member role) home — password.change forces first-login password set.
-Route::middleware(['auth', 'roles:user,mess-member', 'password.change'])->group(function () {
+Route::middleware(['auth', 'roles:mess-member', 'password.change'])->group(function () {
     Route::get('my/password/change', [MyController::class, 'showChangePassword'])->name('my.password.change');
     Route::post('my/password/change', [MyController::class, 'changePassword'])->name('my.password.change.store');
 

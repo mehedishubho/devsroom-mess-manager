@@ -140,7 +140,7 @@ class MonthlyCorrectionTest extends TestCase
     public function test_member_cannot_create_correction(): void
     {
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'user')->first());
+        $user->assignRole(Role::where('slug', 'mess-member')->first());
         $admin = $this->admin();
         $closing = MonthlyClosing::factory()->create(['mess_id' => Mess::activeId(), 'closed_by' => $admin->id]);
         $member = Member::factory()->create(['status' => MemberStatus::ACTIVE]);

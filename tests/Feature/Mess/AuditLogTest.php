@@ -46,7 +46,7 @@ class AuditLogTest extends TestCase
     public function test_member_cannot_view_audit_log(): void
     {
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'user')->first());
+        $user->assignRole(Role::where('slug', 'mess-member')->first());
 
         $this->actingAs($user)->get(route('mess.audit'))->assertForbidden();
     }

@@ -24,8 +24,8 @@ class RequirePasswordChange
             return $next($request);
         }
 
-        // Only apply to members (user role), not admins/managers/super-admins.
-        if (! $user->hasRole('user')) {
+        // Only apply to members (mess-member role), not admins/managers/super-admins.
+        if (! $user->hasRole('mess-member')) {
             return $next($request);
         }
 

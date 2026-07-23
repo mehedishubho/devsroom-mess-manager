@@ -45,7 +45,7 @@ class ExpenseCategoryEditTest extends TestCase
     private function member(): User
     {
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'user')->first());
+        $user->assignRole(Role::where('slug', 'mess-member')->first());
 
         return $user;
     }

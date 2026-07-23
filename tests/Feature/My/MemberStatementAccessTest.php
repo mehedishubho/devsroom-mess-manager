@@ -51,7 +51,7 @@ class MemberStatementAccessTest extends TestCase
     private function memberUser(): User
     {
         $user = User::factory()->create(['password_changed_at' => now()]);
-        $user->assignRole(Role::where('slug', 'user')->first());
+        $user->assignRole(Role::where('slug', 'mess-member')->first());
 
         return $user;
     }

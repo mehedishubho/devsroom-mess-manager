@@ -30,7 +30,7 @@ class MyMealOffTest extends TestCase
     public function test_member_can_submit_meal_off_request(): void
     {
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'user')->first());
+        $user->assignRole(Role::where('slug', 'mess-member')->first());
         $messId = Mess::activeId();
         $member = Member::factory()->create(['user_id' => $user->id, 'mess_id' => $messId]);
 
@@ -76,7 +76,7 @@ class MyMealOffTest extends TestCase
     public function test_audit_log_writes_on_request_creation(): void
     {
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'user')->first());
+        $user->assignRole(Role::where('slug', 'mess-member')->first());
         $messId = Mess::activeId();
         $member = Member::factory()->create(['user_id' => $user->id, 'mess_id' => $messId]);
 

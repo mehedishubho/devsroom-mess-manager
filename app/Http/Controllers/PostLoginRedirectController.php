@@ -24,7 +24,7 @@ class PostLoginRedirectController extends Controller
             return redirect('/home');
         }
 
-        if ($user?->hasRole('user')) {
+        if ($user?->hasRole('mess-member')) {
             return redirect('/my');
         }
 

@@ -85,7 +85,7 @@ class MessConfigTest extends TestCase
     public function test_member_cannot_view_settings_page(): void
     {
         Mess::factory()->create();
-        $user = $this->loginAsRole('user');
+        $user = $this->loginAsRole('mess-member');
 
         $this->actingAs($user)->get(route('mess.settings.edit'))->assertForbidden();
     }

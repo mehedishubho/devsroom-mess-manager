@@ -28,7 +28,7 @@ class MyStatementTest extends TestCase
     private function memberUser(Member $member): User
     {
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'user')->first());
+        $user->assignRole(Role::where('slug', 'mess-member')->first());
         $member->update(['user_id' => $user->id]);
 
         return $user;

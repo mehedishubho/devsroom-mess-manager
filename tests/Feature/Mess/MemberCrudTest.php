@@ -209,7 +209,7 @@ class MemberCrudTest extends TestCase
     public function test_member_cannot_create_member(): void
     {
         $member = User::factory()->create();
-        $member->assignRole(Role::where('slug', 'user')->first());
+        $member->assignRole(Role::where('slug', 'mess-member')->first());
 
         $request = StoreMemberRequest::create(route('mess.members.store'), 'POST', [
             'name' => 'Test',

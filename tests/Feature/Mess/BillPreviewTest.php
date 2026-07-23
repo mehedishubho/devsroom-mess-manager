@@ -94,7 +94,7 @@ class BillPreviewTest extends TestCase
     public function test_member_cannot_view_manager_bill_preview(): void
     {
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'user')->first());
+        $user->assignRole(Role::where('slug', 'mess-member')->first());
 
         $this->actingAs($user)
             ->get(route('mess.bill-preview.index'))
