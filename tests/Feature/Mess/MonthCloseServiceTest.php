@@ -112,10 +112,13 @@ class MonthCloseServiceTest extends TestCase
         $this->assertCount(1, $result['summaries']);
     }
 
-    public function test_mid_month_joiner_excluded_from_meal_rate_denominator(): void
+    public function test_mid_month_joiner_is_counted_in_meal_rate_denominator(): void
     {
-        // Joiner on 2026-06-20 is NOT eligible for the denominator (D-12), so even
-        // though they have 22 meals, the meal rate denominator is 0 => rate 0.
+        // A mid-month joiner (joining 2026-06-20) still ate 22 meals that consumed
+        // groceries, so their meals count toward the meal-rate denominator. Rate =
+        // bazar 3000 / 22 meals = 136.36. (Previously the joiner was excluded by
+        // strict joining/leaving-date bounds, zeroing the rate — the bug behind
+        // the ৳0.00 meal rate across reports + dashboard despite real data.)
         $this->seedBazar(3000);
         $late = Member::factory()->create([
             'status' => MemberStatus::ACTIVE,
@@ -132,9 +135,8 @@ class MonthCloseServiceTest extends TestCase
 
         $result = app(MonthCloseService::class)->close(2026, 6, $this->admin->id);
 
-        // No eligible member contributed meals => rate 0
-        $this->assertSame(0.0, (float) $result['closing']->meal_rate);
-        // The late joiner still gets a summary row with their meals and a zero bill.
+        $this->assertSame(136.36, (float) $result['closing']->meal_rate);
+        $this->assertSame(22.0, (float) $result['closing']->total_meals);
         $this->assertCount(1, $result['summaries']);
         $this->assertSame(22.0, (float) $result['summaries']->first()->total_meals);
     }
@@ -189,8 +191,10 @@ class MonthCloseServiceTest extends TestCase
         $result = app(MonthCloseService::class)->close(2026, 6, $this->admin->id);
         $summary = $result['summaries']->firstWhere('member_id', $member->id);
 
-        // payments_received 20, net_bill = bill - advance_applied = 60 - 20 = 40
+        // payments_received 20; no advance deposit, so advance_applied 0.
+        // net_bill = bill - payments - advance_applied = 60 - 20 - 0 = 40.
         $this->assertSame(20.0, (float) $summary->payments_received);
+        $this->assertSame(0.0, (float) $summary->advance_applied);
         $this->assertSame(40.0, (float) $summary->net_bill);
 
         // Carry-forward: net_bill 40 positive => due_balance grows by 40
@@ -369,10 +373,13 @@ class MonthCloseServiceTest extends TestCase
 
         app(MonthCloseService::class)->close(2026, 7, $this->admin->id);
 
-        // End-state: due accumulates 60.00 + 61.75 = 121.75 (exact, BC across two
-        // closes); balance stays 100.00 (separate column, untouched by closes).
+        // End-state (advance now offsets the bill, D-07): July's bill of 62 with
+        // 0.25 paid leaves 61.75 owed, covered by the 100 advance credit
+        // (advanceApplied = 61.75, consumed at close). The leftover 38.25 credit
+        // then nets against June's 60.00 due → 21.75 due, 0.00 credit. All exact
+        // BC math across two closes on the same advance_balances row (CR-03).
         $final = AdvanceBalance::where('member_id', $member->id)->first();
-        $this->assertSame('100.00', (string) $final->balance);
-        $this->assertSame('121.75', (string) $final->due_balance);
+        $this->assertSame('0.00', (string) $final->balance);
+        $this->assertSame('21.75', (string) $final->due_balance);
     }
 }

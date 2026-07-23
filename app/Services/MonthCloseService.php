@@ -52,6 +52,9 @@ class MonthCloseService
                 ];
             }
 
+            // Settle against authoritative numbers: the preview is cached up to
+            // 1h, so drop it and recompute before close reads it.
+            app(BillPreviewService::class)->invalidate($year, $month);
             $preview = app(BillPreviewService::class)->preview($year, $month);
 
             $closing->update([
@@ -88,17 +91,31 @@ class MonthCloseService
                 ]));
             }
 
-            // Carry-forward (D-09): positive net_bill → due; negative → advance.
-            // BC math on the exact decimal string — sign via bcmul(), not float
-            // negation (CR-03). carryForward() requires a 2-decimal string.
+            // Settlement (D-09): consume the advance applied this month against
+            // the member's running credit, carry any remaining owed → due_balance,
+            // refund overpayment → credit, then net credit vs debt so a member
+            // never simultaneously owes and is owed. All in BC math on the exact
+            // 2-decimal strings frozen into the snapshot above (CR-03).
             $balanceService = app(AdvanceBalanceService::class);
             foreach ($summaries as $summary) {
+                $applied = (string) $summary->advance_applied;
+                if (bccomp($applied, '0', 2) > 0) {
+                    $balanceService->consumeAdvance($summary->member_id, $applied);
+                }
+
                 $net = (string) $summary->net_bill;
                 if (bccomp($net, '0', 2) > 0) {
                     $balanceService->carryForward($summary->member_id, bcmul($net, '-1', 2));
-                } elseif (bccomp($net, '0', 2) < 0) {
-                    $balanceService->carryForward($summary->member_id, ltrim($net, '-'));
                 }
+
+                // Overpayment (bill payments exceeded the gross bill) → credit.
+                $paid = (string) $summary->payments_received;
+                $bill = (string) $summary->gross_bill;
+                if (bccomp($paid, $bill, 2) > 0) {
+                    $balanceService->carryForward($summary->member_id, bcsub($paid, $bill, 2));
+                }
+
+                $balanceService->settle($summary->member_id);
             }
 
             // Invalidate the cached preview for the closed month.

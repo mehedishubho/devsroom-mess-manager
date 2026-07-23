@@ -14,6 +14,7 @@
                     <th class="px-4 py-3 text-right">{{ __('Guest meals') }}</th>
                     <th class="px-4 py-3 text-right">{{ __('Bill') }}</th>
                     <th class="px-4 py-3 text-right">{{ __('Paid') }}</th>
+                    <th class="px-4 py-3 text-right">{{ __('Advance applied') }}</th>
                     <th class="px-4 py-3 text-right">{{ __('Due') }}</th>
                 </tr>
             </thead>
