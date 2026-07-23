@@ -17,12 +17,15 @@ class DueReminderController extends Controller
 
     public function index(): View
     {
+        // Net basis: a member is "due" only when their running position is in debt
+        // (net < 0). Filtering on raw due_balance used to dun members who also held
+        // credit for the full gross debt.
         $members = Member::query()
             ->where('status', MemberStatus::ACTIVE)
             ->with('advanceBalance')
             ->orderBy('name')
             ->get()
-            ->filter(fn (Member $m) => (float) ($m->advanceBalance?->due_balance ?? 0) > 0);
+            ->filter(fn (Member $m) => ($m->advanceBalance?->netBalance() ?? 0) < 0);
 
         return view('mess.due-reminder.index', compact('members'));
     }
@@ -36,11 +39,11 @@ class DueReminderController extends Controller
 
         $count = 0;
         /** @var Member $member */
-        foreach (Member::query()->whereIn('id', $data['member_ids'])->get() as $member) {
-            $due = (float) ($member->advanceBalance?->due_balance ?? 0);
-            if ($member->user_id && $due > 0) {
+        foreach (Member::query()->whereIn('id', $data['member_ids'])->with('advanceBalance')->get() as $member) {
+            $net = $member->advanceBalance?->netBalance() ?? 0;
+            if ($member->user_id && $net < 0) {
                 $this->service->send($member->user, NotificationType::DUE_REMINDER, [
-                    'due_balance' => $due,
+                    'due_balance' => abs($net),
                 ]);
                 $count++;
             }

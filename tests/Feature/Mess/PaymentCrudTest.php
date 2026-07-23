@@ -163,6 +163,31 @@ class PaymentCrudTest extends TestCase
         $this->assertSoftDeleted('payments', ['id' => $payment->id]);
     }
 
+    public function test_deleting_advance_deposit_reverses_balance(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $this->actingAs($admin); // PaymentService::create reads auth()->id()
+        $member = Member::factory()->create(['status' => MemberStatus::ACTIVE]);
+
+        $service = app(\App\Services\PaymentService::class);
+        $payment = $service->create([
+            'member_id' => $member->id,
+            'date' => now()->toDateString(),
+            'amount' => 2000,
+            'method' => PaymentMethod::CASH,
+            'type' => PaymentType::ADVANCE_DEPOSIT,
+        ]);
+
+        $this->assertDatabaseHas('advance_balances', ['member_id' => $member->id, 'balance' => '2000.00']);
+
+        $service->delete($payment);
+
+        // Deleting MUST reverse the credit — previously the balance stayed inflated.
+        $this->assertDatabaseHas('advance_balances', ['member_id' => $member->id, 'balance' => '0.00']);
+        $this->assertSoftDeleted('payments', ['id' => $payment->id]);
+    }
+
     public function test_member_cannot_create_payment(): void
     {
         $user = User::factory()->create();

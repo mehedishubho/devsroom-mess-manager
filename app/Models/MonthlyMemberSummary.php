@@ -23,7 +23,7 @@ use OwenIt\Auditing\Contracts\Auditable as AuditableContract;
 #[Fillable([
     'mess_id', 'monthly_closing_id', 'member_id', 'total_meals', 'meal_rate',
     'meal_cost', 'fixed_cost_share', 'guest_meal_charge', 'gross_bill',
-    'advance_applied', 'net_bill', 'payments_received', 'balance_due',
+    'advance_applied', 'net_bill', 'payments_received', 'balance_due', 'closing_balance',
 ])]
 class MonthlyMemberSummary extends Model implements AuditableContract
 {
@@ -42,6 +42,7 @@ class MonthlyMemberSummary extends Model implements AuditableContract
             'net_bill' => 'decimal:2',
             'payments_received' => 'decimal:2',
             'balance_due' => 'decimal:2',
+            'closing_balance' => 'decimal:2',
         ];
     }
 

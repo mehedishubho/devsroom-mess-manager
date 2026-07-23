@@ -110,6 +110,18 @@ class MemberStatementService
             return null;
         }
 
+        // Recover the running credit/debt from the frozen closing_balance (signed
+        // net). Pre-existing snapshots (column null) fall back to the old shape:
+        // credit hidden, running due = the month residual.
+        $closingBalance = $row->closing_balance !== null ? (float) $row->closing_balance : null;
+        if ($closingBalance === null) {
+            $advanceBalance = 0.0;
+            $runningDue = (float) $row->balance_due;
+        } else {
+            $advanceBalance = $closingBalance >= 0 ? $closingBalance : 0.0;
+            $runningDue = $closingBalance < 0 ? abs($closingBalance) : 0.0;
+        }
+
         return [
             'member_id' => $row->member_id,
             'name' => $row->member?->name ?? (string) $row->member_id,
@@ -122,8 +134,8 @@ class MemberStatementService
             'advance_payments' => 0.0,
             'advance_applied' => (float) $row->advance_applied, // kept for shape parity; views MUST NOT display
             'due' => (float) $row->balance_due,
-            'advance_balance' => 0.0,
-            'due_balance' => (float) $row->balance_due,
+            'advance_balance' => $advanceBalance,
+            'due_balance' => $runningDue,
             'active_days' => 0,
             'status' => $row->member?->status ?? 'active',
         ];

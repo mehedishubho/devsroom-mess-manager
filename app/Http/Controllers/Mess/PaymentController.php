@@ -79,7 +79,7 @@ class PaymentController extends Controller
 
     public function destroy(Payment $payment): RedirectResponse
     {
-        $payment->delete();
+        $this->service->delete($payment);
 
         return redirect()
             ->route('mess.payments.index')

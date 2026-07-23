@@ -20,10 +20,16 @@
             :value="Money::taka((float) $overview['my_bill'])"
             :hint="__('As of today')" />
 
+        @php
+            $myBalance = (float) ($overview['my_balance'] ?? 0);
+            $myBalanceValue = ($myBalance < 0 ? __('Owes').' ' : ($myBalance > 0 ? __('Credit').' ' : ''))
+                .Money::taka(abs($myBalance));
+            $myBalanceHint = $myBalance < 0 ? __('You owe the mess') : ($myBalance > 0 ? __('Credit with the mess') : __('Settled'));
+        @endphp
         <x-stat-card
-            :label="__('My Advance')"
-            :value="Money::taka((float) $overview['my_advance'])"
-            :hint="__('Current balance')" />
+            :label="__('My balance')"
+            :value="$myBalanceValue"
+            :hint="$myBalanceHint" />
 
         <div class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
             <div class="flex items-start justify-between gap-2">

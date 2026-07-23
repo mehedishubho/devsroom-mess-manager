@@ -21,7 +21,8 @@
                                 <span class="text-xs text-slate-500">{{ $member->mobile }}</span>
                             @endif
                         </label>
-                        <span class="text-sm font-semibold text-rose-700">{{ \App\Support\Money::taka($member->advanceBalance?->due_balance ?? 0) }}</span>
+                        @php $net = $member->advanceBalance?->netBalance() ?? 0; @endphp
+                        <span class="text-sm font-semibold text-rose-700">{{ __('Owes') }} {{ \App\Support\Money::taka(abs($net)) }}</span>
                     </li>
                 @endforeach
             </ul>

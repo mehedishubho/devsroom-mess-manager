@@ -113,4 +113,17 @@ class PaymentService
 
         return $payment->refresh();
     }
+
+    /**
+     * Delete a payment, first reversing its advance-balance impact. Without the
+     * reversal (the mirror of update()'s lines above), deleting an ADVANCE_DEPOSIT
+     * would leave the member's credit inflated by the deleted amount.
+     */
+    public function delete(Payment $payment): void
+    {
+        DB::transaction(function () use ($payment) {
+            $this->balances->reversePayment($payment);
+            $payment->delete();
+        });
+    }
 }

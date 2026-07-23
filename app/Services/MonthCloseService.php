@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AdvanceBalance;
 use App\Models\Mess;
 use App\Models\MonthlyClosing;
 use App\Models\MonthlyMemberSummary;
@@ -116,6 +117,19 @@ class MonthCloseService
                 }
 
                 $balanceService->settle($summary->member_id);
+            }
+
+            // Freeze each member's post-settlement net position into the snapshot.
+            // `balance_due` only captures this month's residual; `closing_balance`
+            // captures the carried-forward credit/debt so closed-month statements
+            // and reports can show a real running balance instead of a hidden one.
+            $balances = AdvanceBalance::query()
+                ->whereIn('member_id', $summaries->pluck('member_id')->all())
+                ->get()
+                ->keyBy('member_id');
+            foreach ($summaries as $summary) {
+                $summary->closing_balance = $this->money($balances->get($summary->member_id)?->netBalance() ?? 0);
+                $summary->save();
             }
 
             // Invalidate the cached preview for the closed month.

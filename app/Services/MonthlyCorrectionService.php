@@ -53,7 +53,13 @@ class MonthlyCorrectionService
             // Notify the affected member's linked user (NOTIF-04 general-purpose channel).
             $member = Member::find($memberId);
             if ($member?->user_id) {
+                // Pass the live NET amount owed so the reminder reads "outstanding
+                // due of ৳X" instead of ৳0 (the payload previously omitted due_balance).
+                $ab = \App\Models\AdvanceBalance::where('member_id', $memberId)->first();
+                $netDue = $ab ? max(0.0, -$ab->netBalance()) : 0.0;
+
                 app(NotificationService::class)->send($member->user, NotificationType::DUE_REMINDER, [
+                    'due_balance' => $netDue,
                     'year' => $appliedToYear,
                     'month' => $appliedToMonth,
                     'amount' => $amount,

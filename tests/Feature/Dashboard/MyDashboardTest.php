@@ -58,7 +58,7 @@ class MyDashboardTest extends TestCase
         $response->assertSee(__('Overview'));
         $response->assertSee(__('My Meals (this month)'));
         $response->assertSee(__('My Bill (this month)'));
-        $response->assertSee(__('My Advance'));
+        $response->assertSee(__('My balance'));
         $response->assertSee(__('My Payment History'));
     }
 

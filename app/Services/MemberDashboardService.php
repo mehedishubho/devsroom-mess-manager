@@ -21,7 +21,7 @@ use Illuminate\Database\Eloquent\Collection;
  *   - my_meals         (this month's meal value sum — regular B/L/D only,
  *                       EXCLUDES guest meals per Open Question #3 LOCKED)
  *   - my_bill          (this month's bill from BillPreviewService — cache-backed, D-17)
- *   - my_advance       (current AdvanceBalance)
+ *   - my_balance       (current net AdvanceBalance — credit − debt)
  *   - recent_payments  (last 5 payments for the "My Payment History" card)
  *
  * Member identity always comes from `$user->getMemberOrNull()` — never from
@@ -39,7 +39,7 @@ class MemberDashboardService
      *     member:Member|null,
      *     my_meals:float,
      *     my_bill:float,
-     *     my_advance:float,
+     *     my_balance:float,
      *     recent_payments:Collection<int,Payment>,
      * }
      */
@@ -52,7 +52,7 @@ class MemberDashboardService
                 'member' => null,
                 'my_meals' => 0.0,
                 'my_bill' => 0.0,
-                'my_advance' => 0.0,
+                'my_balance' => 0.0,
                 'recent_payments' => new Collection,
             ];
         }
@@ -64,9 +64,10 @@ class MemberDashboardService
         $myMeals = $this->myMealsThisMonth($member->id, $now);
         $billRow = $this->preview->forMember($member->id, $year, $month);
         $myBill = (float) ($billRow['bill'] ?? 0.0);
-        $myAdvance = (float) (AdvanceBalance::query()
-            ->where('member_id', $member->id)
-            ->value('balance') ?? 0.0);
+        // Net balance (credit − debt) — reading only the `balance` column used to
+        // hide debt, so a member who owed saw "My Advance ৳0.00".
+        $advanceRow = AdvanceBalance::query()->where('member_id', $member->id)->first();
+        $myBalance = $advanceRow?->netBalance() ?? 0.0;
         $recentPayments = Payment::query()
             ->where('member_id', $member->id)
             ->with('enteredBy:id,name')
@@ -79,7 +80,7 @@ class MemberDashboardService
             'member' => $member,
             'my_meals' => $myMeals,
             'my_bill' => $myBill,
-            'my_advance' => $myAdvance,
+            'my_balance' => $myBalance,
             'recent_payments' => $recentPayments,
         ];
     }

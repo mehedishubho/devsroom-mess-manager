@@ -173,6 +173,19 @@ class MonthCloseServiceTest extends TestCase
         $this->assertSame(0.0, (float) $ab->balance);
     }
 
+    public function test_close_freezes_net_closing_balance_on_snapshot(): void
+    {
+        // bazar 60 / 60 meals => bill 60, unpaid => the member ends the month
+        // owing 60, so the snapshot's closing_balance (signed net) must be -60.00.
+        $this->seedBazar(60);
+        $member = $this->seedFullMonthMember();
+
+        $result = app(MonthCloseService::class)->close(2026, 6, $this->admin->id);
+        $summary = $result['summaries']->firstWhere('member_id', $member->id);
+
+        $this->assertSame('-60.00', (string) $summary->fresh()->closing_balance);
+    }
+
     public function test_payment_received_is_subtracted_from_net_bill_in_snapshot(): void
     {
         // bazar 60 => rate 1 => mealCost 60 => bill 60; payment 20 => net 40

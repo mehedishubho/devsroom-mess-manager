@@ -192,6 +192,15 @@ class ReportService
             // Map snapshot columns to the BillPreviewService live-row keys
             // verbatim. `advance_applied` is renamed to `bill_payments` on
             // the way out (Pitfall 3) — they hold the same value.
+            $closingBalance = $row->closing_balance !== null ? (float) $row->closing_balance : null;
+            if ($closingBalance === null) {
+                $advanceBalance = 0.0;
+                $runningDue = (float) $row->balance_due;
+            } else {
+                $advanceBalance = $closingBalance >= 0 ? $closingBalance : 0.0;
+                $runningDue = $closingBalance < 0 ? abs($closingBalance) : 0.0;
+            }
+
             $members[] = [
                 'member_id' => $row->member_id,
                 'name' => $row->member?->name ?? (string) $row->member_id,
@@ -204,8 +213,8 @@ class ReportService
                 'advance_payments' => 0.0, // not tracked on the snapshot
                 'advance_applied' => (float) $row->advance_applied, // kept for parity; views MUST NOT display this
                 'due' => (float) $row->balance_due,
-                'advance_balance' => 0.0, // snapshot does not carry carried-forward balance
-                'due_balance' => (float) $row->balance_due,
+                'advance_balance' => $advanceBalance,
+                'due_balance' => $runningDue,
                 'active_days' => 0,
                 'status' => $row->member?->status ?? 'active',
             ];
