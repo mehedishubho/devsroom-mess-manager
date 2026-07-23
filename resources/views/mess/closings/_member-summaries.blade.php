@@ -13,7 +13,7 @@
                     <th class="px-4 py-3 text-right">{{ __('Fixed') }}</th>
                     <th class="px-4 py-3 text-right">{{ __('Guest') }}</th>
                     <th class="px-4 py-3 text-right">{{ __('Gross') }}</th>
-                    <th class="px-4 py-3 text-right">{{ __('Advance') }}</th>
+                    <th class="px-4 py-3 text-right">{{ __('Paid') }}</th>
                     <th class="px-4 py-3 text-right">{{ __('Net') }}</th>
                 </tr>
             </thead>

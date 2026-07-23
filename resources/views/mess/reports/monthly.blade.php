@@ -8,7 +8,7 @@
         $isSnapshot = ($data['source'] ?? 'live') === 'snapshot';
         $members = $data['members'] ?? [];
         $totalDue = collect($members)->sum('due');
-        $totalAdvance = collect($members)->sum('advance_balance');
+        $totalNet = collect($members)->sum(fn ($r) => ($r['advance_balance'] ?? 0) - ($r['due_balance'] ?? 0));
         $hasData = ! empty($members);
     @endphp
 
