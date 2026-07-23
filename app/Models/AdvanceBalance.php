@@ -31,4 +31,16 @@ class AdvanceBalance extends Model
     {
         return $this->belongsTo(Member::class);
     }
+
+    /**
+     * Net balance for DISPLAY: balance (credit) − due_balance (debt).
+     * Positive = the member has credit; negative = the member owes. The two
+     * columns are kept separate for the month-close settlement math, but every
+     * user-facing surface shows this single net figure so a member is never
+     * displayed as simultaneously owing and being owed.
+     */
+    public function netBalance(): float
+    {
+        return (float) bcsub((string) $this->balance, (string) $this->due_balance, 2);
+    }
 }

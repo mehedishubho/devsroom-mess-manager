@@ -8,8 +8,7 @@
             <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
                 <tr>
                     <th class="px-4 py-3">{{ __('Member') }}</th>
-                    <th class="px-4 py-3 text-right">{{ __('Advance (credit)') }}</th>
-                    <th class="px-4 py-3 text-right">{{ __('Due (debt)') }}</th>
+                    <th class="px-4 py-3 text-right">{{ __('Balance') }}</th>
                     <th class="px-4 py-3 text-right">{{ __('Last updated') }}</th>
                     <th class="px-4 py-3 text-right">{{ __('Actions') }}</th>
                 </tr>
@@ -18,11 +17,19 @@
                 @foreach ($members as $member)
                     @php
                         $bal = $member->advanceBalance;
+                        $net = $bal?->netBalance() ?? 0;
                     @endphp
                     <tr class="hover:bg-slate-50">
                         <td class="px-4 py-3 font-medium text-slate-900">{{ $member->name }}</td>
-                        <td class="px-4 py-3 text-right text-emerald-700">{{ \App\Support\Money::taka($bal?->balance ?? 0) }}</td>
-                        <td class="px-4 py-3 text-right text-rose-700">{{ \App\Support\Money::taka($bal?->due_balance ?? 0) }}</td>
+                        <td class="px-4 py-3 text-right">
+                            @if ($net > 0)
+                                <span class="font-medium text-emerald-700">{{ __('Credit') }} {{ \App\Support\Money::taka($net) }}</span>
+                            @elseif ($net < 0)
+                                <span class="font-medium text-rose-700">{{ __('Owes') }} {{ \App\Support\Money::taka(abs($net)) }}</span>
+                            @else
+                                <span class="text-slate-400">{{ __('Settled') }}</span>
+                            @endif
+                        </td>
                         <td class="px-4 py-3 text-right text-slate-500">{{ $bal?->last_updated_at?->format('d-m-Y') ?? '—' }}</td>
                         <td class="px-4 py-3 text-right">
                             <a href="{{ route('mess.advance-balances.adjust', $member) }}" class="text-emerald-700 hover:underline">{{ __('Adjust') }}</a>
@@ -36,21 +43,21 @@
         @foreach ($members as $member)
             @php
                 $bal = $member->advanceBalance;
+                $net = $bal?->netBalance() ?? 0;
             @endphp
             <div class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
                 <div class="flex items-center justify-between">
                     <span class="font-medium text-slate-900">{{ $member->name }}</span>
                     <a href="{{ route('mess.advance-balances.adjust', $member) }}" class="text-sm text-emerald-700 hover:underline">{{ __('Adjust') }}</a>
                 </div>
-                <div class="mt-2 grid grid-cols-2 gap-2 text-sm">
-                    <div>
-                        <div class="text-xs text-slate-500">{{ __('Advance') }}</div>
-                        <div class="font-semibold text-emerald-700">{{ \App\Support\Money::taka($bal?->balance ?? 0) }}</div>
-                    </div>
-                    <div>
-                        <div class="text-xs text-slate-500">{{ __('Due') }}</div>
-                        <div class="font-semibold text-rose-700">{{ \App\Support\Money::taka($bal?->due_balance ?? 0) }}</div>
-                    </div>
+                <div class="mt-2 text-sm">
+                    @if ($net > 0)
+                        <div class="font-semibold text-emerald-700">{{ __('Credit') }} {{ \App\Support\Money::taka($net) }}</div>
+                    @elseif ($net < 0)
+                        <div class="font-semibold text-rose-700">{{ __('Owes') }} {{ \App\Support\Money::taka(abs($net)) }}</div>
+                    @else
+                        <div class="font-semibold text-slate-500">{{ __('Settled') }}</div>
+                    @endif
                 </div>
             </div>
         @endforeach
