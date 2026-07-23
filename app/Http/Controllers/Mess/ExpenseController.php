@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Mess;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Mess\StoreExpenseRequest;
+use App\Http\Requests\Mess\UpdateExpenseRequest;
+use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Services\ExpenseService;
 use App\Support\ExpenseKind;
@@ -12,12 +14,10 @@ use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 /**
- * Task 6 (quick-260717-2q3) — unified Add Expense form.
- *
- * Replaces the two split controllers (createBazar/storeBazar/createFixed/
- * storeFixed) with one create() + one store(). The category's kind is the
- * single source of truth — bazar/fixed/other all live behind one entry
- * point and a grouped dropdown.
+ * Unified expense CRUD. One create/store entry point for bazar/fixed/other —
+ * the category's kind is the single source of truth. show/edit/update/destroy
+ * mirror the Payments resource convention (shared _form partial, separate
+ * UpdateExpenseRequest, month.open guard on writes).
  */
 class ExpenseController extends Controller
 {
@@ -32,16 +32,7 @@ class ExpenseController extends Controller
 
     public function create(): View
     {
-        // Group every category for the active mess by kind, in the canonical
-        // ExpenseKind::ALL order so the optgroups stay stable.
-        $grouped = ExpenseCategory::query()
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get(['id', 'name', 'kind'])
-            ->groupBy('kind')
-            ->sortKeysUsing(fn ($a, $b) => array_search($a, ExpenseKind::ALL) <=> array_search($b, ExpenseKind::ALL));
-
-        return view('mess.expenses.create', compact('grouped'));
+        return view('mess.expenses.create', ['grouped' => $this->groupedCategories()]);
     }
 
     public function store(StoreExpenseRequest $request): RedirectResponse
@@ -51,5 +42,52 @@ class ExpenseController extends Controller
         return redirect()
             ->route('mess.expenses.index')
             ->with('success', __('Expense of :amount recorded.', ['amount' => number_format((float) $expense->amount, 2)]));
+    }
+
+    public function show(Expense $expense): View
+    {
+        $expense->load(['category', 'purchasedByMember', 'enteredBy']);
+
+        return view('mess.expenses.show', compact('expense'));
+    }
+
+    public function edit(Expense $expense): View
+    {
+        return view('mess.expenses.edit', [
+            'expense' => $expense,
+            'grouped' => $this->groupedCategories(),
+        ]);
+    }
+
+    public function update(UpdateExpenseRequest $request, Expense $expense): RedirectResponse
+    {
+        $this->service->update($expense, $request->validated(), $request->file('receipt'));
+
+        return redirect()
+            ->route('mess.expenses.index')
+            ->with('success', __('Expense updated.'));
+    }
+
+    public function destroy(Expense $expense): RedirectResponse
+    {
+        $expense->delete();
+
+        return redirect()
+            ->route('mess.expenses.index')
+            ->with('success', __('Expense removed.'));
+    }
+
+    /**
+     * Every category for the active mess grouped by kind, in the canonical
+     * ExpenseKind::ALL order so the optgroups stay stable across create/edit.
+     */
+    private function groupedCategories()
+    {
+        return ExpenseCategory::query()
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name', 'kind'])
+            ->groupBy('kind')
+            ->sortKeysUsing(fn ($a, $b) => array_search($a, ExpenseKind::ALL) <=> array_search($b, ExpenseKind::ALL));
     }
 }

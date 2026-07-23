@@ -177,6 +177,12 @@ Route::middleware(['auth', 'roles:admin,super-admin,manager', EnsureMessExists::
     Route::get('mess/expenses/create', [ExpenseController::class, 'create'])->name('mess.expenses.create');
     Route::post('mess/expenses', [ExpenseController::class, 'store'])->name('mess.expenses.store')
         ->middleware('month.open');
+    Route::get('mess/expenses/{expense}', [ExpenseController::class, 'show'])->name('mess.expenses.show');
+    Route::get('mess/expenses/{expense}/edit', [ExpenseController::class, 'edit'])->name('mess.expenses.edit');
+    Route::patch('mess/expenses/{expense}', [ExpenseController::class, 'update'])->name('mess.expenses.update')
+        ->middleware('month.open');
+    Route::delete('mess/expenses/{expense}', [ExpenseController::class, 'destroy'])->name('mess.expenses.destroy')
+        ->middleware('month.open');
 
     Route::get('mess/categories', [ExpenseCategoryController::class, 'index'])->name('mess.categories.index');
     Route::post('mess/categories', [ExpenseCategoryController::class, 'store'])->name('mess.categories.store');

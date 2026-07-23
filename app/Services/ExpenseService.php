@@ -47,4 +47,30 @@ class ExpenseService
 
         return $expense;
     }
+
+    /**
+     * Update an existing expense. A new receipt (optional) replaces the prior
+     * one; omitting the file leaves receipt_path untouched. entered_by is the
+     * original recorder and is intentionally not changed here.
+     */
+    public function update(Expense $expense, array $data, ?UploadedFile $receipt = null): Expense
+    {
+        $expense->update([
+            'expense_category_id' => $data['expense_category_id'],
+            'date' => $data['date'],
+            'purchased_by' => $data['purchased_by'] ?? null,
+            'vendor' => $data['vendor'] ?? null,
+            'description' => $data['description'] ?? null,
+            'amount' => $data['amount'],
+        ]);
+
+        if ($receipt) {
+            $ext = $receipt->getClientOriginalExtension();
+            $path = "receipts/{$expense->id}.{$ext}";
+            StorageProvider::store($path, $receipt);
+            $expense->update(['receipt_path' => $path]);
+        }
+
+        return $expense;
+    }
 }
