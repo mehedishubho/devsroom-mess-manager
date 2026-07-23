@@ -22,14 +22,17 @@
 
         @php
             $myBalance = (float) ($overview['my_balance'] ?? 0);
-            $myBalanceValue = ($myBalance < 0 ? __('Owes').' ' : ($myBalance > 0 ? __('Credit').' ' : ''))
-                .Money::taka(abs($myBalance));
-            $myBalanceHint = $myBalance < 0 ? __('You owe the mess') : ($myBalance > 0 ? __('Credit with the mess') : __('Settled'));
         @endphp
-        <x-stat-card
-            :label="__('My balance')"
-            :value="$myBalanceValue"
-            :hint="$myBalanceHint" />
+        <div class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+            <div class="flex items-start justify-between gap-2">
+                <p class="text-xs font-medium uppercase tracking-wide text-slate-500">{{ __('My balance') }}</p>
+                <a href="{{ route('my.wallet') }}" class="text-xs font-medium text-emerald-700 hover:underline">{{ __('View wallet') }}</a>
+            </div>
+            <p class="mt-2 text-lg font-bold {{ $myBalance < 0 ? 'text-rose-700' : 'text-emerald-700' }}">
+                {{ $myBalance < 0 ? __('Owes') : ($myBalance > 0 ? __('Credit') : '') }} {{ Money::taka(abs($myBalance)) }}
+            </p>
+            <p class="mt-1 text-xs text-slate-500">{{ $myBalance < 0 ? __('You owe the mess') : ($myBalance > 0 ? __('Credit with the mess') : __('Settled')) }}</p>
+        </div>
 
         <div class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
             <div class="flex items-start justify-between gap-2">
