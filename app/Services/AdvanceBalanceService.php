@@ -12,6 +12,10 @@ use RuntimeException;
 
 class AdvanceBalanceService
 {
+    public function __construct(
+        private readonly BillPreviewService $billPreview,
+    ) {}
+
     /**
      * Apply the impact of a Payment to the member's advance/due balance.
      * Only `advance_deposit` touches `balance` (D-07). `bill_payment` is a no-op here.
@@ -99,6 +103,11 @@ class AdvanceBalanceService
             }
             $row->last_updated_at = now();
             $row->save();
+
+            // A manual adjust changes the running credit/debt that the bill
+            // preview now consumes (advance offsets the live bill), so drop the
+            // current month's cached preview so the next read recomputes.
+            $this->billPreview->invalidate(now()->year, now()->month);
 
             Log::info('manual_balance_adjustment', [
                 'member_id' => $memberId,
