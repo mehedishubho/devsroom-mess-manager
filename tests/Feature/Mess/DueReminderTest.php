@@ -27,7 +27,7 @@ class DueReminderTest extends TestCase
     public function test_admin_can_send_due_reminder_to_member_with_due_balance(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $memberUser = User::factory()->create();
         $memberUser->assignRole(Role::where('slug', 'mess-member')->first());
         $member = Member::factory()->create([
@@ -50,7 +50,7 @@ class DueReminderTest extends TestCase
     public function test_due_reminder_skips_member_without_due_balance(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $memberUser = User::factory()->create();
         $member = Member::factory()->create([
             'user_id' => $memberUser->id,
@@ -68,7 +68,7 @@ class DueReminderTest extends TestCase
     public function test_due_reminder_index_lists_only_members_with_due(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $due = Member::factory()->create(['status' => MemberStatus::ACTIVE, 'name' => 'Has Due']);
         $clear = Member::factory()->create(['status' => MemberStatus::ACTIVE, 'name' => 'No Due']);
         AdvanceBalance::factory()->withDue(100)->create(['member_id' => $due->id]);

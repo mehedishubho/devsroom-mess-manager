@@ -33,7 +33,7 @@ class MemberCrudTest extends TestCase
     public function test_admin_can_view_members_index(): void
     {
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'admin')->first());
+        $user->assignRole(Role::where('slug', 'manager')->first());
 
         $this->actingAs($user)
             ->get(route('mess.members.index'))
@@ -45,7 +45,7 @@ class MemberCrudTest extends TestCase
     {
         Storage::fake('public');
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
 
         $photo = UploadedFile::fake()->image('avatar.jpg', 200, 200);
 
@@ -83,7 +83,7 @@ class MemberCrudTest extends TestCase
         // time as account creation was silently dropped.
         Storage::fake('public');
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
 
         $photo = UploadedFile::fake()->image('avatar.jpg', 200, 200);
 
@@ -126,7 +126,7 @@ class MemberCrudTest extends TestCase
         // surfacing as a 500: member visible under /mess/members, no user under
         // /dashboard/users. firstOrCreate must link to the existing user.
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $existing = User::factory()->create(['email' => 'dup@test.com', 'name' => 'Already Here']);
 
         $controller = app(MemberController::class);
@@ -160,7 +160,7 @@ class MemberCrudTest extends TestCase
     public function test_admin_can_update_member(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $member = Member::factory()->create(['name' => 'Old Name']);
 
         $controller = app(MemberController::class);
@@ -192,7 +192,7 @@ class MemberCrudTest extends TestCase
     public function test_admin_can_deactivate_member(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $member = Member::factory()->create(['status' => 'active']);
 
         $controller = app(MemberController::class);

@@ -30,7 +30,7 @@ class ExpenseAuditTest extends TestCase
     public function test_creating_expense_writes_audit_log(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $messId = Mess::activeId();
         $category = ExpenseCategory::where('kind', ExpenseKind::BAZAR)->first();
         $member = Member::factory()->create(['mess_id' => $messId, 'status' => 'active']);

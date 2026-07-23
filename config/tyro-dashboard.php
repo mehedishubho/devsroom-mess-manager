@@ -14,7 +14,7 @@ return [
     */
     'routes' => [
         'prefix' => env('TYRO_DASHBOARD_PREFIX', 'dashboard'),
-        'middleware' => ['web', 'auth', 'roles:admin,super-admin'],
+        'middleware' => ['web', 'auth', 'roles:manager,super-admin'],
         'name_prefix' => 'tyro-dashboard.',
     ],
 
@@ -27,7 +27,7 @@ return [
     | (user management, role management, privilege management, settings).
     |
     */
-    'admin_roles' => ['admin', 'super-admin'],
+    'admin_roles' => ['manager', 'super-admin'],
 
     /*
     |--------------------------------------------------------------------------
@@ -140,7 +140,7 @@ return [
     |
     */
     'protected' => [
-        'roles' => ['admin', 'super-admin', 'user'],
+        'roles' => ['manager', 'super-admin', 'mess-member'],
         'users' => [], // Add user IDs that cannot be deleted
     ],
 
@@ -267,7 +267,7 @@ return [
                     'help_text' => 'Inactive messes are hidden from members',
                 ],
             ],
-            'roles' => ['admin', 'super-admin'],
+            'roles' => ['manager', 'super-admin'],
             'search' => ['name', 'address'],
         ],
 
@@ -316,7 +316,7 @@ return [
                     'rules' => 'required|exists:messes,id',
                 ],
             ],
-            'roles' => ['admin', 'super-admin'],
+            'roles' => ['manager', 'super-admin'],
             'search' => ['key', 'group'],
         ],
     ],

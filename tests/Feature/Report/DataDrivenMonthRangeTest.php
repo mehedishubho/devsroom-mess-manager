@@ -143,7 +143,7 @@ class DataDrivenMonthRangeTest extends TestCase
         ]);
 
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
 
         $response = $this->actingAs($admin)
             ->get(route('mess.reports.monthly', ['year' => 2025, 'month' => 3]));
@@ -162,7 +162,7 @@ class DataDrivenMonthRangeTest extends TestCase
     public function test_month_nav_still_renders_prev_next_and_this_month_links(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
 
         $response = $this->actingAs($admin)
             ->get(route('mess.reports.monthly'));

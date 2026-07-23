@@ -32,7 +32,7 @@ class AdvanceBalanceTest extends TestCase
     public function test_advance_deposit_increases_advance_balance(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $member = Member::factory()->create(['status' => MemberStatus::ACTIVE]);
 
         $service = app(AdvanceBalanceService::class);
@@ -54,7 +54,7 @@ class AdvanceBalanceTest extends TestCase
     public function test_bill_payment_does_not_touch_advance_balance(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $member = Member::factory()->create(['status' => MemberStatus::ACTIVE]);
 
         $service = app(AdvanceBalanceService::class);
@@ -74,7 +74,7 @@ class AdvanceBalanceTest extends TestCase
     public function test_manager_can_adjust_balance_positive(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $member = Member::factory()->create(['status' => MemberStatus::ACTIVE]);
 
         $controller = app(AdvanceBalanceController::class);
@@ -103,7 +103,7 @@ class AdvanceBalanceTest extends TestCase
     public function test_manager_can_adjust_balance_negative(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $member = Member::factory()->create(['status' => MemberStatus::ACTIVE]);
 
         $service = app(AdvanceBalanceService::class);
@@ -119,7 +119,7 @@ class AdvanceBalanceTest extends TestCase
     public function test_zero_amount_rejected(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $member = Member::factory()->create(['status' => MemberStatus::ACTIVE]);
 
         $service = app(AdvanceBalanceService::class);
@@ -131,7 +131,7 @@ class AdvanceBalanceTest extends TestCase
     public function test_carry_forward_adds_to_advance(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $member = Member::factory()->create(['status' => MemberStatus::ACTIVE]);
 
         $service = app(AdvanceBalanceService::class);
@@ -146,7 +146,7 @@ class AdvanceBalanceTest extends TestCase
     public function test_carry_forward_subtracts_to_due(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $member = Member::factory()->create(['status' => MemberStatus::ACTIVE]);
 
         $service = app(AdvanceBalanceService::class);
@@ -162,7 +162,7 @@ class AdvanceBalanceTest extends TestCase
     public function test_index_lists_active_members(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         Member::factory()->count(3)->create(['status' => MemberStatus::ACTIVE]);
 
         $this->actingAs($admin)

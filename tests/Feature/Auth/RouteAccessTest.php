@@ -27,7 +27,7 @@ class RouteAccessTest extends TestCase
     public function test_home_returns_200_for_admin(): void
     {
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'admin')->first());
+        $user->assignRole(Role::where('slug', 'manager')->first());
         Mess::factory()->create();
 
         $this->actingAs($user)->get('/home')->assertOk();
@@ -57,7 +57,7 @@ class RouteAccessTest extends TestCase
     public function test_my_returns_403_for_admin(): void
     {
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'admin')->first());
+        $user->assignRole(Role::where('slug', 'manager')->first());
 
         $this->actingAs($user)->get('/my')->assertForbidden();
     }

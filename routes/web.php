@@ -105,7 +105,7 @@ Route::post('/set-password', [SetPasswordController::class, 'update'])->name('pa
 // `roles:` = EnsureAnyTyroRole (ANY-match); `role:` would be ALL-match.
 // super-admin is included so the installation owner can run all daily mess operations
 // (Home, Members, Meals, Expenses, Payments, Reports, Close month, etc.) without 403.
-Route::middleware(['auth', 'roles:admin,super-admin,manager', EnsureMessExists::class])->group(function () {
+Route::middleware(['auth', 'roles:super-admin,manager', EnsureMessExists::class])->group(function () {
     Route::get('/home', [HomeController::class, 'index'])->name('home');
 
     Route::get('/mess/settings', [MessConfigController::class, 'edit'])->name('mess.settings.edit');

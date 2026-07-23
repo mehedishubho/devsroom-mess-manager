@@ -53,7 +53,7 @@ class OnboardingRedirectTest extends TestCase
         // EnsureMessExists then intercepts the /home request and redirects
         // to /onboarding because no mess exists.
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'admin')->first());
+        $user->assignRole(Role::where('slug', 'manager')->first());
         $this->actingAs($user);
 
         $response = $this->get('/home');

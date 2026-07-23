@@ -62,7 +62,7 @@ class BackupDownloadAccessLogTest extends TestCase
     private function admin(): User
     {
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'admin')->first());
+        $user->assignRole(Role::where('slug', 'manager')->first());
 
         return $user;
     }

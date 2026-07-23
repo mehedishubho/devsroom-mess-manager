@@ -26,7 +26,7 @@ class AuditLogTest extends TestCase
         $mess = Mess::first();
         $mess->update(['name' => 'Renamed']);
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'admin')->first());
+        $user->assignRole(Role::where('slug', 'manager')->first());
 
         $this->actingAs($user)->get(route('mess.audit'))->assertOk();
     }
@@ -36,7 +36,7 @@ class AuditLogTest extends TestCase
         $mess = Mess::first();
         $mess->update(['name' => 'Renamed']);
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'admin')->first());
+        $user->assignRole(Role::where('slug', 'manager')->first());
 
         $this->actingAs($user)
             ->get(route('mess.audit', ['model' => Mess::class]))

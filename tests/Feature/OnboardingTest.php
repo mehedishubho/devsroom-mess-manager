@@ -43,7 +43,7 @@ class OnboardingTest extends TestCase
     public function test_admin_cannot_access_onboarding(): void
     {
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'admin')->first());
+        $user->assignRole(Role::where('slug', 'manager')->first());
 
         $this->actingAs($user)->get(route('onboarding.create'))->assertForbidden();
     }

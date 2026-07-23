@@ -40,11 +40,11 @@ class NotificationTest extends TestCase
         // Two admins belong to the active mess via a Member row.
         $activeMessId = Mess::activeId();
         $a1 = User::factory()->create();
-        $a1->assignRole(Role::where('slug', 'admin')->first());
+        $a1->assignRole(Role::where('slug', 'manager')->first());
         Member::factory()->create(['mess_id' => $activeMessId, 'user_id' => $a1->id, 'status' => MemberStatus::ACTIVE]);
 
         $a2 = User::factory()->create();
-        $a2->assignRole(Role::where('slug', 'admin')->first());
+        $a2->assignRole(Role::where('slug', 'manager')->first());
         Member::factory()->create(['mess_id' => $activeMessId, 'user_id' => $a2->id, 'status' => MemberStatus::ACTIVE]);
 
         // Super-admins are cross-mess — they get notified even without a Member row.
@@ -72,7 +72,7 @@ class NotificationTest extends TestCase
 
         // Mess A's admin — has a Member row in the active mess.
         $messAAdmin = User::factory()->create();
-        $messAAdmin->assignRole(Role::where('slug', 'admin')->first());
+        $messAAdmin->assignRole(Role::where('slug', 'manager')->first());
         Member::factory()->create([
             'mess_id' => $activeMessId,
             'user_id' => $messAAdmin->id,
@@ -82,7 +82,7 @@ class NotificationTest extends TestCase
         // Mess B — separate mess with its own admin. NO Member row in the active mess.
         $messB = Mess::factory()->create();
         $messBAdmin = User::factory()->create();
-        $messBAdmin->assignRole(Role::where('slug', 'admin')->first());
+        $messBAdmin->assignRole(Role::where('slug', 'manager')->first());
         Member::factory()->create([
             'mess_id' => $messB->id,
             'user_id' => $messBAdmin->id,
@@ -130,7 +130,7 @@ class NotificationTest extends TestCase
     public function test_notification_index_marks_all_read_and_lists_own_only(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $other = User::factory()->create();
         Notification::factory()->create(['mess_id' => Mess::activeId(), 'user_id' => $admin->id, 'type' => NotificationType::CLOSE_COMPLETE]);
         Notification::factory()->create(['mess_id' => Mess::activeId(), 'user_id' => $other->id, 'type' => NotificationType::DUE_REMINDER]);

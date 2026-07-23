@@ -27,7 +27,7 @@ class ExpenseEditTest extends TestCase
         config(['mess.active_mess_id' => $mess->id]);
         $this->messId = $mess->id;
         $this->admin = User::factory()->create();
-        $this->admin->assignRole(Role::where('slug', 'admin')->first());
+        $this->admin->assignRole(Role::where('slug', 'manager')->first());
     }
 
     public function test_admin_can_view_expense_detail(): void

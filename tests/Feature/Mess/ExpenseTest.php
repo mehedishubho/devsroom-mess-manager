@@ -31,7 +31,7 @@ class ExpenseTest extends TestCase
     public function test_admin_can_view_expenses_index(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
 
         $this->actingAs($admin)
             ->get(route('mess.expenses.index'))
@@ -42,7 +42,7 @@ class ExpenseTest extends TestCase
     public function test_admin_can_create_bazar_expense(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $messId = Mess::activeId();
         $category = ExpenseCategory::where('kind', ExpenseKind::BAZAR)->first();
         $member = Member::factory()->create(['mess_id' => $messId, 'status' => 'active']);
@@ -78,7 +78,7 @@ class ExpenseTest extends TestCase
     public function test_admin_can_create_fixed_expense(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $category = ExpenseCategory::where('kind', ExpenseKind::FIXED)->first();
 
         $controller = app(ExpenseController::class);

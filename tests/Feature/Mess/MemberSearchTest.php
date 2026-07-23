@@ -24,7 +24,7 @@ class MemberSearchTest extends TestCase
     public function test_search_endpoint_returns_partial_html(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
 
         $messId = Mess::activeId();
         Member::factory()->create(['name' => 'Rahim Ahmed', 'room_or_seat' => 'R-201', 'mess_id' => $messId]);
@@ -41,7 +41,7 @@ class MemberSearchTest extends TestCase
     public function test_search_endpoint_empty_query_returns_all(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
 
         $messId = Mess::activeId();
         Member::factory()->count(3)->create(['mess_id' => $messId]);

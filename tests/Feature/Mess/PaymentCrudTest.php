@@ -33,7 +33,7 @@ class PaymentCrudTest extends TestCase
     public function test_admin_can_create_bill_payment_cash(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $member = Member::factory()->create(['status' => MemberStatus::ACTIVE]);
 
         $controller = app(PaymentController::class);
@@ -67,7 +67,7 @@ class PaymentCrudTest extends TestCase
     public function test_bkash_requires_reference(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
 
         $request = StorePaymentRequest::create(route('mess.payments.store'), 'POST', [
             'member_id' => 1,
@@ -88,7 +88,7 @@ class PaymentCrudTest extends TestCase
     public function test_admin_can_create_advance_deposit(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $member = Member::factory()->create(['status' => MemberStatus::ACTIVE]);
 
         $controller = app(PaymentController::class);
@@ -121,7 +121,7 @@ class PaymentCrudTest extends TestCase
     public function test_admin_can_update_payment(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $payment = Payment::factory()->create();
 
         $controller = app(PaymentController::class);
@@ -148,7 +148,7 @@ class PaymentCrudTest extends TestCase
     public function test_admin_can_delete_payment(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $payment = Payment::factory()->create();
 
         $controller = app(PaymentController::class);
@@ -166,7 +166,7 @@ class PaymentCrudTest extends TestCase
     public function test_deleting_advance_deposit_reverses_balance(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $this->actingAs($admin); // PaymentService::create reads auth()->id()
         $member = Member::factory()->create(['status' => MemberStatus::ACTIVE]);
 

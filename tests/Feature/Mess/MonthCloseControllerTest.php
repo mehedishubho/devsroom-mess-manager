@@ -27,7 +27,7 @@ class MonthCloseControllerTest extends TestCase
     {
         Queue::fake();
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
 
         $this->actingAs($admin)
             ->post(route('mess.close.trigger'), ['year' => 2026, 'month' => 6])
@@ -42,7 +42,7 @@ class MonthCloseControllerTest extends TestCase
     public function test_second_dispatch_when_month_already_closed_redirects_to_show(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $closing = MonthlyClosing::factory()->create([
             'mess_id' => Mess::activeId(),
             'year' => 2026,
@@ -72,7 +72,7 @@ class MonthCloseControllerTest extends TestCase
     public function test_close_index_page_loads_for_admin(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
 
         $this->actingAs($admin)
             ->get(route('mess.close.index'))
@@ -84,7 +84,7 @@ class MonthCloseControllerTest extends TestCase
     {
         // In the test environment the queue is sync, so dispatching actually runs the job.
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
 
         $this->actingAs($admin)
             ->post(route('mess.close.trigger'), ['year' => 2026, 'month' => 6])

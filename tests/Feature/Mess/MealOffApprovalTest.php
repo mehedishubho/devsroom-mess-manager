@@ -31,7 +31,7 @@ class MealOffApprovalTest extends TestCase
     public function test_admin_can_view_approval_queue(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
 
         $this->actingAs($admin)
             ->get(route('mess.meal-off.index'))
@@ -42,7 +42,7 @@ class MealOffApprovalTest extends TestCase
     public function test_admin_can_approve_meal_off(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $messId = Mess::activeId();
         $member = Member::factory()->create(['mess_id' => $messId]);
         $req = MealOffRequest::create([
@@ -77,7 +77,7 @@ class MealOffApprovalTest extends TestCase
     public function test_admin_can_reject_meal_off_with_reason(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $messId = Mess::activeId();
         $member = Member::factory()->create(['mess_id' => $messId]);
         $req = MealOffRequest::create([

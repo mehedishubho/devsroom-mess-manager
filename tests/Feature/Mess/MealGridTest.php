@@ -31,7 +31,7 @@ class MealGridTest extends TestCase
     public function test_admin_can_view_meal_grid(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $messId = Mess::activeId();
         Member::factory()->count(3)->create(['mess_id' => $messId, 'status' => 'active']);
 
@@ -44,7 +44,7 @@ class MealGridTest extends TestCase
     public function test_bulk_save_creates_meal_entries(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $messId = Mess::activeId();
         $member1 = Member::factory()->create(['mess_id' => $messId, 'status' => 'active']);
         $member2 = Member::factory()->create(['mess_id' => $messId, 'status' => 'active']);
@@ -87,7 +87,7 @@ class MealGridTest extends TestCase
     public function test_bulk_save_skips_members_on_approved_meal_off(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $messId = Mess::activeId();
         $member = Member::factory()->create(['mess_id' => $messId, 'status' => 'active']);
         $today = Carbon::now(config('app.timezone'))->toDateString();

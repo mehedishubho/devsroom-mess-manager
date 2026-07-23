@@ -18,7 +18,7 @@ abstract class TestCase extends BaseTestCase
 
     protected function seedTyroRoles(): void
     {
-        Role::firstOrCreate(['slug' => 'admin'], ['name' => 'Administrator']);
+        Role::firstOrCreate(['slug' => 'manager'], ['name' => 'Manager']);
         Role::firstOrCreate(['slug' => 'super-admin'], ['name' => 'Super Admin']);
         Role::firstOrCreate(['slug' => 'mess-member'], ['name' => 'Mess Member']);
     }

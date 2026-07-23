@@ -28,7 +28,7 @@ class ManagerMealOffTest extends TestCase
     public function test_admin_can_submit_meal_off_for_member(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $messId = Mess::activeId();
         $member = Member::factory()->create(['mess_id' => $messId]);
 

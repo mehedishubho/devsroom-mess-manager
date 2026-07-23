@@ -20,7 +20,7 @@ class PostLoginRedirectController extends Controller
             return redirect('/dashboard');
         }
 
-        if ($user?->hasRole('admin') || $user?->hasRole('manager')) {
+        if ($user?->hasRole('manager')) {
             return redirect('/home');
         }
 

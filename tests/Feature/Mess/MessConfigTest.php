@@ -25,7 +25,7 @@ class MessConfigTest extends TestCase
     public function test_admin_can_view_settings_page(): void
     {
         $mess = Mess::factory()->create();
-        $user = $this->loginAsRole('admin');
+        $user = $this->loginAsRole('manager');
 
         $this->actingAs($user)->get(route('mess.settings.edit'))->assertOk();
     }
@@ -33,7 +33,7 @@ class MessConfigTest extends TestCase
     public function test_admin_can_update_mess_settings(): void
     {
         $mess = Mess::factory()->create(['name' => 'Old']);
-        $user = $this->loginAsRole('admin');
+        $user = $this->loginAsRole('manager');
 
         $controller = app(MessConfigController::class);
         $reflection = new \ReflectionClass($controller);
@@ -60,7 +60,7 @@ class MessConfigTest extends TestCase
     public function test_settings_update_validates_required_fields(): void
     {
         Mess::factory()->create();
-        $user = $this->loginAsRole('admin');
+        $user = $this->loginAsRole('manager');
 
         $this->actingAs($user)
             ->get(route('mess.settings.edit'))

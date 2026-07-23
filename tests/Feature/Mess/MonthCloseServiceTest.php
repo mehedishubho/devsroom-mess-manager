@@ -37,7 +37,7 @@ class MonthCloseServiceTest extends TestCase
         $mess = Mess::factory()->create();
         config(['mess.active_mess_id' => $mess->id]);
         $this->admin = User::factory()->create();
-        $this->admin->assignRole(Role::where('slug', 'admin')->first());
+        $this->admin->assignRole(Role::where('slug', 'manager')->first());
     }
 
     /** Seed a single active member present for the whole month and return them. */
@@ -275,7 +275,7 @@ class MonthCloseServiceTest extends TestCase
     {
         $this->seedBazar(1000);
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         // The admin must belong to the active mess (WR-08: broadcastToManagers
         // now scopes admins by Member.mess_id == Mess::activeId()).
         Member::factory()->create([

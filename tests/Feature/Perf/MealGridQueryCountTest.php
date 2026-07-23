@@ -48,7 +48,7 @@ class MealGridQueryCountTest extends TestCase
         Mess::forgetActiveIdCache();
 
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
 
         return $admin;
     }

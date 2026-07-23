@@ -261,7 +261,7 @@ class StorageProviderConfigTest extends TestCase
     {
         // T-2q3-01 — only super-admin can mutate backup config.
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
 
         $this->actingAs($admin)
             ->get(route('dashboard.backups.configure'))

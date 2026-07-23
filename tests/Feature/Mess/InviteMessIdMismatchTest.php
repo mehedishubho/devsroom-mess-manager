@@ -34,7 +34,7 @@ class InviteMessIdMismatchTest extends TestCase
         $this->assertTrue(Mess::query()->whereKey(42)->exists());
 
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
 
         Mail::fake();
         $this->actingAs($admin);

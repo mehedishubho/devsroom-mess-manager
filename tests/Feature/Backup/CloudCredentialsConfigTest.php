@@ -148,7 +148,7 @@ class CloudCredentialsConfigTest extends TestCase
     public function test_test_connection_is_forbidden_for_non_super_admin(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
 
         $this->actingAs($admin)
             ->post('/dashboard/backups/test/r2')

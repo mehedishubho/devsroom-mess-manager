@@ -30,7 +30,7 @@ class PaymentAuditTest extends TestCase
     public function test_creating_payment_writes_audit_log(): void
     {
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'admin')->first());
+        $user->assignRole(Role::where('slug', 'manager')->first());
         $this->actingAs($user);
 
         $payment = Payment::factory()->create();
@@ -50,7 +50,7 @@ class PaymentAuditTest extends TestCase
     public function test_updating_advance_deposit_reverses_prior_balance_impact(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $this->actingAs($admin);
         $member = Member::factory()->create(['status' => MemberStatus::ACTIVE]);
 
@@ -90,7 +90,7 @@ class PaymentAuditTest extends TestCase
     public function test_updating_bill_payment_does_not_touch_advance_balance(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $this->actingAs($admin);
         $member = Member::factory()->create(['status' => MemberStatus::ACTIVE]);
 

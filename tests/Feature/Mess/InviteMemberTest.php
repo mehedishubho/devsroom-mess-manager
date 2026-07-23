@@ -33,7 +33,7 @@ class InviteMemberTest extends TestCase
     public function test_admin_can_view_invite_page(): void
     {
         $user = User::factory()->create();
-        $user->assignRole(Role::where('slug', 'admin')->first());
+        $user->assignRole(Role::where('slug', 'manager')->first());
 
         $this->actingAs($user)->get(route('mess.members.invite.create'))->assertOk();
     }
@@ -42,7 +42,7 @@ class InviteMemberTest extends TestCase
     {
         Mail::fake();
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
 
         $this->actingAs($admin);
 

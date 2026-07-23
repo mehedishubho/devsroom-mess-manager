@@ -27,7 +27,7 @@ class MemberAuditTest extends TestCase
     public function test_creating_a_member_writes_an_audit_entry(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
 
         $controller = app(MemberController::class);
         $reflection = new \ReflectionClass($controller);

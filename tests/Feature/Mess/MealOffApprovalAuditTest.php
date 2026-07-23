@@ -27,7 +27,7 @@ class MealOffApprovalAuditTest extends TestCase
     public function test_approval_writes_audit_log(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $messId = Mess::activeId();
         $member = Member::factory()->create(['mess_id' => $messId]);
         $req = MealOffRequest::create([

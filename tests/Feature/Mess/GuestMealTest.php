@@ -31,7 +31,7 @@ class GuestMealTest extends TestCase
     public function test_admin_can_view_guest_meals_index(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
 
         $this->actingAs($admin)
             ->get(route('mess.guest-meals.index'))
@@ -42,7 +42,7 @@ class GuestMealTest extends TestCase
     public function test_admin_can_create_guest_meal(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $messId = Mess::activeId();
         $member = Member::factory()->create(['mess_id' => $messId, 'status' => 'active']);
 
@@ -78,7 +78,7 @@ class GuestMealTest extends TestCase
     public function test_admin_can_update_guest_meal(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $messId = Mess::activeId();
         $member = Member::factory()->create(['mess_id' => $messId, 'status' => 'active']);
 

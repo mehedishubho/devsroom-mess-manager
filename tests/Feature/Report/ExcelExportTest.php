@@ -36,7 +36,7 @@ class ExcelExportTest extends TestCase
     private function admin(): User
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
 
         return $admin;
     }

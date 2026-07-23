@@ -26,7 +26,7 @@ class PaymentListTest extends TestCase
     public function test_admin_can_view_payments_index(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         Payment::factory()->count(3)->create();
 
         $this->actingAs($admin)
@@ -38,7 +38,7 @@ class PaymentListTest extends TestCase
     public function test_payments_filter_by_member(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         $m1 = Member::factory()->create(['name' => 'Alice']);
         $m2 = Member::factory()->create(['name' => 'Bob']);
         Payment::factory()->count(2)->create(['member_id' => $m1->id]);
@@ -56,7 +56,7 @@ class PaymentListTest extends TestCase
     public function test_payments_filter_by_method(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         Payment::factory()->count(2)->create(['method' => PaymentMethod::CASH]);
         Payment::factory()->count(1)->create(['method' => PaymentMethod::BKASH, 'reference' => 'X1']);
 
@@ -69,7 +69,7 @@ class PaymentListTest extends TestCase
     public function test_payments_filter_by_type(): void
     {
         $admin = User::factory()->create();
-        $admin->assignRole(Role::where('slug', 'admin')->first());
+        $admin->assignRole(Role::where('slug', 'manager')->first());
         Payment::factory()->count(2)->create();
         Payment::factory()->advanceDeposit()->create(['reference' => 'ADV-1']);
 
