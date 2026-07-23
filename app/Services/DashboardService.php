@@ -22,8 +22,8 @@ use Illuminate\Support\Facades\DB;
  * DashboardService — manager-side dashboard (DASH-01/02/03).
  *
  *  - pendingMealOffCount(): pending MealOffRequest count for the alert banner.
- *  - managerCards(): 6 DASH-01 cards. Bill-derived cards (meal_rate, total_due,
- *    total_advance) reuse the bill-preview cache via BillPreviewService::preview()
+ *  - managerCards(): DASH-01 cards. Bill-derived cards (meal_rate,
+ *    total_member_balance) reuse the bill-preview cache via BillPreviewService::preview()
  *    (NO new key). Count-based cards (total_members, today_meals, monthly_expenses)
  *    use the composite key dash:counts:{mess_id}:{YYYY}-{MM} (1h TTL).
  *  - mealTrend/expenseTrend/paymentTrend(): D-05/D-06/D-07 series with D-08
@@ -75,8 +75,7 @@ class DashboardService
      *     today_meals:float,
      *     monthly_expenses:float,
      *     meal_rate:float,
-     *     total_due:float,
-     *     total_advance:float,
+     *     total_member_balance:float,
      * }
      */
     public function managerCards(): array
@@ -88,8 +87,7 @@ class DashboardService
                 'today_meals' => 0.0,
                 'monthly_expenses' => 0.0,
                 'meal_rate' => 0.0,
-                'total_due' => 0.0,
-                'total_advance' => 0.0,
+                'total_member_balance' => 0.0,
             ];
         }
 
@@ -123,8 +121,7 @@ class DashboardService
             'today_meals' => $counts['today_meals'],
             'monthly_expenses' => $counts['monthly_expenses'],
             'meal_rate' => (float) ($preview['meal_rate'] ?? 0.0),
-            'total_due' => (float) collect($members)->sum('due'),
-            'total_advance' => (float) collect($members)->sum('advance_balance'),
+            'total_member_balance' => (float) collect($members)->sum(fn ($m) => ($m['advance_balance'] ?? 0) - ($m['due_balance'] ?? 0)),
         ];
     }
 

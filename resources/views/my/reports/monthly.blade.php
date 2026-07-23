@@ -72,10 +72,12 @@
                 :label="__('Total fixed')"
                 :value="Money::taka((float) $data['total_fixed'])" />
 
+            @php $myNet = collect($data['members'] ?? [])->sum(fn ($r) => ($r['advance_balance'] ?? 0) - ($r['due_balance'] ?? 0)); @endphp
             <div class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                <p class="text-xs font-medium uppercase tracking-wide text-slate-500">{{ __('Due / Advance') }}</p>
-                <p class="mt-1 text-sm font-semibold text-rose-600">{{ Money::taka((float) $totalDue) }}</p>
-                <p class="text-sm font-semibold text-emerald-600">{{ Money::taka((float) $totalAdvance) }}</p>
+                <p class="text-xs font-medium uppercase tracking-wide text-slate-500">{{ __('Balance (net)') }}</p>
+                <p class="mt-1 text-base font-semibold {{ $myNet < 0 ? 'text-rose-600' : 'text-emerald-600' }}">
+                    {{ $myNet < 0 ? __('Owes') : __('Credit') }} {{ Money::taka(abs($myNet)) }}
+                </p>
             </div>
         </section>
 

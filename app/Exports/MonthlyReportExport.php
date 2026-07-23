@@ -41,6 +41,7 @@ class MonthlyReportExport implements FromArray, ShouldAutoSize, WithColumnFormat
             (float) ($m['bill'] ?? 0),
             (float) ($m['bill_payments'] ?? 0),
             (float) ($m['due'] ?? 0),
+            (float) (($m['advance_balance'] ?? 0) - ($m['due_balance'] ?? 0)),
         ], $members);
     }
 
@@ -54,6 +55,7 @@ class MonthlyReportExport implements FromArray, ShouldAutoSize, WithColumnFormat
             __('Bill'),
             __('Paid'),
             __('Due'),
+            __('Balance'),
         ];
     }
 
@@ -66,6 +68,7 @@ class MonthlyReportExport implements FromArray, ShouldAutoSize, WithColumnFormat
             'E' => NumberFormat::FORMAT_NUMBER_00,
             'F' => NumberFormat::FORMAT_NUMBER_00,
             'G' => NumberFormat::FORMAT_NUMBER_00,
+            'H' => NumberFormat::FORMAT_NUMBER_00,
         ];
     }
 }

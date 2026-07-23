@@ -145,7 +145,8 @@
         <div><span class="label">{{ __('Meal cost') }}:</span> {{ Money::taka($row['meal_cost'] ?? 0) }}</div>
         <div><span class="label">{{ __('Bill') }}:</span> {{ Money::taka($row['bill'] ?? 0) }}</div>
         <div><span class="label">{{ __('Paid') }}:</span> {{ Money::taka($row['bill_payments'] ?? 0) }}</div>
-        <div><span class="label">{{ __('Closing due') }}:</span> {{ Money::taka($row['due'] ?? 0) }}</div>
-        <div><span class="label">{{ __('Advance balance') }}:</span> {{ Money::taka($row['advance_balance'] ?? 0) }}</div>
+        @php $stmtNet = ($row['advance_balance'] ?? 0) - ($row['due_balance'] ?? 0); @endphp
+        <div><span class="label">{{ __('This month\'s due') }}:</span> {{ Money::taka($row['due'] ?? 0) }}</div>
+        <div><span class="label">{{ __('Balance carried forward') }}:</span> {{ ($stmtNet < 0 ? __('Owes') : __('Credit')).' '.Money::taka(abs($stmtNet)) }}</div>
     </div>
 @endsection

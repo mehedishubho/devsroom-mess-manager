@@ -234,25 +234,18 @@
             </div>
         </section>
 
+        @php $carriedNet = ($row['advance_balance'] ?? 0) - ($row['due_balance'] ?? 0); @endphp
         {{-- Closing summary card --}}
         <section class="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 class="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-700">{{ __('Closing summary') }}</h2>
             <dl class="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
                 <div>
-                    <dt class="text-xs text-slate-500">{{ __('Opening advance') }}</dt>
-                    <dd class="mt-1 text-base font-bold text-emerald-700">{{ Money::taka($row['advance_balance'] ?? 0) }}</dd>
-                </div>
-                <div>
-                    <dt class="text-xs text-slate-500">{{ __('Opening due') }}</dt>
-                    <dd class="mt-1 text-base font-bold text-rose-700">{{ Money::taka($row['due_balance'] ?? 0) }}</dd>
+                    <dt class="text-xs text-slate-500">{{ __('Meal cost') }}</dt>
+                    <dd class="mt-1 text-base font-bold text-slate-900">{{ Money::taka($row['meal_cost'] ?? 0) }}</dd>
                 </div>
                 <div>
                     <dt class="text-xs text-slate-500">{{ __('Fixed share') }}</dt>
                     <dd class="mt-1 text-base font-bold text-slate-900">{{ Money::taka($row['fixed_share'] ?? 0) }}</dd>
-                </div>
-                <div>
-                    <dt class="text-xs text-slate-500">{{ __('Meal cost') }}</dt>
-                    <dd class="mt-1 text-base font-bold text-slate-900">{{ Money::taka($row['meal_cost'] ?? 0) }}</dd>
                 </div>
                 <div>
                     <dt class="text-xs text-slate-500">{{ __('Bill') }}</dt>
@@ -263,12 +256,14 @@
                     <dd class="mt-1 text-base font-bold text-slate-900">{{ Money::taka($row['bill_payments'] ?? 0) }}</dd>
                 </div>
                 <div>
-                    <dt class="text-xs text-slate-500">{{ __('Closing due') }}</dt>
+                    <dt class="text-xs text-slate-500">{{ __('This month\'s due') }}</dt>
                     <dd class="mt-1 text-base font-bold text-rose-700">{{ Money::taka($row['due'] ?? 0) }}</dd>
                 </div>
                 <div>
-                    <dt class="text-xs text-slate-500">{{ __('Advance balance') }}</dt>
-                    <dd class="mt-1 text-base font-bold text-emerald-700">{{ Money::taka($row['advance_balance'] ?? 0) }}</dd>
+                    <dt class="text-xs text-slate-500">{{ __('Balance carried forward') }}</dt>
+                    <dd class="mt-1 text-base font-bold {{ $carriedNet < 0 ? 'text-rose-700' : 'text-emerald-700' }}">
+                        {{ $carriedNet < 0 ? __('Owes') : __('Credit') }} {{ Money::taka(abs($carriedNet)) }}
+                    </dd>
                 </div>
             </dl>
         </section>

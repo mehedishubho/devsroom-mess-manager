@@ -48,6 +48,17 @@ class MemberStatementExport implements FromCollection, ShouldAutoSize, WithColum
             ]);
         }
 
+        // Closing net position (credit − debt) as a single summary row.
+        $row = $this->statement['row'] ?? [];
+        if (! empty($row)) {
+            $rows->push([
+                'section' => __('Balance'),
+                'date' => '',
+                'detail' => __('Carried forward'),
+                'amount' => (float) (($row['advance_balance'] ?? 0) - ($row['due_balance'] ?? 0)),
+            ]);
+        }
+
         return $rows;
     }
 

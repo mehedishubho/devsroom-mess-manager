@@ -73,9 +73,10 @@
                 <p class="mt-2 text-xl font-bold tracking-tight text-slate-900">{{ Money::taka($data['total_fixed']) }}</p>
             </div>
             <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Due / Advance') }}</p>
-                <p class="mt-2 text-sm font-bold text-rose-600">{{ Money::taka($totalDue) }}</p>
-                <p class="text-sm font-bold text-emerald-600">{{ Money::taka($totalAdvance) }}</p>
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Balance (net)') }}</p>
+                <p class="mt-2 text-2xl font-bold tracking-tight {{ $totalNet < 0 ? 'text-rose-600' : 'text-emerald-600' }}">
+                    {{ $totalNet < 0 ? __('Owes') : __('Credit') }} {{ Money::taka(abs($totalNet)) }}
+                </p>
             </div>
         </section>
 
@@ -94,7 +95,7 @@
                             <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Bill') }}</th>
                             <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Paid') }}</th>
                             <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Due') }}</th>
-                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Advance') }}</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Balance') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
@@ -125,7 +126,10 @@
                                 <td class="px-4 py-3 text-right font-medium tabular-nums">{{ Money::taka($row['bill']) }}</td>
                                 <td class="px-4 py-3 text-right tabular-nums">{{ Money::taka($row['bill_payments']) }}</td>
                                 <td class="px-4 py-3 text-right tabular-nums text-rose-600">{{ Money::taka($row['due']) }}</td>
-                                <td class="px-4 py-3 text-right tabular-nums text-emerald-600">{{ Money::taka($row['advance_balance']) }}</td>
+                                @php $rowNet = ($row['advance_balance'] ?? 0) - ($row['due_balance'] ?? 0); @endphp
+                                <td class="px-4 py-3 text-right tabular-nums font-medium {{ $rowNet < 0 ? 'text-rose-600' : 'text-emerald-600' }}">
+                                    {{ $rowNet < 0 ? __('Owes') : __('Credit') }} {{ Money::taka(abs($rowNet)) }}
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>

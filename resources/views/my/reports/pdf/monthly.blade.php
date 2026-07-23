@@ -19,8 +19,8 @@
         <div><span class="label">{{ __('Meal rate') }}:</span> {{ Money::taka($data['meal_rate'] ?? 0) }} / {{ __('meal') }}</div>
         <div><span class="label">{{ __('Total bazar') }}:</span> {{ Money::taka($data['total_bazar'] ?? 0) }}</div>
         <div><span class="label">{{ __('Total fixed') }}:</span> {{ Money::taka($data['total_fixed'] ?? 0) }}</div>
-        <div><span class="label">{{ __('Total due') }}:</span> {{ Money::taka($totalDue) }}</div>
-        <div><span class="label">{{ __('Total advance') }}:</span> {{ Money::taka($totalAdvance) }}</div>
+        @php $pdfNet = collect($members)->sum(fn ($r) => ($r['advance_balance'] ?? 0) - ($r['due_balance'] ?? 0)); @endphp
+        <div><span class="label">{{ __('Balance (net)') }}:</span> {{ ($pdfNet < 0 ? __('Owes') : __('Credit')).' '.Money::taka(abs($pdfNet)) }}</div>
     </div>
 
     <div class="label" style="margin-top: 12px; font-style: italic;">

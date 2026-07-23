@@ -13,7 +13,7 @@
         $cards = $cards ?? [
             'total_members' => 0, 'today_meals' => 0.0,
             'monthly_expenses' => 0.0, 'meal_rate' => 0.0,
-            'total_due' => 0.0, 'total_advance' => 0.0,
+            'total_member_balance' => 0.0,
         ];
         $pendingMealOff = $pendingMealOff ?? 0;
         $charts = $charts ?? ['meal' => ['labels' => [], 'values' => []], 'expense' => ['labels' => [], 'values' => []], 'payment' => ['labels' => [], 'values' => []]];
@@ -74,13 +74,15 @@
             :label="__('Monthly Expenses')"
             :value="Money::taka((float) $cards['monthly_expenses'])" />
 
+        @php
+            $netBalance = (float) ($cards['total_member_balance'] ?? 0);
+            $netValue = ($netBalance < 0 ? __('Owes').' ' : ($netBalance > 0 ? __('Credit').' ' : '')).Money::taka(abs($netBalance));
+            $netHint = $netBalance < 0 ? __('Members net owe the mess') : ($netBalance > 0 ? __('Members net in credit') : __('Settled'));
+        @endphp
         <x-stat-card
-            :label="__('Total Due')"
-            :value="Money::taka((float) $cards['total_due'])" />
-
-        <x-stat-card
-            :label="__('Total Advance')"
-            :value="Money::taka((float) $cards['total_advance'])" />
+            :label="__('Member balances (net)')"
+            :value="$netValue"
+            :hint="$netHint" />
     </section>
 
     {{-- DASH-02: 3 charts (D-27 empty state when no data anywhere) --}}

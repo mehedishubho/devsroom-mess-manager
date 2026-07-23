@@ -45,7 +45,7 @@ class ManagerDashboardTest extends TestCase
         return $user;
     }
 
-    public function test_home_shows_all_6_card_labels(): void
+    public function test_home_shows_all_card_labels(): void
     {
         $response = $this->actingAs($this->admin())->get(route('home'));
 
@@ -54,8 +54,7 @@ class ManagerDashboardTest extends TestCase
         $response->assertSee(__("Today's Meals"));
         $response->assertSee(__('Current Meal Rate'));
         $response->assertSee(__('Monthly Expenses'));
-        $response->assertSee(__('Total Due'));
-        $response->assertSee(__('Total Advance'));
+        $response->assertSee(__('Member balances (net)'));
     }
 
     public function test_home_shows_pending_meal_off_banner_when_pending(): void
