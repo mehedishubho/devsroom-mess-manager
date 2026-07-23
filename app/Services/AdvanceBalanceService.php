@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\AdvanceBalance;
+use App\Models\BalanceAdjustment;
 use App\Models\Mess;
 use App\Models\Payment;
 use App\Support\PaymentType;
@@ -103,6 +104,17 @@ class AdvanceBalanceService
             }
             $row->last_updated_at = now();
             $row->save();
+
+            // Append a readable history row so the wallet ledger can show this
+            // manual adjustment as its own dated line (advance_balances above is
+            // mutated in place and carries no record of how it got there).
+            BalanceAdjustment::create([
+                'mess_id' => Mess::activeId(),
+                'member_id' => $memberId,
+                'amount' => $amountStr,
+                'reason' => $reason,
+                'entered_by' => $enteredBy,
+            ]);
 
             // A manual adjust changes the running credit/debt that the bill
             // preview now consumes (advance offsets the live bill), so drop the
