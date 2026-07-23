@@ -59,6 +59,33 @@
                 @error('manager_contact') <p id="manager_contact-error" class="text-sm text-red-700">{{ $message }}</p> @enderror
             </div>
 
+            <fieldset class="flex flex-col gap-3 border-t border-slate-200 pt-4">
+                <div>
+                    <legend class="text-sm font-semibold text-slate-900">{{ __('Meal values') }}</legend>
+                    <p class="text-xs text-slate-500">{{ __('How much each meal counts toward a member\'s total. Use 1 for a full meal, 0.5 for a half.') }}</p>
+                </div>
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <div class="flex flex-col gap-1">
+                        <label for="meal_breakfast" class="text-sm font-medium text-slate-900">{{ __('Breakfast') }}</label>
+                        <input type="number" step="0.01" min="0" max="10" name="meal_breakfast" id="meal_breakfast"
+                            value="{{ old('meal_breakfast', $mealValues['breakfast']) }}" class="input">
+                        @error('meal_breakfast') <p class="text-sm text-red-700">{{ $message }}</p> @enderror
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label for="meal_lunch" class="text-sm font-medium text-slate-900">{{ __('Lunch') }}</label>
+                        <input type="number" step="0.01" min="0" max="10" name="meal_lunch" id="meal_lunch"
+                            value="{{ old('meal_lunch', $mealValues['lunch']) }}" class="input">
+                        @error('meal_lunch') <p class="text-sm text-red-700">{{ $message }}</p> @enderror
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label for="meal_dinner" class="text-sm font-medium text-slate-900">{{ __('Dinner') }}</label>
+                        <input type="number" step="0.01" min="0" max="10" name="meal_dinner" id="meal_dinner"
+                            value="{{ old('meal_dinner', $mealValues['dinner']) }}" class="input">
+                        @error('meal_dinner') <p class="text-sm text-red-700">{{ $message }}</p> @enderror
+                    </div>
+                </div>
+            </fieldset>
+
             <div class="flex flex-wrap items-center gap-2">
                 <button type="submit" class="btn btn-primary">
                     {{ __('Save changes') }}
