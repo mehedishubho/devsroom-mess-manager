@@ -2,13 +2,15 @@
 
 use HasinHayder\Tyro\Models\Role;
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Removes the vestigial `admin` role. The real manager-level role is `manager`
  * (created by 2026_06_20_000000_create_manager_role_and_mess_privileges, which
  * also grants it the mess-management privileges). Any account still holding the
  * old `admin` slug is moved to `manager` first so no manager is locked out.
+ *
+ * Uses Role->users()/privileges() relationships (not a hardcoded pivot table)
+ * because Tyro's pivot table name is configurable — default is `user_roles`.
  */
 return new class extends Migration
 {
@@ -24,22 +26,13 @@ return new class extends Migration
             ['name' => 'Manager']
         );
 
-        // Reassign every admin role-user to manager (idempotent).
-        $userIds = DB::table('role_user')->where('role_id', $admin->id)->pluck('user_id');
-        foreach ($userIds as $uid) {
-            DB::table('role_user')->updateOrInsert([
-                'user_id' => $uid,
-                'role_id' => $manager->id,
-            ]);
+        // Reassign every user that holds the `admin` role to `manager`.
+        foreach ($admin->users as $managerUser) {
+            $managerUser->roles()->syncWithoutDetaching([$manager->id]);
         }
 
-        try {
-            $admin->users()->detach();
-            $admin->privileges()->detach();
-        } catch (\Throwable) {
-            DB::table('role_user')->where('role_id', $admin->id)->delete();
-        }
-
+        $admin->users()->detach();
+        $admin->privileges()->detach();
         $admin->delete();
     }
 
