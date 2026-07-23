@@ -149,12 +149,15 @@ class BillPreviewService
         $paymentsByMember = $this->paymentsByMember($memberIds, $start, $end);
         $advanceBalances = $this->advanceBalances($memberIds);
 
-        $denominatorEligible = $members->filter(function (Member $member) use ($start, $end) {
-            return $this->eligibleForDenominator($member, $start, $end);
-        });
-
+        // Meal-rate denominator = total meals actually eaten this month by ALL
+        // loaded members (active + former). Every meal eaten consumed groceries,
+        // so the total bazar cost must be spread across every meal — not just
+        // those of members who were "fully present" for the whole month. The old
+        // eligibleForDenominator() filter (strict joining/leaving-date bounds)
+        // zeroed the rate whenever the only eaters carried a leaving_date, which
+        // is why meal_rate showed ৳0.00 across reports + dashboard despite data.
         $totalMeals = 0.0;
-        foreach ($denominatorEligible as $member) {
+        foreach ($members as $member) {
             $totalMeals += $mealTotalsByMember[$member->id] ?? 0.0;
         }
 
@@ -339,23 +342,6 @@ class BillPreviewService
         }
 
         return $out;
-    }
-
-    private function eligibleForDenominator(Member $member, Carbon $start, Carbon $end): bool
-    {
-        if ($member->status === MemberStatus::INACTIVE) {
-            return false;
-        }
-
-        if ($member->joining_date && $member->joining_date->gt($start)) {
-            return false;
-        }
-
-        if ($member->leaving_date && $member->leaving_date->lt($end)) {
-            return false;
-        }
-
-        return true;
     }
 
     /**

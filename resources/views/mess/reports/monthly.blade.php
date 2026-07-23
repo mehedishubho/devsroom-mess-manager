@@ -51,9 +51,15 @@
             </div>
             <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
                 <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Meal rate') }}</p>
-                @if ((float) $data['meal_rate'] === 0.0)
+                @php
+                    $totalBazar = (float) ($data['total_bazar'] ?? 0.0);
+                    $mealRateHint = ((float) $data['meal_rate'] === 0.0)
+                        ? ($totalBazar > 0.0 ? __('bazar recorded, but no meals yet') : __('no bazar recorded yet'))
+                        : null;
+                @endphp
+                @if ($mealRateHint)
                     <p class="mt-2 text-lg font-bold text-slate-900">{{ Money::taka(0) }} <span class="text-sm font-normal text-slate-500">/ {{ __('meal') }}</span></p>
-                    <p class="mt-1 text-xs text-slate-500">{{ __('no bazar recorded yet') }}</p>
+                    <p class="mt-1 text-xs text-slate-500">{{ $mealRateHint }}</p>
                 @else
                     <p class="mt-2 text-2xl font-bold tracking-tight text-slate-900">{{ Money::taka($data['meal_rate']) }} <span class="text-sm font-normal text-slate-500">/ {{ __('meal') }}</span></p>
                 @endif
