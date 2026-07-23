@@ -24,7 +24,16 @@
                 @if ($expense->description)
                     <div class="mt-0.5 truncate text-sm text-slate-600">{{ $expense->description }}</div>
                 @endif
-                <div class="mt-1 text-right text-sm font-semibold text-slate-900">{{ number_format((float) $expense->amount, 2) }}</div>
+                @if ($expense->vendor)
+                    <div class="mt-0.5 truncate text-xs text-slate-500">{{ $expense->vendor }}</div>
+                @endif
+                <div class="mt-2 flex items-center justify-between">
+                    <div class="flex gap-2">
+                        <a href="{{ route('mess.expenses.show', $expense) }}" class="text-xs font-medium text-emerald-700 hover:underline">{{ __('View') }}</a>
+                        <a href="{{ route('mess.expenses.edit', $expense) }}" class="text-xs font-medium text-emerald-700 hover:underline">{{ __('Edit') }}</a>
+                    </div>
+                    <span class="text-sm font-semibold text-slate-900">{{ number_format((float) $expense->amount, 2) }}</span>
+                </div>
             </div>
         @empty
             <p class="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-600">
@@ -42,7 +51,9 @@
                     <th scope="col" class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">{{ __('Kind') }}</th>
                     <th scope="col" class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">{{ __('Category') }}</th>
                     <th scope="col" class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">{{ __('Description') }}</th>
+                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">{{ __('Vendor') }}</th>
                     <th scope="col" class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-500">{{ __('Amount') }}</th>
+                    <th scope="col" class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-500">{{ __('Actions') }}</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-200 bg-white">
@@ -54,11 +65,23 @@
                         </td>
                         <td class="px-4 py-3 text-sm text-slate-900">{{ $expense->category?->name ?? '—' }}</td>
                         <td class="px-4 py-3 text-sm text-slate-600">{{ $expense->description ?? '—' }}</td>
+                        <td class="px-4 py-3 text-sm text-slate-600">{{ $expense->vendor ?? '—' }}</td>
                         <td class="px-4 py-3 text-right text-sm font-medium text-slate-900">{{ number_format((float) $expense->amount, 2) }}</td>
+                        <td class="px-4 py-3 text-right">
+                            <div class="inline-flex items-center gap-1">
+                                <a href="{{ route('mess.expenses.show', $expense) }}" class="btn btn-sm btn-ghost">{{ __('View') }}</a>
+                                <a href="{{ route('mess.expenses.edit', $expense) }}" class="btn btn-sm btn-ghost">{{ __('Edit') }}</a>
+                                <form method="POST" action="{{ route('mess.expenses.destroy', $expense) }}" onsubmit="return confirm('{{ __('Remove this expense?') }}');" class="inline">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-sm btn-ghost text-rose-700">{{ __('Delete') }}</button>
+                                </form>
+                            </div>
+                        </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5" class="px-4 py-6 text-center text-sm text-slate-600">
+                        <td colspan="7" class="px-4 py-6 text-center text-sm text-slate-600">
                             {{ __('No expenses recorded yet.') }}
                         </td>
                     </tr>

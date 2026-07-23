@@ -30,6 +30,7 @@
                             <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Vendor') }}</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Purchased by') }}</th>
                             <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Amount') }}</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Actions') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
@@ -52,6 +53,9 @@
                                 <td class="px-4 py-3 text-slate-600">{{ $expense->vendor ?? '—' }}</td>
                                 <td class="px-4 py-3 text-slate-600">{{ $expense->purchasedByMember?->name ?? '—' }}</td>
                                 <td class="px-4 py-3 text-right tabular-nums font-medium text-slate-900">{{ Money::taka($expense->amount) }}</td>
+                                <td class="px-4 py-3 text-right">
+                                    <a href="{{ route('mess.expenses.show', $expense) }}" class="btn btn-sm btn-ghost">{{ __('View') }}</a>
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -59,6 +63,7 @@
                         <tr>
                             <th colspan="5" class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('Total') }}</th>
                             <th class="px-4 py-3 text-right tabular-nums font-bold text-slate-900">{{ Money::taka($report['totals']['amount']) }}</th>
+                            <th class="px-4 py-3"></th>
                         </tr>
                     </tfoot>
                 </table>
