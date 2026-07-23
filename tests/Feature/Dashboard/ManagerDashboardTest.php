@@ -115,9 +115,8 @@ class ManagerDashboardTest extends TestCase
         $response = $this->actingAs($this->admin())->get(route('home'));
 
         $response->assertOk();
-        $response->assertSee("initDashboardChart('meal-trend-chart'", false);
-        $response->assertSee("initDashboardChart('expense-trend-chart'", false);
-        $response->assertSee("initDashboardChart('payment-trend-chart'", false);
+        $response->assertSee("initDashboardChart('bazar-collection-chart'", false);
+        $response->assertSee("initDashboardChart('expense-category-chart'", false);
     }
 
     public function test_zero_meal_rate_shows_hint(): void

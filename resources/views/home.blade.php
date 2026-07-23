@@ -16,12 +16,6 @@
             'total_member_balance' => 0.0,
         ];
         $pendingMealOff = $pendingMealOff ?? 0;
-        $charts = $charts ?? ['meal' => ['labels' => [], 'values' => []], 'expense' => ['labels' => [], 'values' => []], 'payment' => ['labels' => [], 'values' => []]];
-
-        $hasChartData =
-            ! empty($charts['meal']['labels']) ||
-            ! empty($charts['expense']['labels']) ||
-            ! empty($charts['payment']['labels']);
     @endphp
 
     <header class="mb-6">
@@ -52,7 +46,7 @@
         </a>
     @endif
 
-    {{-- DASH-01: 6 stat cards --}}
+    {{-- DASH-01: stat cards --}}
     <section class="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-3">
         <x-stat-card
             :label="__('Total Members')"
@@ -85,124 +79,89 @@
             :hint="$netHint" />
     </section>
 
-    {{-- DASH-02: 3 charts (D-27 empty state when no data anywhere) --}}
-    @if (! $hasChartData)
-        <x-empty-state
-            :title="__('No data yet')"
-            :description="__('Charts appear once you have expenses, meals, or payments.')" />
-    @else
-        <section class="grid grid-cols-1 gap-4">
-            {{-- Meal Trend (line) — D-05 --}}
-            <div class="rounded-lg border border-slate-200 bg-white p-4">
-                <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-                    <h3 class="text-sm font-semibold text-slate-900">{{ __('Meal Trend') }}</h3>
-                    <form method="GET" action="{{ route('home') }}" class="flex flex-wrap items-center gap-1">
-                        <input type="hidden" name="expense_from" value="{{ $charts['expense']['range']['from'] ?? '' }}">
-                        <input type="hidden" name="expense_to" value="{{ $charts['expense']['range']['to'] ?? '' }}">
-                        <input type="hidden" name="payment_from" value="{{ $charts['payment']['range']['from'] ?? '' }}">
-                        <input type="hidden" name="payment_to" value="{{ $charts['payment']['range']['to'] ?? '' }}">
-                        <label class="text-xs text-slate-600">{{ __('From') }}
-                            <input type="date" name="meal_from" value="{{ $charts['meal']['range']['from'] ?? '' }}" class="input input-date mt-1 w-auto max-w-44">
-                        </label>
-                        <label class="text-xs text-slate-600">{{ __('To') }}
-                            <input type="date" name="meal_to" value="{{ $charts['meal']['range']['to'] ?? '' }}" class="input input-date mt-1 w-auto max-w-44">
-                        </label>
-                        <button type="submit" class="btn btn-dark btn-sm">{{ __('Apply') }}</button>
-                    </form>
-                </div>
-                <div style="height: 280px;">
-                    <canvas id="meal-trend-chart"></canvas>
-                </div>
-            </div>
+    {{-- Report widgets (replaces the old 3 trend charts) --}}
+    <section class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {{-- Members with dues --}}
+        <div class="rounded-lg border border-slate-200 bg-white p-4">
+            <h3 class="mb-3 text-sm font-semibold text-slate-900">{{ __('Members with dues') }}</h3>
+            @if (empty($membersWithDues))
+                <p class="text-sm text-slate-500">{{ __('No one currently owes the mess. 🎉') }}</p>
+            @else
+                <ul class="divide-y divide-slate-100">
+                    @foreach ($membersWithDues as $m)
+                        <li class="flex items-center justify-between py-2">
+                            <a href="{{ route('mess.members.wallet', $m['id']) }}" class="text-sm font-medium text-slate-900 hover:text-emerald-700 hover:underline">{{ $m['name'] }}</a>
+                            <span class="text-sm font-semibold text-rose-700">{{ Money::taka(abs($m['net'])) }}</span>
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
+        </div>
 
-            {{-- Expense Trend (bar, bazar-only) — D-06 --}}
-            <div class="rounded-lg border border-slate-200 bg-white p-4">
-                <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-                    <h3 class="text-sm font-semibold text-slate-900">{{ __('Expense Trend') }}</h3>
-                    <form method="GET" action="{{ route('home') }}" class="flex flex-wrap items-center gap-1">
-                        <input type="hidden" name="meal_from" value="{{ $charts['meal']['range']['from'] ?? '' }}">
-                        <input type="hidden" name="meal_to" value="{{ $charts['meal']['range']['to'] ?? '' }}">
-                        <input type="hidden" name="payment_from" value="{{ $charts['payment']['range']['from'] ?? '' }}">
-                        <input type="hidden" name="payment_to" value="{{ $charts['payment']['range']['to'] ?? '' }}">
-                        <label class="text-xs text-slate-600">{{ __('From') }}
-                            <input type="date" name="expense_from" value="{{ $charts['expense']['range']['from'] ?? '' }}" class="input input-date mt-1 w-auto max-w-44">
-                        </label>
-                        <label class="text-xs text-slate-600">{{ __('To') }}
-                            <input type="date" name="expense_to" value="{{ $charts['expense']['range']['to'] ?? '' }}" class="input input-date mt-1 w-auto max-w-44">
-                        </label>
-                        <button type="submit" class="btn btn-dark btn-sm">{{ __('Apply') }}</button>
-                    </form>
-                </div>
-                <div style="height: 280px;">
-                    <canvas id="expense-trend-chart"></canvas>
-                </div>
-            </div>
+        {{-- Top eaters --}}
+        <div class="rounded-lg border border-slate-200 bg-white p-4">
+            <h3 class="mb-3 text-sm font-semibold text-slate-900">{{ __('Top eaters this month') }}</h3>
+            @if (empty($topEaters))
+                <p class="text-sm text-slate-500">{{ __('No meals recorded yet this month.') }}</p>
+            @else
+                <ul class="divide-y divide-slate-100">
+                    @foreach ($topEaters as $m)
+                        <li class="flex items-center justify-between py-2">
+                            <span class="text-sm font-medium text-slate-900">{{ $m['name'] }}</span>
+                            <span class="text-sm text-slate-600">{{ number_format((float) $m['meals'], 1) }} {{ __('meals') }}</span>
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
+        </div>
 
-            {{-- Payment Trend (bar, all methods) — D-07 --}}
-            <div class="rounded-lg border border-slate-200 bg-white p-4">
-                <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-                    <h3 class="text-sm font-semibold text-slate-900">{{ __('Payment Trend') }}</h3>
-                    <form method="GET" action="{{ route('home') }}" class="flex flex-wrap items-center gap-1">
-                        <input type="hidden" name="meal_from" value="{{ $charts['meal']['range']['from'] ?? '' }}">
-                        <input type="hidden" name="meal_to" value="{{ $charts['meal']['range']['to'] ?? '' }}">
-                        <input type="hidden" name="expense_from" value="{{ $charts['expense']['range']['from'] ?? '' }}">
-                        <input type="hidden" name="expense_to" value="{{ $charts['expense']['range']['to'] ?? '' }}">
-                        <label class="text-xs text-slate-600">{{ __('From') }}
-                            <input type="date" name="payment_from" value="{{ $charts['payment']['range']['from'] ?? '' }}" class="input input-date mt-1 w-auto max-w-44">
-                        </label>
-                        <label class="text-xs text-slate-600">{{ __('To') }}
-                            <input type="date" name="payment_to" value="{{ $charts['payment']['range']['to'] ?? '' }}" class="input input-date mt-1 w-auto max-w-44">
-                        </label>
-                        <button type="submit" class="btn btn-dark btn-sm">{{ __('Apply') }}</button>
-                    </form>
-                </div>
-                <div style="height: 280px;">
-                    <canvas id="payment-trend-chart"></canvas>
-                </div>
+        {{-- Bazar vs collection (bar) --}}
+        <div class="rounded-lg border border-slate-200 bg-white p-4">
+            <h3 class="mb-3 text-sm font-semibold text-slate-900">{{ __('Spend vs collection this month') }}</h3>
+            <div style="height: 240px;">
+                <canvas id="bazar-collection-chart"></canvas>
             </div>
-        </section>
-    @endif
+        </div>
 
-    {{-- Chart.js init (uses the Plan 4.0 global helper — destroy-before-recreate guard). --}}
+        {{-- Expense category mix (doughnut) --}}
+        <div class="rounded-lg border border-slate-200 bg-white p-4">
+            <h3 class="mb-3 text-sm font-semibold text-slate-900">{{ __('Expense categories this month') }}</h3>
+            @if (empty($expenseCategoryMix))
+                <p class="text-sm text-slate-500">{{ __('No expenses recorded yet this month.') }}</p>
+            @else
+                <div style="height: 240px;">
+                    <canvas id="expense-category-chart"></canvas>
+                </div>
+            @endif
+        </div>
+    </section>
+
     @once
         <script>
             document.addEventListener('DOMContentLoaded', function () {
-                window.initDashboardChart('meal-trend-chart', {
-                    type: 'line',
-                    data: {
-                        labels: @json($charts['meal']['labels']),
-                        datasets: [{
-                            label: '@lang('Meals')',
-                            data: @json($charts['meal']['values']),
-                            borderColor: '#059669',
-                            backgroundColor: 'rgba(5,150,105,0.1)',
-                            tension: 0.3,
-                            fill: true,
-                        }],
-                    },
-                });
-                window.initDashboardChart('expense-trend-chart', {
+                window.initDashboardChart('bazar-collection-chart', {
                     type: 'bar',
                     data: {
-                        labels: @json($charts['expense']['labels']),
+                        labels: [@json([__('Spend'), __('Collected')])],
                         datasets: [{
-                            label: '@lang('Bazar')',
-                            data: @json($charts['expense']['values']),
-                            backgroundColor: '#059669',
+                            label: '@lang('Amount')',
+                            data: [@json([(float) ($bazarVsCollection['spend'] ?? 0), (float) ($bazarVsCollection['collected'] ?? 0)])],
+                            backgroundColor: ['#f43f5e', '#059669'],
                         }],
                     },
                 });
-                window.initDashboardChart('payment-trend-chart', {
-                    type: 'bar',
-                    data: {
-                        labels: @json($charts['payment']['labels']),
-                        datasets: [{
-                            label: '@lang('Collected')',
-                            data: @json($charts['payment']['values']),
-                            backgroundColor: '#0ea5e9',
-                        }],
-                    },
-                });
+                @if (! empty($expenseCategoryMix))
+                    window.initDashboardChart('expense-category-chart', {
+                        type: 'doughnut',
+                        data: {
+                            labels: @json(collect($expenseCategoryMix)->pluck('label')),
+                            datasets: [{
+                                data: @json(collect($expenseCategoryMix)->pluck('amount')),
+                                backgroundColor: ['#059669', '#0ea5e9', '#f59e0b', '#8b5cf6', '#f43f5e', '#64748b', '#10b981', '#ec4899'],
+                            }],
+                        },
+                    });
+                @endif
             });
         </script>
     @endonce

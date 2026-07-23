@@ -22,10 +22,14 @@ window.initDashboardChart = function (canvasId, config) {
                 legend: { labels: { boxWidth: 12, font: { size: 11 } } },
                 tooltip: { mode: 'index', intersect: false },
             },
-            scales: {
-                x: { ticks: { font: { size: 10 }, maxRotation: 45 } },
-                y: { ticks: { font: { size: 10 } }, beginAtZero: true },
-            },
+            // Doughnut/pie/polarArea charts reject cartesian scales — only emit
+            // them for cartesian types (line/bar).
+            ...(['line', 'bar'].includes(config.type) ? {
+                scales: {
+                    x: { ticks: { font: { size: 10 }, maxRotation: 45 } },
+                    y: { ticks: { font: { size: 10 } }, beginAtZero: true },
+                },
+            } : {}),
         },
     });
 

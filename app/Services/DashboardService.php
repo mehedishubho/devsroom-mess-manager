@@ -324,4 +324,94 @@ class DashboardService
     {
         return "dash:counts:{$messId}:{$date->year}-".str_pad((string) $date->month, 2, '0', STR_PAD_LEFT);
     }
+
+    /**
+     * Members with Dues (list): active members whose net balance is in debt.
+     * Cheapest source — advance_balances is a persisted running total.
+     *
+     * @return list<array{id:int,name:string,net:float}>
+     */
+    public function membersWithDues(int $messId): array
+    {
+        return Member::query()
+            ->where('mess_id', $messId)
+            ->where('status', MemberStatus::ACTIVE)
+            ->with('advanceBalance')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (Member $m) => ['id' => $m->id, 'name' => $m->name, 'net' => $m->advanceBalance?->netBalance() ?? 0])
+            ->filter(fn (array $m) => $m['net'] < 0)
+            ->sortBy('net')
+            ->take(8)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Bazar vs Collection (this month): grocery+fixed spend vs money collected.
+     * Reuses the bill-preview cache for spend; collection is one SUM.
+     *
+     * @return array{spend:float,collected:float}
+     */
+    public function bazarVsCollection(int $messId): array
+    {
+        $now = now();
+        $preview = $this->preview->preview($now->year, $now->month);
+        $spend = (float) (($preview['total_bazar'] ?? 0) + ($preview['total_fixed'] ?? 0));
+        $collected = (float) Payment::query()
+            ->where('mess_id', $messId)
+            ->whereBetween('date', [$now->copy()->startOfMonth()->toDateString(), $now->copy()->endOfMonth()->toDateString()])
+            ->sum('amount');
+
+        return ['spend' => $spend, 'collected' => $collected];
+    }
+
+    /**
+     * Expense Category Mix (this month): spend grouped by expense category,
+     * descending — powers the dashboard doughnut.
+     *
+     * @return list<array{label:string,amount:float}>
+     */
+    public function expenseCategoryMix(int $messId): array
+    {
+        $now = now();
+        $rows = Expense::query()
+            ->where('mess_id', $messId)
+            ->whereBetween('date', [$now->copy()->startOfMonth()->toDateString(), $now->copy()->endOfMonth()->toDateString()])
+            ->with('category:id,name')
+            ->get();
+
+        $grouped = [];
+        foreach ($rows as $expense) {
+            $label = $expense->category?->name ?? __('Uncategorized');
+            $grouped[$label] = ($grouped[$label] ?? 0) + (float) $expense->amount;
+        }
+        arsort($grouped);
+
+        $out = [];
+        foreach ($grouped as $label => $amount) {
+            $out[] = ['label' => $label, 'amount' => (float) $amount];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Top Eaters (this month): members with the most meals, top 5.
+     * Reuses the cached bill-preview members (no new query).
+     *
+     * @return list<array{id:int,name:string,meals:float}>
+     */
+    public function topEaters(int $messId): array
+    {
+        $now = now();
+        $preview = $this->preview->preview($now->year, $now->month);
+
+        return collect($preview['members'] ?? [])
+            ->sortByDesc('meals')
+            ->take(5)
+            ->values()
+            ->map(fn (array $m) => ['id' => $m['member_id'], 'name' => $m['name'], 'meals' => (float) $m['meals']])
+            ->all();
+    }
 }
