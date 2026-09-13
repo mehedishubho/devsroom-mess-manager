@@ -9,6 +9,7 @@ use App\Http\Controllers\Mess\BillPreviewController;
 use App\Http\Controllers\Mess\DueReminderController;
 use App\Http\Controllers\Mess\ExpenseCategoryController;
 use App\Http\Controllers\Mess\ExpenseController;
+use App\Http\Controllers\Mess\GoogleSheetsController;
 use App\Http\Controllers\Mess\GuestMealController;
 use App\Http\Controllers\Mess\ManagerMealOffController;
 use App\Http\Controllers\Mess\MealGridController;
@@ -118,6 +119,22 @@ Route::middleware(['auth', 'roles:super-admin,manager', EnsureMessExists::class]
         ->name('mess.notifications.edit');
     Route::put('/mess/notifications', [MessNotificationController::class, 'update'])
         ->name('mess.notifications.update');
+
+    // Google Sheets mirror. Configuration only — the sync itself runs in queued
+    // jobs dispatched from model events, so nothing here is gated by month.open.
+    Route::get('/mess/google-sheets', [GoogleSheetsController::class, 'edit'])
+        ->name('mess.google-sheets.edit');
+    Route::put('/mess/google-sheets', [GoogleSheetsController::class, 'update'])
+        ->name('mess.google-sheets.update');
+    Route::post('/mess/google-sheets/test', [GoogleSheetsController::class, 'testConnection'])
+        ->middleware('throttle:10,1')
+        ->name('mess.google-sheets.test');
+    Route::post('/mess/google-sheets/backfill', [GoogleSheetsController::class, 'backfill'])
+        ->middleware('throttle:5,1')
+        ->name('mess.google-sheets.backfill');
+    Route::post('/mess/google-sheets/create-spreadsheet', [GoogleSheetsController::class, 'createSpreadsheet'])
+        ->middleware('throttle:5,1')
+        ->name('mess.google-sheets.create-spreadsheet');
 
     Route::get('/mess/audit', [AuditController::class, 'index'])->name('mess.audit');
 

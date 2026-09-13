@@ -5,15 +5,20 @@ namespace App\Providers;
 use App\Listeners\LogScheduledBackupActivity;
 use App\Listeners\NotifyOnBackupFailure;
 use App\Models\Expense;
+use App\Models\GoogleSheetsPending;
 use App\Models\GuestMeal;
 use App\Models\MealEntry;
 use App\Models\MealOffRequest;
 use App\Models\MemberDisabledDay;
 use App\Models\Mess;
-use App\Models\MonthlyClosing;
 use App\Models\MessClosedDay;
+use App\Models\MonthlyClosing;
 use App\Models\Payment;
 use App\Services\BillPreviewInvalidator;
+use App\Services\GoogleSheets\Contracts\SheetsGateway;
+use App\Services\GoogleSheets\GoogleApiclientSheetsGateway;
+use App\Services\GoogleSheets\GoogleSheetsSyncService;
+use App\Services\GoogleSheets\SheetSchema;
 use App\Support\CloudBackupCredentials;
 use Carbon\Carbon;
 use Google\Client;
@@ -22,6 +27,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\ServiceProvider;
@@ -38,7 +44,9 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        // The Google Sheets API seam. Bound to the real google/apiclient
+        // implementation; tests/dev can swap in a fake.
+        $this->app->bind(SheetsGateway::class, GoogleApiclientSheetsGateway::class);
     }
 
     public function boot(): void
@@ -52,6 +60,7 @@ class AppServiceProvider extends ServiceProvider
 
         $this->registerGoogleDriveDriver();
         $this->registerBillPreviewInvalidation();
+        $this->registerGoogleSheetsSync();
         $this->registerBackupFailureListeners();
         $this->registerClosingRouteBinding();
     }
@@ -179,6 +188,37 @@ class AppServiceProvider extends ServiceProvider
             });
             Event::listen("eloquent.deleted: {$modelClass}", function (Model $model) use ($invalidator) {
                 $this->invalidateForModel($invalidator, $model);
+            });
+        }
+    }
+
+    /**
+     * Mirror every insert/update/delete of the synced domain models to Google
+     * Sheets. `eloquent.saved` fires for BOTH inserts and updates, so one
+     * listener per model covers both; `eloquent.deleted` covers hard and soft
+     * deletes. The listener body only records a pending row and queues a flush —
+     * no Sheets API call happens on the request path, so a Sheets outage can
+     * never fail a meal/expense/payment save.
+     */
+    private function registerGoogleSheetsSync(): void
+    {
+        $sync = $this->app->make(GoogleSheetsSyncService::class);
+
+        foreach (SheetSchema::models() as $modelClass) {
+            Event::listen("eloquent.saved: {$modelClass}", function (Model $model) use ($sync) {
+                try {
+                    $sync->enqueue($model, GoogleSheetsPending::OPERATION_UPSERT);
+                } catch (\Throwable $e) {
+                    Log::warning('Google Sheets sync listener failed', ['error' => $e->getMessage()]);
+                }
+            });
+
+            Event::listen("eloquent.deleted: {$modelClass}", function (Model $model) use ($sync) {
+                try {
+                    $sync->enqueue($model, GoogleSheetsPending::OPERATION_DELETE);
+                } catch (\Throwable $e) {
+                    Log::warning('Google Sheets sync listener failed', ['error' => $e->getMessage()]);
+                }
             });
         }
     }

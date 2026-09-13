@@ -18,12 +18,19 @@ final class NotificationType
      */
     public const BACKUP_FAILED = 'backup_failed';
 
+    /**
+     * The Google Sheets mirror exhausted its retries for a batch of rows.
+     * Raised by SyncGoogleSheetsJob::failed().
+     */
+    public const SHEETS_SYNC_FAILED = 'sheets_sync_failed';
+
     public const ALL = [
         self::CLOSE_COMPLETE,
         self::MEAL_OFF_DECISION,
         self::PAYMENT_RECORDED,
         self::DUE_REMINDER,
         self::BACKUP_FAILED,
+        self::SHEETS_SYNC_FAILED,
     ];
 
     public const LABELS = [
@@ -32,5 +39,6 @@ final class NotificationType
         self::PAYMENT_RECORDED => 'Payment recorded',
         self::DUE_REMINDER => 'Due reminder',
         self::BACKUP_FAILED => 'Backup failed',
+        self::SHEETS_SYNC_FAILED => 'Google Sheets sync failed',
     ];
 }
