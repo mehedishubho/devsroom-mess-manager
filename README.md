@@ -425,4 +425,4 @@ Released under the [MIT License](https://opensource.org/licenses/MIT). © [Devsr
 
 ---
 
-<sup>This README replaces the default Laravel stub. The full project plan (154 v1 requirements across 5 phases), research, and per-phase summaries live in `.planning/`.</sup>
+<sup>Thank you for visiting my project, if you like it then give a star to this repo</sup>
