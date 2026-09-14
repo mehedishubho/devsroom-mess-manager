@@ -344,6 +344,9 @@ Every provider is configured in the UI — no env keys, no redeploy. Credentials
 - **Activity log** — every attempt is recorded with status **and the captured error**, so a failure shows the real reason instead of vanishing. This includes **scheduled** runs (nightly `backup:run` / `backup:purge` / `backup:monitor` / `backup:prune-logs`), not just the manual **Backup now** button. Filter by action/status, export the filtered log to CSV, and click through from a known failure to the fix. Actions logged: `backup`, `purge`, `monitor`, `download`, `delete`, `restore`, `configure`, `verify`.
 - **Configuration** (inline) — schedule (frequency + time), retention (keep-days + storage cap), the per-provider toggles, the backup-notification email, optional AES-256 archive encryption, and explicit **remove saved secret** controls.
 - **Backup list** — search, sort, paginate; each archive shows its size, checksum, and **which destinations actually hold it** (Local / Drive / R2). **Download** / **Verify archive** / **Restore** / **Delete** per row, plus bulk select + bulk delete. Restore is a guarded, typed-mess-name, audit-logged flow that takes a pre-restore safety backup first.
+- **Restore from an uploaded archive** — disaster recovery for a fresh/lost server: upload a `.zip` you kept off-site and restore it through the same guarded flow.
+- **Stuck in maintenance mode?** — a one-click "Bring the app back online" for the case where an interrupted restore left the site `down`.
+- **Background execution** — "Backup now" and restores are queued, so they never block the browser or die on a request timeout. They need the queue worker running (`php artisan queue:work`, or the supervisor service on a VPS); the Activity log shows a `running` row that updates in place with the outcome.
 
 ### Shared-hosting setup (CloudPanel / cPanel / Plesk)
 

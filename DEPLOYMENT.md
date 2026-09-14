@@ -341,7 +341,7 @@ All commands are `class_exists`-guarded so an unconfigured Phase 6 degrades to "
 
 **On-demand** (in addition to the schedule):
 
-- **Via the UI**: super-admin → `/dashboard/backups` → "Backup now" button.
+- **Via the UI**: super-admin → `/dashboard/backups` → **Backup now**. This is **queued** (a `running` row appears in the Activity log immediately and is updated in place when the worker finishes), so it never blocks the browser or dies on a gateway timeout. **The queue worker must be running** (§4) — otherwise the run sits in `jobs` until one starts.
 - **Via the CLI** on the VPS: `php artisan backup:run`.
 - **Via the CLI**, DB-only (faster): `php artisan backup:run --only-db`.
 
@@ -357,8 +357,11 @@ Use this path when the app itself is healthy but you need to roll the data back 
 4. The restore form (`resources/views/dashboard/backups/restore.blade.php`) renders a prominent red destructive warning + asks you to type the **active mess's name EXACTLY**. The expected value is `Mess::find(Mess::activeId())->name` — the typed-confirm second factor (D-03, Open Question #3 LOCKED). The restore POST is throttled at `5,1` (5 attempts/minute per IP — T-06-03-04).
 5. Type the mess name. Submit. `RestoreRequest` validates `mess_name in:<active mess name>`; a wrong value redirects back with a validation error and NO service call is made (T-06-03-02). If no active mess exists (pre-onboarding), the validator degrades to an unmatchable sentinel so a restore can NEVER proceed.
 6. `BackupRestoreService` first takes a **pre-restore safety backup** of the current state (so a bad restore is reversible), then flips the app into **maintenance mode** (web requests now hit `errors/maintenance-backup-restore.blade.php`; `queue:restart` is called so no `CloseMonthJob` runs mid-restore — T-06-02-01), then: **reads** the zip from the backup disk → **extracts** it → **locates** the dump at `db-dumps/<dbname>.sql` via the Finder-based `BackupPathResolver` (handles both flat and nested layouts — Pitfall 1) → **restores the DB** via `mysql` CLI (Symfony Process with array args, never string-concat — Pattern 4a) → **copies files** back into `storage/app/public/` (NEVER `public/storage` — Pitfall 4, T-06-02-03) → **spot-checks** row counts. The `up` call is in a `finally {}` so the app ALWAYS returns to live even if an exception is thrown mid-restore.
-7. On success, `RestoreController::store()` writes a manual `Audit` row (`event='backup.restore'`) with the path + the restore tag (T-06-03-07), and redirects back to `dashboard.backups.index` with a success flash.
-8. On failure, the controller's try/catch writes `event='backup.restore.failed'` with the exception message and the exception NEVER escapes (T-06-03-07). The user sees "Restore failed. App is back online" — the live DB was NOT modified if the exception fired before the DB-restore step.
+7. The restore is **queued** (`RestoreBackupJob`, `$tries = 1`) — a `running` row appears in the Activity log immediately and is updated in place with the outcome. Nothing runs on the request thread, so a gateway/PHP timeout cannot hard-kill the restore half-way.
+8. On success the job writes a manual `Audit` row (`event='backup.restore'`) with the path + the restore tag (T-06-03-07) and marks the activity row `success`.
+9. On failure the job writes `event='backup.restore.failed'` with the exception message and marks the row `failed` (T-06-03-07). The live DB was NOT modified if the exception fired before the DB-restore step. **The app is still returned to live** — the service's `finally` calls `up`, the job calls `up` again on both the success and failure paths, and `failed()` calls it once more if the worker killed the job.
+10. If every one of those was skipped (a hard kill on a hostile host) and the site is serving the maintenance page, use **Stuck in maintenance mode? → "Bring the app back online"** on the Backups page, or `php artisan up` over SSH.
+11. **Restoring from an archive you have off-server** (fresh VPS, or the local archive list is gone): use **Restore from an uploaded archive** on the Backups page. Upload the `.zip`, type the active mess name, submit. The file is validated (zip only, ≤ 500 MB), stored on the backups disk, and then restored through the exact same queued flow.
 
 Confirm every restore under **`/mess/audit`** (filter `tags=backup`).
 
