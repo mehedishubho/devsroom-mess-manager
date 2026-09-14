@@ -157,6 +157,8 @@
                             <td class="px-3 py-2 text-sm">
                                 @if ($log->status === 'success')
                                     <span class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">{{ __('success') }}</span>
+                                @elseif ($log->status === 'running')
+                                    <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">{{ __('running') }}</span>
                                 @else
                                     <span class="inline-flex items-center rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-800">{{ __('failed') }}</span>
                                 @endif
@@ -198,6 +200,41 @@
             <p class="mt-1 text-sm text-slate-600">{{ __('Schedule, retention, storage providers and alerts. Changes take effect immediately.') }}</p>
         </div>
         @include('dashboard.backups._configure_form')
+    </section>
+
+    {{-- Disaster recovery + escape hatch. Both are deliberately outside the
+         Configuration form so they can never be submitted by accident while
+         changing a setting. --}}
+    <section class="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
+            <h2 class="text-lg font-semibold leading-tight text-slate-900">{{ __('Restore from an uploaded archive') }}</h2>
+            <p class="mt-1 text-sm text-slate-600">{{ __('Disaster recovery: upload a backup .zip (downloaded earlier, or taken from an off-site mirror) and restore it. The uploaded file is kept on the backups disk so it behaves like any other archive afterwards.') }}</p>
+            <form method="POST" action="{{ route('dashboard.backups.restore.upload') }}" enctype="multipart/form-data" class="mt-4 space-y-3"
+                  onsubmit="return confirm('{{ __('This overwrites the live database and uploaded files. Continue?') }}');">
+                @csrf
+                <label class="block">
+                    <span class="text-xs font-medium text-slate-700">{{ __('Backup archive (.zip)') }}</span>
+                    <input type="file" name="file" accept=".zip,application/zip" required class="mt-1 block w-full text-sm text-slate-700" />
+                    @error('file') <span class="mt-1 block text-xs text-red-700">{{ $message }}</span> @enderror
+                </label>
+                <label class="block">
+                    <span class="text-xs font-medium text-slate-700">{{ __('Type the mess name to confirm') }}</span>
+                    <input type="text" name="mess_name" required autocomplete="off" class="input mt-1" placeholder="{{ \App\Http\Controllers\Backup\BackupController::activeMessName() }}" />
+                    @error('mess_name') <span class="mt-1 block text-xs text-red-700">{{ $message }}</span> @enderror
+                </label>
+                <button type="submit" class="btn btn-secondary text-rose-700">{{ __('Upload and restore') }}</button>
+            </form>
+        </div>
+
+        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
+            <h2 class="text-lg font-semibold leading-tight text-slate-900">{{ __('Stuck in maintenance mode?') }}</h2>
+            <p class="mt-1 text-sm text-slate-600">{{ __('If a restore was interrupted and the site is showing the maintenance page, this forces the app back online. Restores normally exit maintenance mode on their own — this is the last resort.') }}</p>
+            <form method="POST" action="{{ route('dashboard.backups.recover') }}" class="mt-4"
+                  onsubmit="return confirm('{{ __('Force the app out of maintenance mode?') }}');">
+                @csrf
+                <button type="submit" class="btn btn-secondary">{{ __('Bring the app back online') }}</button>
+            </form>
+        </div>
     </section>
 
     {{-- Bulk delete lives OUTSIDE the table so the per-row forms are never

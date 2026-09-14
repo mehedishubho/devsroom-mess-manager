@@ -6,35 +6,35 @@ namespace App\Http\Controllers\Backup;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Backup\RestoreRequest;
+use App\Http\Requests\Backup\UploadRestoreRequest;
+use App\Jobs\RestoreBackupJob;
 use App\Models\BackupLog;
-use App\Services\BackupRestoreService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use OwenIt\Auditing\Models\Audit;
 
 /**
- * D-03 the guarded one-click FULL RESTORE surface.
+ * D-03 the guarded full-restore surface.
  *
  * Pattern mirrors the project's MonthCloseController: a Form Request
- * (RestoreRequest) + a service-layer orchestration (BackupRestoreService from
- * Plan 06-02). The controller contains NO restore logic itself (T-06-02-08) —
- * it binds input, writes audit rows, and surfaces the service's result.
+ * (RestoreRequest / UploadRestoreRequest) validates + confirms, this
+ * controller binds input, writes an audit row, and hands the destructive work
+ * to RestoreBackupJob. The controller contains NO restore logic itself
+ * (T-06-02-08) and no longer RUNS the restore on the request thread either —
+ * an inline restore could be killed by a gateway timeout before its
+ * `finally { artisan up }`, stranding the whole site in maintenance mode.
  *
  * Threat model (Plan 06-03):
- *   T-06-03-07 Repudiation — every restore writes a tamper-evident manual Audit
- *              row on BOTH success (event='backup.restore') AND failure
- *              (event='backup.restore.failed').
+ *   T-06-03-07 Repudiation — every restore writes a tamper-evident manual
+ *              Audit row. Those rows now move into the job (which may run in a
+ *              different process), with the actor's id/ip captured at dispatch.
  *   T-06-03-08 DoS — BackupRestoreService owns the down + queue:restart calls;
- *              the controller's try/catch is the second layer (the service's
- *              finally always calls 'up').
+ *              the job's try/catch + failed() are the second and third layers.
  */
 class RestoreController extends Controller
 {
-    public function __construct(private readonly BackupRestoreService $service) {}
-
     public function show(Request $request): View
     {
         $path = (string) $request->query('path', '');
@@ -48,76 +48,84 @@ class RestoreController extends Controller
         ]);
     }
 
+    /** Queue a restore of an archive already on the backups disk. */
     public function store(RestoreRequest $request): RedirectResponse
     {
         $path = (string) $request->validated('path');
-
         $this->guardPath($path);
 
-        try {
-            $this->service->restoreFromDisk($path);
-
-            // D-03 + research Security Domain: every restore writes a
-            // tamper-evident audit row.
-            $this->writeAudit('backup.restore', [
-                'path' => $path,
-                'mess_name_confirmed' => true,
-                'ip' => $request->ip(),
-            ], $request);
-
-            $this->recordLog('restore', 'success', __('Restore completed.'), $path);
-
-            return redirect()
-                ->route('dashboard.backups.index')
-                ->with('success', __('Restore completed. The app is back online.'));
-        } catch (\Throwable $e) {
-            Log::error('Backup restore failed', ['exception' => $e]);
-
-            // Even failures get an audit row (a failed restore is a
-            // significant event). T-06-03-07.
-            $this->writeAudit('backup.restore.failed', [
-                'path' => $path,
-                'error' => $e->getMessage(),
-                'ip' => $request->ip(),
-            ], $request);
-
-            // Surface the REAL error (mysql missing, dump not found, etc.) in
-            // both the activity log and the flash — "check logs" is not
-            // actionable on shared hosting.
-            $message = $e->getMessage();
-            $this->recordLog('restore', 'failure', $message, $path);
-
-            // BackupRestoreService::restoreFromDisk (Plan 06-02) ALWAYS calls
-            // Artisan::call('up') in its finally block — the app stays live
-            // even when the restore itself failed.
-            return back()->withErrors(['restore' => __('Restore failed. App is back online. Reason: :msg', ['msg' => $message])]);
-        }
+        return $this->queueRestore($request, $path);
     }
 
     /**
-     * Write a backup_logs row (restores belong in the same activity log as
-     * backups). Tolerates a missing backup_logs table.
+     * Disaster recovery: restore from an archive the operator uploads.
+     *
+     * Off-site backups are only useful if they can be brought back when the
+     * server (and therefore its local archive list) is gone. The upload lands
+     * on the backups disk so it behaves like any other archive from then on.
      */
-    private function recordLog(string $action, string $status, ?string $message = null, ?string $path = null): void
+    public function upload(UploadRestoreRequest $request): RedirectResponse
     {
+        $file = $request->file('file');
+        $name = 'uploaded-'.now()->format('Ymd-His').'-'.substr(bin2hex(random_bytes(3)), 0, 6).'.zip';
+
+        $disk = Storage::disk((string) config('backup.backup.destination.disks.0', 'backups-local'));
+
         try {
-            BackupLog::create([
-                'action' => $action,
-                'status' => $status,
-                'path' => $path,
-                'message' => $message,
-                'user_id' => request()->user()?->id,
-            ]);
+            $stream = fopen($file->getRealPath(), 'r');
+            try {
+                $disk->writeStream($name, $stream);
+            } finally {
+                if (is_resource($stream)) {
+                    fclose($stream);
+                }
+            }
         } catch (\Throwable $e) {
-            Log::warning('backup_logs write failed: '.$e->getMessage());
+            return back()->withErrors(['file' => __('Could not store the uploaded archive: :msg', ['msg' => $e->getMessage()])]);
         }
+
+        $this->writeAudit('backup.restore.upload', [
+            'path' => $name,
+            'original_name' => $file->getClientOriginalName(),
+            'size' => $file->getSize(),
+        ], $request);
+
+        return $this->queueRestore($request, $name);
     }
 
     /**
-     * Manual OwenIt\Auditing\Models\Audit row (restore is not a model write,
-     * so the Auditable trait does not fire). Research Security Domain.
+     * Write the `running` activity row and dispatch the destructive job.
+     * The row is updated in place by the job, so the Activity log shows
+     * progress without a polling endpoint.
      */
-    private function writeAudit(string $event, array $payload, RestoreRequest $request): void
+    private function queueRestore(Request $request, string $path): RedirectResponse
+    {
+        $log = BackupLog::record(
+            'restore',
+            'running',
+            __('Queued — the app enters maintenance mode while the restore runs.'),
+            $path,
+            $request->user()?->id,
+        );
+
+        RestoreBackupJob::dispatch(
+            $path,
+            $log?->id,
+            $request->user()?->id,
+            $request->ip(),
+            $request->userAgent(),
+        );
+
+        return redirect()
+            ->route('dashboard.backups.index')
+            ->with('success', __('Restore queued. The app will briefly enter maintenance mode; the Activity log shows the outcome.'));
+    }
+
+    /**
+     * Manual OwenIt\Auditing\Models\Audit row (an upload/restore is not a model
+     * write, so the Auditable trait does not fire). Research Security Domain.
+     */
+    private function writeAudit(string $event, array $payload, Request $request): void
     {
         $audit = new Audit;
         $audit->fill([

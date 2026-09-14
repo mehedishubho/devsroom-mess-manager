@@ -30,9 +30,33 @@ use Spatie\Backup\Events\UnhealthyBackupWasFound;
  */
 class LogScheduledBackupActivity
 {
+    /**
+     * When true, events are ignored. A queued job runs inside a console
+     * worker, so its `backup:run` looks "scheduled" to this listener — the job
+     * owns its own activity row (it updates the `running` row it created), so
+     * it mutes this listener to avoid a duplicate.
+     */
+    private static bool $muted = false;
+
+    /** Run $callback with this listener silenced. */
+    public static function muted(callable $callback): mixed
+    {
+        self::$muted = true;
+
+        try {
+            return $callback();
+        } finally {
+            self::$muted = false;
+        }
+    }
+
     public function handle(
         BackupWasSuccessful|BackupHasFailed|CleanupWasSuccessful|CleanupHasFailed|HealthyBackupWasFound|UnhealthyBackupWasFound $event,
     ): void {
+        if (self::$muted) {
+            return;
+        }
+
         if (! app()->runningInConsole()) {
             return;
         }

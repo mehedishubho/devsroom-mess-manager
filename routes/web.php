@@ -109,6 +109,13 @@ Route::middleware(['auth', 'role:super-admin'])
         Route::post('/restore', [RestoreController::class, 'store'])
             ->middleware('throttle:5,1')
             ->name('restore.store');
+        // Disaster recovery — restore from an archive uploaded from off-site.
+        // Same throttle + typed-confirm second factor as the path-based restore.
+        Route::post('/restore/upload', [RestoreController::class, 'upload'])
+            ->middleware('throttle:5,1')
+            ->name('restore.upload');
+        // Last-resort: force the app out of maintenance mode.
+        Route::post('/recover', [BackupController::class, 'recoverMaintenance'])->name('recover');
     });
 
 // Public set-password (from invite link)

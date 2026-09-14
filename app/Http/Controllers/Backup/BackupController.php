@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Backup;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Backup\UpdateBackupConfigRequest;
+use App\Jobs\RunBackupJob;
 use App\Models\BackupConfig;
 use App\Models\BackupLog;
 use App\Models\Mess;
@@ -42,7 +43,7 @@ use OwenIt\Auditing\Models\Audit;
 class BackupController extends Controller
 {
     /** Actions the Activity log can record — also the filter whitelist. */
-    private const LOG_ACTIONS = ['backup', 'purge', 'monitor', 'download', 'delete', 'restore', 'verify', 'export', 'configure'];
+    private const LOG_ACTIONS = ['backup', 'purge', 'monitor', 'download', 'delete', 'restore', 'verify', 'export', 'configure', 'recover'];
 
     /** True when the backup_logs table isn't readable (e.g. not migrated yet). */
     private bool $backupLogUnavailable = false;
@@ -63,39 +64,48 @@ class BackupController extends Controller
         return view('dashboard.backups.index', $this->indexData());
     }
 
+    /**
+     * Queue a manual backup and return immediately.
+     *
+     * The dump + zip + mirror upload can outlive a PHP request, so the run is
+     * handed to RunBackupJob. The `running` row written here is the same row
+     * the job updates to success/failure, so the Activity log doubles as live
+     * progress without any polling endpoint.
+     */
     public function runNow(): RedirectResponse
     {
-        // Ad-hoc backup. Runs synchronously; the spec is one small mess.
-        //
-        // CRITICAL: `backup:run` does NOT throw when the dump fails (e.g.
-        // mysqldump missing on the server) — Artisan::call() just returns a
-        // non-zero exit code, which the old code ignored, producing a false
-        // "Backup completed." flash. Detect failure three ways: exit code,
-        // the captured output, and "no new zip actually appeared on disk".
-        if ($preflight = $this->preflightWritable()) {
-            return $this->recordLog('backup', 'failure', $preflight);
-        }
+        $log = BackupLog::record(
+            'backup',
+            'running',
+            __('Queued — the result appears here when the worker finishes.'),
+            null,
+            request()->user()?->id,
+        );
 
-        $disk = Storage::disk($this->backupDisk());
-        $before = $this->countZips($disk);
+        RunBackupJob::dispatch($log?->id);
 
+        return back()->with('success', __('Backup queued. The Activity log shows the result when it finishes.'));
+    }
+
+    /**
+     * Last-resort recovery: force the app out of maintenance mode.
+     *
+     * BackupRestoreService always calls `up` in a finally, and RestoreBackupJob
+     * calls it again on both its success path and in failed() — but a hard
+     * worker kill on a hostile shared host can still leave `down` behind, and
+     * the entire point of this page is being reachable when nothing else is.
+     */
+    public function recoverMaintenance(): RedirectResponse
+    {
         try {
-            $exitCode = (int) Artisan::call('backup:run');
-            $output = (string) Artisan::output();
+            Artisan::call('up');
         } catch (\Throwable $e) {
-            return $this->recordLog('backup', 'failure', $e->getMessage());
+            return $this->recordLog('recover', 'failure', $e->getMessage());
         }
 
-        $after = $this->countZips($disk);
+        $this->writeAudit('backup.recover.maintenance', []);
 
-        if ($after <= $before || $exitCode !== 0) {
-            $reason = $this->extractFailureReason($output)
-                ?: __('No backup file was produced (exit code :code). Usually mysqldump is missing on the server — install it and set DUMP_BINARY_PATH.', ['code' => $exitCode]);
-
-            return $this->recordLog('backup', 'failure', $reason, output: $output);
-        }
-
-        return $this->recordLog('backup', 'success', __('Backup completed.'), output: $output);
+        return $this->recordLog('recover', 'success', __('Maintenance mode disabled — the app is live again.'));
     }
 
     /**
@@ -834,95 +844,6 @@ class BackupController extends Controller
 
             fclose($out);
         }, 'backup-activity-'.now()->format('Y-m-d-His').'.csv', ['Content-Type' => 'text/csv']);
-    }
-
-    /**
-     * Count .zip files on the backup disk — used to detect whether
-     * `backup:run` actually produced a file (belt-and-suspenders alongside
-     * the exit-code check).
-     */
-    private function countZips($disk): int
-    {
-        return collect($disk->allFiles())
-            ->filter(fn ($p) => str_ends_with($p, '.zip'))
-            ->count();
-    }
-
-    /**
-     * Pre-flight check: ensure spatie's destination + temp + temp-archive
-     * directories exist and are writable by the web/PHP user BEFORE we hand
-     * off to `backup:run`. The classic shared-host failure is
-     * "ZipArchive::close(): Invalid argument" — spatie silently can't write
-     * the final zip because storage/app/backups is missing or not writable.
-     * This turns that opaque error into an actionable one.
-     */
-    private function preflightWritable(): ?string
-    {
-        // storage/app/backups        — final zip destination (backups-local disk root).
-        // storage/app/backup-temp    — spatie's temporary_directory: THIS is where the
-        //                              zip is actually staged (BackupJob line 253), so a
-        //                              missing/root-owned backup-temp makes close() fail
-        //                              even when the destination looks writable.
-        // storage/app/laravel-backup — spatie's DB-dump workdir.
-        $paths = [
-            'destination' => storage_path('app/backups'),
-            'spatie-temp' => (string) config('backup.backup.temporary_directory', storage_path('app/backup-temp')),
-            'dump-workdir' => storage_path('app/laravel-backup'),
-        ];
-
-        foreach ($paths as $label => $path) {
-            if (! is_dir($path)) {
-                @mkdir($path, 0o775, true);
-            }
-            if (! is_dir($path) || ! is_writable($path)) {
-                return __('Backup :label directory (:path) is missing or not writable by the web server. Create it and fix ownership: chown -R <site-user>:<site-user> storage && chmod -R 775 storage.', ['label' => $label, 'path' => $path]);
-            }
-        }
-
-        // Disk space / quota: open() can create a 0-byte file (success) but
-        // close() fails when there is no room to write the actual content — a
-        // classic shared-host "Invalid argument" on close().
-        $free = @disk_free_space(storage_path('app'));
-        if ($free !== false && $free < 50 * 1024 * 1024) {
-            return __('Less than 50 MB free on the storage partition (:free MB). The backup needs room to stage the zip — free disk space or check the account quota.', ['free' => number_format($free / 1024 / 1024, 1)]);
-        }
-
-        // open_basedir / sys_temp_dir restriction: ZipArchive uses the system
-        // temp dir internally; if PHP's open_basedir excludes it, close() can
-        // fail even when the destination is writable.
-        $openBasedir = ini_get('open_basedir');
-        if ($openBasedir) {
-            $systemTemp = sys_get_temp_dir();
-            $allowed = array_map(fn ($p) => realpath(rtrim($p, DIRECTORY_SEPARATOR)), explode(PATH_SEPARATOR, $openBasedir));
-            if (! in_array(realpath($systemTemp), $allowed, true)) {
-                return __('PHP open_basedir excludes the system temp dir (:temp), which breaks ZipArchive. Set sys_temp_dir/upload_tmp_dir to a writable path inside the account (e.g. storage/app/tmp), or ask the host to widen open_basedir to include :temp.', ['temp' => $systemTemp]);
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Pull the most informative failure line out of the captured artisan
-     * output (mysqldump not found, connection refused, etc.). Returns null
-     * when the output is empty / has no recognizable failure.
-     */
-    private function extractFailureReason(string $output): ?string
-    {
-        $output = trim($output);
-        if ($output === '') {
-            return null;
-        }
-
-        $lines = array_values(array_filter(array_map('trim', explode("\n", $output))));
-
-        foreach ($lines as $line) {
-            if (preg_match('/(not found|no such file|command not found|the dump failed|dumping database.*fail|connection refused|access denied|unknown database|backup failed|could not|denied|error)/i', $line)) {
-                return mb_strlen($line) > 500 ? mb_substr($line, 0, 500).'…' : $line;
-            }
-        }
-
-        return null;
     }
 
     /**
