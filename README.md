@@ -166,15 +166,17 @@ The demo dataset is also the perf fixture used in Plan 05-02 for measuring the 4
 ## Common Commands
 
 ```bash
-# Lint / format
+# Style (Laravel Pint)
 vendor/bin/pint --test       # check only (Laravel preset)
 vendor/bin/pint              # fix in place
 
-# Tests
-vendor/bin/phpunit                                  # full suite (243 tests)
-vendor/bin/phpunit --filter=MealGridQueryCountTest  # single test class
-php artisan test                                    # same, via artisan
-vendor/bin/phpunit --coverage-text                  # needs pcov or xdebug (Lines 85.75% baseline)
+# Verification (no test runner in this repo — the PHPUnit setup was removed in quick task 260724-pm2)
+php artisan migrate          # apply migrations
+php artisan view:cache       # compile every Blade template (catches template errors)
+php artisan route:list       # route table
+php artisan schedule:list    # what the scheduler will actually run
+php artisan tinker           # targeted runtime / DB checks
+php artisan backup:install   # diagnose the backup system (dirs, mysqldump, cron, ZipArchive)
 
 # Local dev servers (php artisan serve + queue:listen + pail + vite)
 composer run dev
@@ -411,7 +413,7 @@ See `.planning/REQUIREMENTS.md` § v2 Requirements for the full list.
 
 ## Contributing
 
-PRs welcome. Run `vendor/bin/pint` and `vendor/bin/phpunit` before submitting.
+PRs welcome. Run `vendor/bin/pint` before submitting. There is no automated test suite in this repo (the PHPUnit setup was removed in quick task 260724-pm2) — prove a change with `php artisan migrate`, `php artisan view:cache`, `php artisan route:list`, and targeted `php artisan tinker` checks.
 
 ---
 

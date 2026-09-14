@@ -16,7 +16,7 @@ The v1 scope is **one mess, fully working for one real monthly cycle**.
 - **DB driver**: MySQL in dev AND prod — do NOT use sqlite locally. Per taste preference and to avoid dev/prod parity bugs.
 - **DB credentials**: Verify with user before assuming defaults — per taste preference.
 - **Code style**: Laravel Pint (Laravel preset). Run before commits.
-- **Tests**: PHPUnit 12 (NOT Pest, despite plugin allowance). Use `RefreshDatabase` for feature tests.
+- **Tests**: **there is no automated test suite in this repo.** The PHPUnit `tests/` directory, `phpunit.xml`, and the phpunit/mockery dev dependencies were removed in quick task 260724-pm2. Verify changes with `vendor/bin/pint --test <paths>`, `php artisan migrate`, `php artisan view:cache`, `php artisan route:list`, and targeted `php artisan tinker`/DB checks. Do NOT add a test suite unless the operator explicitly asks.
 - **No inline CSS, no Bootstrap** — Tailwind only.
 - **All user-facing strings use `__()`** — even if only English is shipped.
 - **Single mess in v1** — every domain table has `mess_id` but only one mess exists.
@@ -26,7 +26,7 @@ The v1 scope is **one mess, fully working for one real monthly cycle**.
 ## Technology Stack
 
 ## Runtime
-- **PHP**: `^8.3` (declared in `composer.json`); dev runtime is `8.4.15` (ZTS x64 VS17). Extensions loaded: `pdo_mysql`, `gd`, `zip`, `mbstring`, `curl`, `pcov 1.0.12` (coverage driver).
+- **PHP**: `^8.4` (declared in `composer.json`); dev runtime is `8.4.15` (ZTS x64 VS17). Extensions loaded: `pdo_mysql`, `gd`, `zip`, `mbstring`, `curl`.
 - **Node.js**: `v24.15.0` (development tooling only — Vite build of Tailwind + Chart.js)
 ## Framework
 - **Laravel**: `^13.0` (installed: `13.15.0`)
@@ -54,29 +54,25 @@ The v1 scope is **one mess, fully working for one real monthly cycle**.
 - **`laravel/boost`**: `^2.4` — AI agent integration (MCP tools)
 - **`laravel/pint`**: `^1.27` — code style fixer (Laravel preset)
 - **`laravel/pail`**: `^1.2.5` — error tailing in dev (`php artisan pail`)
-- **`nunomaduro/collision`**: `^8.6` — pretty test errors
-- **`mockery/mockery`**: `^1.6` — test doubles
-- **`fakerphp/faker`**: `^1.23` — test data
-- **`phpunit/phpunit`**: `^12.5.12` (installed: `12.5.30`) — test runner
-- **`pcov 1.0.12`** (PHP extension, not Composer) — coverage driver; baseline `Lines 85.75%` (2119/2471)
+- **`nunomaduro/collision`**: `^8.6` — pretty CLI error output
+- **`fakerphp/faker`**: `^1.23` — data generation for seeders
 ## Database
-- **Default connection**: `mysql` (dev `.env` + `.env.example` + `phpunit.xml`) — sqlite is NOT used anywhere (dev/prod parity constraint)
+- **Default connection**: `mysql` (dev `.env` + `.env.example`) — sqlite is NOT used anywhere (dev/prod parity constraint)
 - **Cache / Sessions / Queue**: `database` driver (cache + sessions + jobs tables migrated)
 - **Naming convention**: `snake_case` for all database + table + column names
 - **Money**: `DECIMAL(10,2)` columns + `decimal:2` casts — never float
 ## Configuration
 - `boost.json` enables skills: `laravel-best-practices`, `tyro-dashboard`
 - `.agents/skills/` + `.claude/skills/` directories contain project-local skill definitions
-- `phpunit.xml` uses a dedicated `devsroom_mess_management_testing` MySQL database (NOT sqlite `:memory:`, per the MySQL-only constraint)
 ## Tailwind/Vite Assets
 - `resources/css/app.css` and `resources/js/app.js` are the build entry points
 - `resources/js/app.js` exposes `window.initDashboardChart(canvasId, config)` with a destroy-before-recreate guard (prevents Chart.js canvas memory leak)
 - `resources/views/` contains all Blade templates (welcome + 30+ app views across `mess/`, `my/`, `layouts/`, `components/`)
 - HMR enabled in dev via Vite `refresh: true`
-## Test Coverage (Phase 5 Plan 02 baseline)
-- **243 tests, 576 assertions** (PHPUnit 12)
-- **Line coverage 85.75%** via pcov (target >70%, margin +15.75pp)
-- Perf regression locks: `tests/Feature/Perf/MealGridQueryCountTest.php` (grid < 15 queries at 50 members), dashboard no-N+1 test, `tests/Feature/Report/PdfDebugbarExclusionTest.php` (PDF stays clean under Debugbar)
+## Verification (no automated test suite)
+- This repo ships **no test runner**. The PHPUnit `tests/` directory, `phpunit.xml`, and the phpunit/mockery dev dependencies were removed in quick task 260724-pm2; there is no CI test job either.
+- Verify a change with the project's real gates: `vendor/bin/pint --test <changed paths>`, `php artisan migrate`, `php artisan view:cache`, `php artisan route:list`, `php artisan schedule:list`, and targeted `php artisan tinker` / DB checks for behaviour that isn't visible in those.
+- When you touch the backup system, `php artisan backup:install` is the diagnostic command (directories, ownership, mysqldump, open_basedir, cron line, ZipArchive self-tests).
 <!-- GSD:stack-end -->
 
 <!-- GSD:conventions-start source:CONVENTIONS.md -->
@@ -102,10 +98,8 @@ The v1 scope is **one mess, fully working for one real monthly cycle**.
 - Always implement both `up()` and `down()`
 - Use `Blueprint` typed parameter
 - Foreign keys use `foreignId('user_id')` + `constrained()` pattern
-### Test Style
-- Extends `Tests\TestCase`
-- Test methods prefixed with `test_` (PHPUnit snake_case, not Pest)
-- `void` return type on test methods
+### Verification Style
+- No automated tests exist (see "Verification" in the stack section) — changes are proven with `pint --test`, `migrate`, `view:cache`, `route:list`, and tinker/DB checks.
 ## Database
 - **snake_case** for all column and table names
 - **Plural** table names (`users`, `personal_access_tokens`)
@@ -151,7 +145,7 @@ The v1 scope is **one mess, fully working for one real monthly cycle**.
 - Server-rendered Blade templates (no SPA, no Inertia/Livewire)
 - Eloquent ORM for persistence; **service layer** for business logic (no Repository pattern)
 - Service container for dependency injection (services injected into controllers via constructor)
-- PSR-4 autoloading under `App\`, `Database\Factories\`, `Database\Seeders\`, `Tests\`
+- PSR-4 autoloading under `App\`, `Database\Factories\`, `Database\Seeders\`
 - Money always `decimal:2` / `DECIMAL(10,2)` — never float
 
 ## Layers
@@ -215,6 +209,7 @@ Write path: `POST /mess/meals` → `EnsureMonthIsOpen` middleware (refuses if mo
 - `monthly_corrections` (post-close adjustment entries; snapshot stays immutable)
 - `notifications` (in-app, always-on canonical record: close_complete, due_reminder, payment_received, meal_off_decision, backup_failed). Multi-channel delivery fans out from `NotificationService::send()` via `ChannelManager` to the mess's enabled external channels (`App\Notifications\Channels\{Email,Telegram,Whatsapp,Sms}Channel`) — each **fails open**. Channel toggles + credentials + per-type routing live in `settings` (key `notifications.config`); per-user preferences live on `users.notification_preferences` (JSON) and are intersected with the mess-enabled set at dispatch.
 - `member_invitations` (invite flow)
+- Cross-mess infrastructure (**NO `mess_id` column**): `backup_configs` (singleton row id=1 — schedule, retention, provider toggles, encrypted cloud credentials, notification email, archive encryption) and `backup_logs` (one row per backup-surface action: `backup` / `purge` / `monitor` / `download` / `delete` / `restore` / `verify` / `export` / `configure` / `recover`, status `running` / `success` / `failure`)
 - Laravel defaults: `users` (adds `notification_preferences` JSON), `password_reset_tokens`, `sessions`, `cache`, `cache_locks`, `jobs`, `job_batches`, `failed_jobs`, `personal_access_tokens`, telescope tables (3)
 - Tyro tables: `roles`, `privileges`, `role_user`, `privilege_role`, `invitations`, `audit_logs`
 
@@ -227,12 +222,12 @@ Write path: `POST /mess/meals` → `EnsureMonthIsOpen` middleware (refuses if mo
 - Public: `/set-password` (from invite link)
 - 11 manager write routes additionally carry the `month.open` middleware alias (`EnsureMonthIsOpen`)
 - Tyro dashboard auto-registered at `/dashboard/*`; Tyro login at `/login`, `/register`, `/logout`, `/password/*`
-- `routes/console.php`: `telescope:prune` daily (class_exists guard for prod)
+- `routes/console.php`: `telescope:prune` daily. Inside a `class_exists(BackupServiceProvider)` guard: `backup:purge` (01:00), `backup:run` (at the admin-configured cadence/time), `backup:monitor` (02:00), `backup:prune-logs` (03:00) — all `onOneServer()`; `backup:run` also `withoutOverlapping()`.
 
 ## Build & Runtime
 - **Dev**: `composer run dev` starts `php artisan serve`, `queue:listen`, `pail`, `vite` in parallel
 - **Build**: `npm run build` (Vite production build — Tailwind v4 + Chart.js into `public/build/`)
-- **Test**: `composer run test` → `php artisan test` (PHPUnit 12, 243 tests)
+- **Test**: none — no test runner in this repo (see "Verification" in the stack section).
 - **Migrate**: `php artisan migrate`
 - **Seed**: `php artisan db:seed` (default — creates expense categories + test user; does NOT run PerfDemoSeeder). Demo dataset: `php artisan db:seed:perf-demo` (guarded).
 
@@ -310,14 +305,14 @@ Mid-month joiner/leaver handling:
 
 Source of truth: [`app/Jobs/CloseMonthJob.php`](../app/Jobs/CloseMonthJob.php) (queued), [`app/Services/MonthCloseService.php`](../app/Services/MonthCloseService.php) (the math), [`app/Http/Middleware/EnsureMonthIsOpen.php`](../app/Http/Middleware/EnsureMonthIsOpen.php) (the hard lock).
 
-Properties (all locked by tests in `tests/Feature/Close/`):
+Properties (the invariants the service layer guarantees):
 1. **Queued** (CLOSE-02): `CloseMonthJob implements ShouldQueue` on the `database` queue. `$tries = 1`, `$timeout = 120`. Triggered from `POST /mess/close` → `MonthCloseController::trigger` → `CloseMonthJob::dispatch`.
 2. **Idempotent** (CLOSE-07): `MonthlyClosing::firstOrCreate(['mess_id', 'year', 'month'], ...)` backed by a `UNIQUE(mess_id, year, month)` index. If the row already exists, `wasRecentlyCreated` is false → the handler returns the existing closing + summaries **without rewriting anything**. Safe to double-click.
 3. **Atomic**: `MonthCloseService::close` wraps everything in `DB::transaction`.
 4. **Immutable snapshot** (CLOSE-09): for each member, a `MonthlyMemberSummary` row is created from `BillPreviewService::preview()` output. Money is frozen via `number_format()` into normalized 2-decimal strings (never round-trips through float).
 5. **Hard-locked post-close** (CLOSE-10): the `EnsureMonthIsOpen` middleware (alias `month.open`) is attached to **11 manager write routes** (meal save, guest-meal create/update, meal-off request/approve/reject, bazar/fixed store, payment store/update/destroy). If the request's date falls in a closed `(year, month)`, the middleware refuses with a "MONTH CLOSED" validation error. Strict `Y-m-d` parsing (WR-04 — `Carbon::createFromFormat('!Y-m-d', …)` rejects e.g. `2026-02-31`).
 6. **Corrections are append-only** (CLOSE-12): corrections go through the separate `/mess/closings/{closing}/corrections` routes → `monthly_corrections` table. They apply immediately to the member's `advance_balances` + audit log; the original `monthly_member_summaries` snapshot stays immutable. Corrections routes are intentionally NOT locked by `month.open` (they target closed months by design).
-7. **Math reuses BillPreviewService verbatim** (D-18): the close path calls `app(BillPreviewService::class)->preview($year, $month)` — same cache, same formulas. There is a parity test (`test_close_numbers_match_bill_preview_service_for_same_inputs`).
+7. **Math reuses BillPreviewService verbatim** (D-18): the close path calls `app(BillPreviewService::class)->preview($year, $month)` — same cache, same formulas. They cannot drift because there is only one implementation.
 8. **Notification**: on close-complete, `NotificationService::notifyCloseComplete()` writes an in-app `close_complete` notification to all managers + super-admins (NOTIF-01).
 
 ### Cache key strategy
@@ -335,7 +330,7 @@ Invalidation hook (`AppServiceProvider::boot()` → `registerBillPreviewInvalida
 - Fires on BOTH `eloquent.saved: {Model}` AND `eloquent.deleted: {Model}` for these 5 models: `MealEntry`, `GuestMeal`, `MealOffRequest`, `Expense`, `Payment`.
 - A single listener body (`invalidateForModel`) handles all 10 events — NO duplicate `Event::listen` calls (preserves <2s refresh, success #12).
 - Date resolution prefers the business date column (`date` for 4 models, `from_date` for `MealOffRequest`) — never falls back to `now()`, which would invalidate the wrong month. Falls back to `created_at` only when the model genuinely lacks a business date.
-- Both keys are scoped by `Mess::activeId()` → **cross-mess cache bleed is structurally impossible** (T-04-03-01, regression-locked by `tests/Feature/CacheInvalidationTest`).
+- Both keys are scoped by `Mess::activeId()` → **cross-mess cache bleed is structurally impossible** (T-04-03-01).
 
 Cache hit-rate budget: >80% (D-09). Measured at 100.0% on a warm pure-read loop (Plan 05-02 §2).
 
@@ -361,3 +356,18 @@ Source of truth: [`app/Providers/AppServiceProvider.php`](../app/Providers/AppSe
 - `Mess::activeId()` is the single source of truth for "current mess" (cached). Cache keys include `mess_id` so v2 multi-mess doesn't bleed.
 
 **Telescope access**: `Gate::define('viewTelescope', fn (User $u) => $u->hasRole('super-admin'))` in `TelescopeServiceProvider::gate()`. In local env Telescope bypasses the gate automatically; in staging/prod only super-admin can view `/telescope`.
+
+### Backup & restore
+
+Source of truth: [`app/Http/Controllers/Backup/`](../app/Http/Controllers/Backup/) (UI), [`app/Services/BackupRunner.php`](../app/Services/BackupRunner.php) (runs `backup:run` + preflight), [`app/Services/BackupRestoreService.php`](../app/Services/BackupRestoreService.php) (the destructive sequence), [`app/Jobs/RunBackupJob.php`](../app/Jobs/RunBackupJob.php) + [`app/Jobs/RestoreBackupJob.php`](../app/Jobs/RestoreBackupJob.php), [`app/Support/BackupDestinations.php`](../app/Support/BackupDestinations.php), [`app/Support/CloudBackupCredentials.php`](../app/Support/CloudBackupCredentials.php).
+
+The single surface is `/dashboard/backups` (`role:super-admin`, custom controllers + Blade — NOT a Tyro resource). Everything DB-1toggled lives on the `backup_configs` singleton; every action is recorded in `backup_logs`.
+
+1. **Destinations**: Local (`backups-local` → `storage/app/backups`) is ALWAYS written. Google Drive / Cloudflare R2 are appended by `BackupDestinations::all()` when toggled on AND configured. There is **no DigitalOcean Spaces** destination (removed in quick task 260914-uk4).
+2. **Credentials live in the DB, not `.env`.** `CloudBackupCredentials::applyToRuntimeConfig()` merges the encrypted `backup_configs` values over the env-derived disk config and re-keys the spatie destination/monitor lists at runtime. It is bootstrap-safe (try/catch) and runs from `AppServiceProvider::boot()` — never query the DB from `config/*.php`.
+3. **Log writes never break the operation.** `BackupLog::record()` (and the equivalent try/catch in the controllers) swallow failures so a fresh deploy without `backup_logs` still completes the backup/download/delete.
+4. **Delete fans out.** Single and bulk delete remove the archive from EVERY active destination; a failure on one disk never aborts the others.
+5. **Restore is destructive and queued.** `RestoreBackupJob` (`$tries = 1`) → `BackupRestoreService`: pre-restore safety backup → `artisan down` → `queue:restart` → extract → `BackupPathResolver` finds `db-dumps/*.sql` → `mysql` via Symfony `Process` array-args → files into `storage_path('app/public')` (NEVER `public/storage`) → `artisan up` in a `finally`. Three separate guarantees return the app to live (service finally, job success path, `failed()`), plus a manual "Bring the app back online" action.
+6. **Queued runs show progress in-place.** The controller writes a `running` activity row and the job updates that same row — the Activity log is the progress UI (no polling endpoint). `LogScheduledBackupActivity::muted()` stops the shared spatie-event listener from double-logging a job's run.
+7. **Verify = sha256.** `BackupArchive::checksum()` (cached by disk+path+mtime) backs the "Verify" action; hashing never happens while rendering the list. A mismatch is audit-logged and reported as a failure.
+8. **`.env` is excluded from backups** (D-07) — after restoring onto a new server, re-enter the Drive/R2 credentials (a new `APP_KEY` makes the old ciphertext unreadable).

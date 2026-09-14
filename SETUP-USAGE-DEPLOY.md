@@ -219,7 +219,7 @@ Then three infrastructure pieces:
    autostart=true autorestart=true user=www-data
    ```
    (DEPLOYMENT.md §4.3 — verbatim.)
-3. **Cron** for the scheduler (runs backups/purge/monitor/restore-test/telescope:prune on schedule):
+3. **Cron** for the scheduler (runs backups/purge/monitor/log-prune/telescope:prune on schedule):
    ```
    * * * * * cd /var/www/mess && php artisan schedule:run >> /dev/null 2>&1
    ```
@@ -270,8 +270,7 @@ If your host forces the docroot to `public_html` and won't let you change it, us
 #### D. Create the MySQL databases (cPanel → MySQL® Databases)
 
 1. Create database `username_mess` + a user, grant all privileges.
-2. Create a second empty database `username_mess_restore` (for the restore-test).
-3. Note the DB host (usually `localhost`).
+2. Note the DB host (usually `localhost`).
 
 #### E. Configure `.env`
 
@@ -334,7 +333,7 @@ chmod -R 775 ~/mess/storage ~/mess/bootstrap/cache
 
 #### H. The scheduler via cPanel Cron Jobs
 
-cPanel → **Cron Jobs** → add (runs every minute; drives the backup schedule, purge, monitor, restore-test):
+cPanel → **Cron Jobs** → add (runs every minute; drives the backup schedule, purge, monitor, and log-prune):
 
 ```
 * * * * * cd /home/username/mess && /usr/local/bin/php artisan schedule:run >> /dev/null 2>&1

@@ -15,7 +15,7 @@ Date: 2026-07-06
 - The new install-state lookup uses a single keyed `app_settings` row and does not touch mess-scoped settings.
 - Existing cached bill preview and dashboard count strategy remains unchanged.
 - Route-cache compatibility is improved by replacing the `/` route closure with `RootController`.
-- Existing pagination, query-count tests, queued month close, Vite build, and database-backed cache/session/queue configuration remain intact.
+- Existing pagination, queued month close, Vite build, and database-backed cache/session/queue configuration remain intact.
 
 ## Laravel And Tyro Integration
 
@@ -26,7 +26,7 @@ Date: 2026-07-06
 
 ## Deployment Follow-Ups
 
-- Confirm production `.env` uses real MySQL credentials, `APP_ENV=production`, `APP_DEBUG=false`, HTTPS `APP_URL`, SMTP/API mail, and backup storage credentials.
+- Confirm production `.env` uses real MySQL credentials, `APP_ENV=production`, `APP_DEBUG=false`, HTTPS `APP_URL`, SMTP/API mail, and `BACKUP_*` settings. Cloud backup mirrors (Google Drive / Cloudflare R2) are configured on the Backups page, not in `.env`.
 - Ensure the web server can write `storage/` and `bootstrap/cache/`, and run `php artisan storage:link` when public uploads are enabled.
 - Run migrations once during deploy, then cache config/routes/views and start a persistent queue worker plus scheduler.
-- Verify backup restore-test credentials point at a scratch database, never the primary production database.
+- Confirm the scheduler is actually driving backups (the Backups page shows a scheduler-health banner + the exact cron line when the per-minute `schedule:run` cron is missing) and that the queue worker is running, since UI-triggered **Backup now** and restores are queued jobs. There is no restore-test subsystem and no scratch database to maintain (removed in quick task 260724-pm2).
