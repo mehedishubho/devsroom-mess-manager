@@ -41,15 +41,24 @@ class RunBackupJob implements ShouldQueue
 
     public function handle(BackupRunner $runner): void
     {
+        $startedAt = microtime(true);
+
         // Muted: this job runs inside a console worker, so the shared listener
         // would treat the run as "scheduled" and write a second row.
         $result = LogScheduledBackupActivity::muted(fn () => $runner->run());
+
+        $durationMs = (int) round((microtime(true) - $startedAt) * 1000);
 
         $message = $result['output'] !== ''
             ? $result['message']."\n\n".$result['output']
             : $result['message'];
 
-        $this->finish($result['ok'] ? 'success' : 'failure', $message);
+        $this->finish(
+            $result['ok'] ? 'success' : 'failure',
+            $message,
+            $durationMs,
+            $result['archive']['size'] ?? null,
+        );
     }
 
     /**
@@ -61,16 +70,21 @@ class RunBackupJob implements ShouldQueue
         $this->finish('failure', $e->getMessage());
     }
 
-    private function finish(string $status, string $message): void
+    private function finish(string $status, string $message, ?int $durationMs = null, ?int $sizeBytes = null): void
     {
         $log = $this->logId !== null ? BackupLog::find($this->logId) : null;
 
         if ($log) {
-            $log->update(['status' => $status, 'message' => $message]);
+            $log->update([
+                'status' => $status,
+                'message' => $message,
+                'duration_ms' => $durationMs,
+                'size_bytes' => $sizeBytes,
+            ]);
 
             return;
         }
 
-        BackupLog::record('backup', $status, $message);
+        BackupLog::record('backup', $status, $message, null, null, $durationMs, $sizeBytes);
     }
 }

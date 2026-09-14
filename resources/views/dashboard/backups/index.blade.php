@@ -275,6 +275,13 @@
                             <td class="max-w-xl px-3 py-2 text-xs text-slate-600">
                                 @if ($log->path)<span class="break-all font-mono text-slate-500">{{ basename($log->path) }}</span>@if ($log->message)<br />@endif @endif
                                 @if ($log->message)<span class="break-words whitespace-pre-wrap">{{ $log->message }}</span>@endif
+                                @if ($log->duration_ms !== null || $log->size_bytes !== null)
+                                    <p class="mt-0.5 font-medium text-slate-500">
+                                        @if ($log->duration_ms !== null){{ __('took :seconds s', ['seconds' => number_format($log->duration_ms / 1000, 1)]) }}@endif
+                                        @if ($log->duration_ms !== null && $log->size_bytes !== null) · @endif
+                                        @if ($log->size_bytes !== null){{ __('archive :size MB', ['size' => number_format($log->size_bytes / 1024 / 1024, 2)]) }}@endif
+                                    </p>
+                                @endif
                                 @if (! empty($log->hint))
                                     <p class="mt-1 rounded bg-amber-50 px-2 py-1 text-amber-900">
                                         <span class="font-semibold">{{ __('What to do:') }}</span> {{ $log->hint }}

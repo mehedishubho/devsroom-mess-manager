@@ -22,12 +22,12 @@ use Illuminate\Support\Facades\Storage;
 class BackupRunner
 {
     /**
-     * @return array{ok:bool, message:string, output:string}
+     * @return array{ok:bool, message:string, output:string, archive:?array{path:string, size:int}}
      */
     public function run(): array
     {
         if ($preflight = $this->preflightWritable()) {
-            return ['ok' => false, 'message' => $preflight, 'output' => ''];
+            return ['ok' => false, 'message' => $preflight, 'output' => '', 'archive' => null];
         }
 
         $disk = Storage::disk($this->backupDisk());
@@ -37,7 +37,7 @@ class BackupRunner
             $exitCode = (int) Artisan::call('backup:run');
             $output = (string) Artisan::output();
         } catch (\Throwable $e) {
-            return ['ok' => false, 'message' => $e->getMessage(), 'output' => ''];
+            return ['ok' => false, 'message' => $e->getMessage(), 'output' => '', 'archive' => null];
         }
 
         $after = $this->countZips($disk);
@@ -46,10 +46,36 @@ class BackupRunner
             $reason = $this->extractFailureReason($output)
                 ?: __('No backup file was produced (exit code :code). Usually mysqldump is missing on the server — install it and set DUMP_BINARY_PATH.', ['code' => $exitCode]);
 
-            return ['ok' => false, 'message' => $reason, 'output' => $output];
+            return ['ok' => false, 'message' => $reason, 'output' => $output, 'archive' => null];
         }
 
-        return ['ok' => true, 'message' => __('Backup completed.'), 'output' => $output];
+        return [
+            'ok' => true,
+            'message' => __('Backup completed.'),
+            'output' => $output,
+            'archive' => $this->newestArchive($disk),
+        ];
+    }
+
+    /**
+     * The archive the run just produced (newest .zip), with its size — so the
+     * activity log can show how big the backup was, not just that it succeeded.
+     *
+     * @return array{path:string, size:int}|null
+     */
+    private function newestArchive($disk): ?array
+    {
+        $newest = collect($disk->allFiles())
+            ->filter(fn ($p) => str_ends_with($p, '.zip'))
+            ->map(fn ($p) => ['path' => $p, 'ts' => (int) $disk->lastModified($p)])
+            ->sortByDesc('ts')
+            ->first();
+
+        if ($newest === null) {
+            return null;
+        }
+
+        return ['path' => $newest['path'], 'size' => (int) $disk->size($newest['path'])];
     }
 
     /** The spatie destination disk (always backups-local after the Spaces removal). */

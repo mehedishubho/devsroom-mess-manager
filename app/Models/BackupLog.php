@@ -18,10 +18,18 @@ use Illuminate\Support\Facades\Log;
  * NOTE: NO BelongsToActiveMess trait — backups are cross-mess infrastructure
  * (no mess_id column).
  */
-#[Fillable(['action', 'status', 'path', 'message', 'user_id'])]
+#[Fillable(['action', 'status', 'path', 'message', 'user_id', 'duration_ms', 'size_bytes'])]
 class BackupLog extends Model
 {
     protected $table = 'backup_logs';
+
+    protected function casts(): array
+    {
+        return [
+            'duration_ms' => 'integer',
+            'size_bytes' => 'integer',
+        ];
+    }
 
     public function user(): BelongsTo
     {
@@ -33,7 +41,7 @@ class BackupLog extends Model
      * failure. Logging must never break the operation it is recording — e.g. a
      * fresh deploy whose `php artisan migrate` hasn't created backup_logs yet.
      */
-    public static function record(string $action, string $status, ?string $message = null, ?string $path = null, ?int $userId = null): ?self
+    public static function record(string $action, string $status, ?string $message = null, ?string $path = null, ?int $userId = null, ?int $durationMs = null, ?int $sizeBytes = null): ?self
     {
         try {
             return static::create([
@@ -42,6 +50,8 @@ class BackupLog extends Model
                 'message' => $message,
                 'path' => $path,
                 'user_id' => $userId,
+                'duration_ms' => $durationMs,
+                'size_bytes' => $sizeBytes,
             ]);
         } catch (\Throwable $e) {
             Log::warning('backup_logs write failed: '.$e->getMessage());
