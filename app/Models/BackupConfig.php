@@ -30,7 +30,6 @@ class BackupConfig extends Model
         'run_at',
         'keep_all_days',
         'max_mb',
-        'enabled_spaces',
         'gdrive_backup',
         'gdrive_uploads',
         'r2_backup',
@@ -54,7 +53,6 @@ class BackupConfig extends Model
         return [
             'keep_all_days' => 'integer',
             'max_mb' => 'integer',
-            'enabled_spaces' => 'boolean',
             'gdrive_backup' => 'boolean',
             'gdrive_uploads' => 'boolean',
             'r2_backup' => 'boolean',
@@ -141,7 +139,6 @@ class BackupConfig extends Model
             'run_at' => '01:30',
             'keep_all_days' => 7,
             'max_mb' => 5000,
-            'enabled_spaces' => false,
             'gdrive_backup' => false,
             'gdrive_uploads' => false,
             'r2_backup' => false,

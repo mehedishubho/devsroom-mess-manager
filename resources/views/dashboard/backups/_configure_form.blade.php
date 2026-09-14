@@ -12,17 +12,12 @@
     <fieldset class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <legend class="mb-2 text-sm font-semibold text-slate-900">{{ __('Destinations') }}</legend>
         <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
-            <p class="font-medium text-emerald-700">{{ __('Local — default') }} ✓</p>
+            <p class="font-medium text-emerald-700">{{ __('This server — always on') }} ✓</p>
             <p class="mt-0.5 text-xs text-slate-500">storage/app/backups</p>
         </div>
         <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
-            @if ($spacesConfigured)
-                <p class="font-medium text-emerald-700">{{ __('Spaces — configured') }} ✓</p>
-                <p class="mt-0.5 text-xs text-slate-500">{{ config('filesystems.disks.backups.bucket') }} · {{ config('filesystems.disks.backups.region') }}</p>
-            @else
-                <p class="font-medium text-slate-600">{{ __('Spaces — not configured') }}</p>
-                <p class="mt-0.5 text-xs text-slate-500">{{ __('Add DO_SPACES_* credentials in .env to enable off-server mirroring.') }}</p>
-            @endif
+            <p class="font-medium text-slate-900">{{ __('Off-site mirrors') }}</p>
+            <p class="mt-0.5 text-xs text-slate-500">{{ __('Toggle Google Drive or Cloudflare R2 below to keep a copy off this server. Local backups die with the VPS.') }}</p>
         </div>
     </fieldset>
 

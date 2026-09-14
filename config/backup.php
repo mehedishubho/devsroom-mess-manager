@@ -130,9 +130,10 @@ return [
             /*
              * The disk names on which the backups will be stored.
              *
-             * Always `backups-local` (a local folder); additionally `backups`
-             * (DigitalOcean Spaces) when its credentials are configured —
-             * resolved by App\Support\BackupDestinations (env-only, config-safe).
+             * Always `backups-local` (a local folder); additionally
+             * `backups-gdrive` / `backups-r2` when the operator has enabled
+             * and configured those providers on the Backups page —
+             * resolved by App\Support\BackupDestinations (bootstrap-safe).
              */
             'disks' => BackupDestinations::all(),
 
@@ -152,8 +153,9 @@ return [
          * Set to `null` to disable encryption.
          *
          * Pitfall 8 / Security V6: optional AES-256 client-side encryption layer.
-         * DO Spaces already provides server-side encryption at rest; this is belt-and-suspenders.
-         * Operator supplies a strong value in prod via BACKUP_ARCHIVE_PASSWORD; empty = no encryption.
+         * Belt-and-suspenders: a backup archive holds the whole DB dump, so an
+         * operator can encrypt it before it leaves the server. Supplied via
+         * BACKUP_ARCHIVE_PASSWORD (env fallback) or the Backups page; empty = no encryption.
          */
         'password' => env('BACKUP_ARCHIVE_PASSWORD') ?: null,
 

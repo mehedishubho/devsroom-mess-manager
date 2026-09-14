@@ -255,7 +255,7 @@ class BackupRestoreService
      */
     protected function downloadAndExtract(string $backupPath): string
     {
-        $diskName = config('backup.backup.destination.disks.0', 'backups');
+        $diskName = config('backup.backup.destination.disks.0', 'backups-local');
         $disk = Storage::disk($diskName);
         abort_unless($disk->exists($backupPath), 404, "Backup not found: {$backupPath}");
 

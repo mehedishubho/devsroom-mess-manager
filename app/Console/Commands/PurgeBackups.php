@@ -15,8 +15,9 @@ use Illuminate\Support\Facades\Storage;
  *   2. If total backup storage still exceeds `max_mb`, delete oldest-first
  *      until under the cap.
  *
- * Runs against every active destination disk (local always; Spaces when its
- * credentials are configured) so the mirror stays in sync.
+ * Runs against every active destination disk (Local always; Google Drive /
+ * Cloudflare R2 when the operator has enabled + configured them) so the
+ * mirrors stay in sync.
  *
  * This deliberately replaces spatie's `backup:clean` for the rotation knobs,
  * because spatie's cleanup reads its config — and Laravel resolves config

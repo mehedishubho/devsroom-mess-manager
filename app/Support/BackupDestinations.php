@@ -10,10 +10,10 @@ use App\Models\BackupConfig;
  * Resolves the spatie backup destination disk list.
  *
  * Backups ALWAYS write to the local folder (`backups-local`). When a provider
- * is enabled in the DB-backed BackupConfig AND its env credentials are set,
- * the corresponding cloud disk is appended. This keeps Local as the always-on
- * default and lets a super-admin toggle Google Drive / Cloudflare R2 /
- * DigitalOcean Spaces on or off without a redeploy.
+ * is enabled in the DB-backed BackupConfig AND its credentials are set, the
+ * corresponding cloud disk is appended. This keeps Local as the always-on
+ * default and lets a super-admin toggle Google Drive / Cloudflare R2 on or off
+ * without a redeploy.
  *
  * Uses only env() + the (bootstrap-safe) BackupConfig::current() memoized
  * singleton, so it is safe to call from config/backup.php.
@@ -24,10 +24,6 @@ class BackupDestinations
     public static function all(): array
     {
         $disks = ['backups-local'];
-
-        if (static::spacesConfigured()) {
-            $disks[] = 'backups';
-        }
 
         // DB-toggled providers — wrap in try/catch so the spatie boot path
         // never fatals on a fresh clone (missing table / unreachable DB).
@@ -46,13 +42,6 @@ class BackupDestinations
         }
 
         return $disks;
-    }
-
-    public static function spacesConfigured(): bool
-    {
-        return filled(env('DO_SPACES_KEY'))
-            && filled(env('DO_SPACES_SECRET'))
-            && filled(env('DO_SPACES_BUCKET'));
     }
 
     public static function gdriveConfigured(): bool

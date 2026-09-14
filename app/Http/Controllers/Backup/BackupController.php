@@ -294,7 +294,6 @@ class BackupController extends Controller
         return [
             'backups' => $backups,
             'config' => $config,
-            'spacesConfigured' => BackupDestinations::spacesConfigured(),
             // "Configured" reflects EITHER a DB-stored value (UI) or the env
             // fallback — both are legitimate sources.
             'gdriveConfigured' => BackupDestinations::gdriveConfigured() || CloudBackupCredentials::gdriveConfiguredFromDb(),
@@ -560,7 +559,7 @@ class BackupController extends Controller
      */
     private function backupDisk(): string
     {
-        return (string) config('backup.backup.destination.disks.0', 'backups');
+        return (string) config('backup.backup.destination.disks.0', 'backups-local');
     }
 
     /**

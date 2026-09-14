@@ -100,7 +100,7 @@ As admin/super-admin/manager: **Members → Add member (invite)** → enter the 
 
 ### 4.1 Super-admin (`super-admin`)
 Everything in §4.2 **plus**:
-- **Backups** (`/dashboard/backups`): see the **Configuration card** (Local destination + DigitalOcean Spaces mirror status, schedule, retention), **Configure** the schedule (off/daily/weekly/monthly + time) and retention (keep-days + storage cap), run **Backup now** / **Restore-test**, and **Download / Restore / Delete** individual backups.
+- **Backups** (`/dashboard/backups`): a stats header (last backup, count, total size, next run), the **Configuration** card (destinations + schedule + retention + notification email + optional archive encryption), **Backup now** (queued), and a searchable/sortable backup list with **Download / Verify / Restore / Delete** (plus bulk delete). The activity log records every attempt — filter it, export it to CSV, and click through from known failures to their fix.
 - **Onboarding** (only when no mess exists yet — creating the first mess).
 
 ### 4.2 Admin & Manager (`admin`, `manager`)
@@ -175,10 +175,10 @@ All channels **fail open** — a down or misconfigured provider logs the failure
 | `APP_URL` | `https://yourdomain.com` | Used for emails, signed invite links, exports. |
 | `APP_TIMEZONE` | `Asia/Dhaka` | Keep consistent. |
 | `DB_*` | prod MySQL creds | MySQL only. |
-| `DB_RESTORE_TEST_DATABASE` | `<db>_restore_test` | Create a 2nd empty MySQL DB for the nightly restore-test. |
 | `MAIL_MAILER` | `smtp` (+ host/user/pass/from) | Needed for invite emails, backup-failure alerts, **and the Email notification channel** (`log` only catches mail in dev). WhatsApp / Telegram / SMS credentials are set in the dashboard at `/mess/notifications`, not here. |
-| `DO_SPACES_*` | (optional) | Set `KEY`/`SECRET`/`BUCKET` to mirror backups off-server. Leave blank for local-only backups. |
-| `BACKUP_NOTIFICATION_EMAIL` | `you@…` | Where spatie sends backup failure emails. |
+| `BACKUP_NOTIFICATION_EMAIL` | `you@…` | Where spatie sends backup failure emails (can also be set on the Backups page). |
+| `BACKUP_ARCHIVE_PASSWORD` | (optional) | Encrypts backup archives with AES-256 (can also be set on the Backups page). |
+| `BACKUP_LOG_KEEP_DAYS` | `90` | Activity-log retention. |
 | `TELESCOPE_ENABLED` / `DEBUGBAR_ENABLED` | `false` | Dev tooling — must be off in prod. |
 
 Always finish with:
@@ -288,7 +288,6 @@ DB_HOST=localhost
 DB_DATABASE=username_mess
 DB_USERNAME=username_user
 DB_PASSWORD=<db password>
-DB_RESTORE_TEST_DATABASE=username_mess_restore
 
 SESSION_DRIVER=database
 CACHE_STORE=database
@@ -303,11 +302,10 @@ MAIL_PASSWORD=<…>
 MAIL_FROM_ADDRESS="mess@yourdomain.com"
 MAIL_FROM_NAME="${APP_NAME}"
 
-# Optional off-server backup mirror (leave blank for local-only):
-DO_SPACES_KEY=
-DO_SPACES_SECRET=
-DO_SPACES_BUCKET=
+# Optional backup settings (off-site mirrors are configured in the Backups UI):
 BACKUP_NOTIFICATION_EMAIL=you@yourdomain.com
+BACKUP_ARCHIVE_PASSWORD=
+BACKUP_LOG_KEEP_DAYS=90
 
 TELESCOPE_ENABLED=false
 DEBUGBAR_ENABLED=false
@@ -346,14 +344,14 @@ cPanel → **Cron Jobs** → add (runs every minute; drives the backup schedule,
 
 #### I. Configure backups after install
 
-Log in as **super-admin** → **Backups → Configure**: set frequency (daily/weekly/monthly), time, keep-days, and storage cap. Backups write to `storage/app/backups/` locally; add `DO_SPACES_*` in `.env` (then re-cache config) to mirror to Spaces.
+Log in as **super-admin** → **Backups → Configuration**: set frequency (daily/weekly/monthly), time, keep-days, and storage cap. Backups write to `storage/app/backups/` locally; add an off-site mirror (Google Drive / Cloudflare R2) from the same page — credentials go in the UI, not `.env`.
 
 #### Shared-hosting limitations to know
 
 - **Jobs run inline** (`QUEUE_CONNECTION=sync`) → "Close month" blocks the browser for the duration (seconds for a small mess). No background retries.
 - **No long-lived workers** → don't enable features that expect async jobs.
 - **`mysqldump`** must be on the host (almost all cPanel hosts have it). If `backup:run` fails, set `DUMP_BINARY_PATH` to its directory.
-- **Resource limits** — shared hosts cap CPU/memory; the nightly restore-test loads a dump into a scratch DB, which is fine for small data but watch for `max_execution_time` kills.
+- **Resource limits** — shared hosts cap CPU/memory; the nightly backup dumps the whole DB and mirrors it, which is fine for small data but watch for `max_execution_time` kills. (The Backups page queues "Backup now" so it doesn't block a web request.)
 
 ---
 
@@ -372,7 +370,7 @@ The constants everywhere: **docroot → `/public`**, **`QUEUE_CONNECTION=sync`**
 
 1. Visit `https://yourdomain.com/up` → should return a 200 health page.
 2. Visit `https://yourdomain.com` — since it's a fresh install, you should be redirected to `/setup` (the one-time setup wizard). Complete the wizard to create the initial super-admin account.
-3. Log in as super-admin → **Backups** loads (no `UnableToListContents`) and the Configuration card shows "Local — default ✓" (and "Spaces — configured ✓" if you added creds).
+3. Log in as super-admin → **Backups** loads (no `UnableToListContents`) and the Configuration card shows "Local — default ✓" (plus "configured ✓" for any mirror you set up).
 3. **Backups → Backup now** → a zip appears in `storage/app/backups/`; **Delete** removes it (audit-logged).
 4. Log in as admin/manager → `/home` dashboard renders; open each sidebar page → all 200.
 5. Invite a member → they get the email → set-password → land on `/my`.
@@ -386,7 +384,7 @@ The constants everywhere: **docroot → `/public`**, **`QUEUE_CONNECTION=sync`**
 | Symptom | Cause / fix |
 |--------|-------------|
 | **403 on `/mess/*`** as super-admin | (Fixed in current code) the mess routes now allow `roles:admin,super-admin,manager`. If it recurs, the user's role isn't one of these — reassign via `mess:assign-role`. |
-| **`UnableToListContents` / `169.254.169.254`** on Backups | No Spaces creds + old config. Clear config (`php artisan config:clear`); the `backups-local` disk is always used for listing, so Spaces being absent is fine. |
+| **`UnableToListContents` / `169.254.169.254`** on Backups | A configured S3-compatible mirror lacks credentials. Fix the credentials (or disable that provider) on the Backups page; the `backups-local` disk is always used for listing, so a missing mirror is never fatal. |
 | **Month-close "hangs" forever** | You're on `sync` queue on shared hosting and hit `max_execution_time` — raise it in `.htaccess` (`php_value max_execution_time 300`) or use a VPS. |
 | **Invite emails not sent** | `MAIL_MAILER=log` still set — switch to `smtp` with real credentials. |
 | **WhatsApp / Telegram / SMS not delivering** | Channels are configured in the dashboard (`/mess/notifications`), not `.env`. Verify the channel is toggled on, credentials are correct (test Telegram with `https://api.telegram.org/bot<TOKEN>/getUpdates`), and the member has that channel ticked in **My preferences**. A member with no email/mobile on file is silently skipped for email/WhatsApp/SMS. Check `storage/logs/laravel.log` for the per-channel failure detail. |
@@ -412,4 +410,4 @@ On shared hosting without SSH: re-upload changed files, then re-run `migrate` + 
 
 ---
 
-*For the full VPS hardening runbook (HTTPS setup, supervisor verbatim, the restore procedure, DO Spaces provisioning, monitoring), see [DEPLOYMENT.md](./DEPLOYMENT.md). For features and architecture, see [README.md](./README.md).*
+*For the full VPS hardening runbook (HTTPS setup, supervisor verbatim, the restore procedure, off-site mirror setup, monitoring), see [DEPLOYMENT.md](./DEPLOYMENT.md). For features and architecture, see [README.md](./README.md).*

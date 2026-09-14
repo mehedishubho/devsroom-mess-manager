@@ -79,7 +79,7 @@ A web-based mess management system built for Bangladesh messes — bachelor host
 | **Auth & Admin** | Tyro Dashboard + Tyro Login (roles: `super-admin` / `admin` / `manager` / `user`) |
 | **Auditing** | `owen-it/laravel-auditing` — append-only entry on every write |
 | **Exports** | Dompdf (PDF) + Maatwebsite Excel (`.xlsx`) |
-| **Backups** | `spatie/laravel-backup` → Local + DigitalOcean Spaces / Cloudflare R2 (S3-compatible) + Google Drive, DB-toggled per group, with an on-page activity log and one-click restore |
+| **Backups** | `spatie/laravel-backup` → Local (always) + optional Google Drive / Cloudflare R2 mirrors, toggled and configured on the Backups page, with an on-page activity log, checksum verification and one-click restore |
 | **Queue** | `database` connection — `CloseMonthJob` (idempotent, `onOneServer`) |
 
 ---
@@ -329,19 +329,21 @@ The backup system (`super-admin` only, at **Dashboard → Backups**) is built on
 
 **Destinations / providers** — toggle each independently for two groups (backup destination vs. uploads mirror), DB-backed so no redeploy is needed to switch:
 
-| Provider | Type | Env vars |
+| Provider | Type | Credentials |
 |---|---|---|
 | **Local** | Always on | none — writes to `storage/app/backups` |
-| **DigitalOcean Spaces** | S3-compatible | `DO_SPACES_KEY`, `DO_SPACES_SECRET`, `DO_SPACES_REGION`, `DO_SPACES_BUCKET`, `DO_SPACES_ENDPOINT` |
-| **Cloudflare R2** | S3-compatible | `R2_KEY`, `R2_SECRET`, `R2_BUCKET`, `R2_ENDPOINT` |
-| **Google Drive** | `masbug/flysystem-google-drive-ext` | `GOOGLE_DRIVE_CLIENT_ID`, `GOOGLE_DRIVE_CLIENT_SECRET`, `GOOGLE_DRIVE_REFRESH_TOKEN`, `GOOGLE_DRIVE_FOLDER_ID` |
+| **Cloudflare R2** | S3-compatible | entered on the Backups page (stored encrypted) |
+| **Google Drive** | `masbug/flysystem-google-drive-ext` | entered on the Backups page (stored encrypted) |
+
+Every provider is configured in the UI — no env keys, no redeploy. Credentials are encrypted at rest with `APP_KEY`.
 
 **The Backups page:**
-- **Backup now** — creates a backup immediately (runs synchronously; fine for one small mess).
+- **Stats header** — last successful backup (with age), total archives, total size on disk, and the next scheduled run, so the health of the whole system is readable at a glance.
+- **Backup now** — queues an immediate backup (runs in the background; the page shows progress).
 - **Scheduler-health banner** — if automatic backups are configured but none are appearing, a yellow banner shows at the top explaining the server cron is likely missing, **with the exact cron line to install and a Copy button**. This is the fastest way to spot the #1 silent cause of "backups configured but nothing happening".
-- **Activity log** — every attempt is recorded with status **and the captured error**, so a failure shows the real reason instead of vanishing. This includes **scheduled** runs (nightly `backup:run` / `backup:purge` / `backup:monitor`), not just the manual **Backup now** button — so you can see whether the nightly job actually fired. Actions logged: `backup`, `purge`, `monitor`, `download`, `delete`, `restore`, `configure`. Each row has a **Delete** button; **Clear all** empties the log.
-- **Configuration** (inline) — schedule (frequency + time), retention (keep-days + storage cap), and the per-provider toggles above. Saved changes take effect immediately.
-- **Backup list** — **Download** / **Restore** / **Delete** each archive. Restore is a guarded, typed-mess-name, audit-logged flow.
+- **Activity log** — every attempt is recorded with status **and the captured error**, so a failure shows the real reason instead of vanishing. This includes **scheduled** runs (nightly `backup:run` / `backup:purge` / `backup:monitor` / `backup:prune-logs`), not just the manual **Backup now** button. Filter by action/status, export the filtered log to CSV, and click through from a known failure to the fix. Actions logged: `backup`, `purge`, `monitor`, `download`, `delete`, `restore`, `configure`, `verify`.
+- **Configuration** (inline) — schedule (frequency + time), retention (keep-days + storage cap), the per-provider toggles, the backup-notification email, optional AES-256 archive encryption, and explicit **remove saved secret** controls.
+- **Backup list** — search, sort, paginate; each archive shows its size, checksum, and **which destinations actually hold it** (Local / Drive / R2). **Download** / **Verify archive** / **Restore** / **Delete** per row, plus bulk select + bulk delete. Restore is a guarded, typed-mess-name, audit-logged flow that takes a pre-restore safety backup first.
 
 ### Shared-hosting setup (CloudPanel / cPanel / Plesk)
 

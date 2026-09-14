@@ -39,7 +39,7 @@ class RestoreController extends Controller
     {
         $path = (string) $request->query('path', '');
         $this->guardPath($path);
-        $disk = Storage::disk((string) config('backup.backup.destination.disks.0', 'backups'));
+        $disk = Storage::disk((string) config('backup.backup.destination.disks.0', 'backups-local'));
         abort_unless($path !== '' && $disk->exists($path), 404);
 
         return view('dashboard.backups.restore', [

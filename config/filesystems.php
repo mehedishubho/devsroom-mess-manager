@@ -69,26 +69,6 @@ return [
             'throw' => true,
         ],
 
-        // Off-server mirror — DigitalOcean Spaces (S3-compatible), D-02.
-        // Separate from the general-purpose `s3` disk so the spatie default is untouched.
-        // Pitfall 5: DO_SPACES_REGION MUST match the DO_SPACES_ENDPOINT subdomain (nyc3 + https://nyc3.digitaloceanspaces.com).
-        //
-        // This disk is ONLY added to spatie's destination list when DO_SPACES_* credentials
-        // are fully set — see App\Support\BackupDestinations. It is never used for listing,
-        // so an unconfigured Spaces (empty key/secret) never triggers the AWS SDK's EC2
-        // instance-metadata probe (169.254.169.254).
-        'backups' => [
-            'driver' => 's3',
-            'key' => env('DO_SPACES_KEY'),
-            'secret' => env('DO_SPACES_SECRET'),
-            'region' => env('DO_SPACES_REGION', 'nyc3'),
-            'bucket' => env('DO_SPACES_BUCKET'),
-            'endpoint' => env('DO_SPACES_ENDPOINT', 'https://nyc3.digitaloceanspaces.com'),
-            'use_path_style_endpoint' => env('DO_SPACES_USE_PATH_STYLE_ENDPOINT', false),
-            // Surface upload errors instead of silently swallowing them.
-            'throw' => true,
-        ],
-
         // Google Drive backup destination (Task 1 — quick-260717-2q3).
         // The driver 'google-drive' is registered by AppServiceProvider via
         // Storage::extend() with a class_exists guard so the app boots cleanly

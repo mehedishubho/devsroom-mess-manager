@@ -23,7 +23,7 @@ return new class extends Migration
     {
         Schema::create('backup_logs', function (Blueprint $table) {
             $table->bigIncrements('id');
-            // backup | restore_test | download | delete | restore | configure
+            // backup | purge | monitor | download | delete | restore | configure | verify
             $table->string('action', 32);
             // success | failure
             $table->string('status', 16);

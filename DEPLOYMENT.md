@@ -208,25 +208,19 @@ Get these wrong and the pilot fails. The first two are non-negotiable security g
 
 Do NOT copy dev `.env` to prod. Create fresh via `cp .env.example .env` + edits, or via Forge's Environment UI.
 
-### Phase 6 — Backup & restore keys (REQUIRED once Phase 6 ships)
+### Phase 6 — Backup & restore keys
 
-These 11 keys wire the spatie/laravel-backup engine (Plan 06-01) and the bespoke restore services (Plans 06-02 / 06-03). Leave them empty ONLY if you are deliberately not running Phase 6 backups; spatie's scheduler entries are `class_exists`-guarded so an empty config degrades to "no backups" rather than crashing.
+These keys wire the spatie/laravel-backup engine and the bespoke restore services. Leave them empty ONLY if you are deliberately not running backups; spatie's scheduler entries are `class_exists`-guarded so an empty config degrades to "no backups" rather than crashing.
 
 | Key | Value | Why |
 |-----|-------|-----|
-| `DO_SPACES_KEY` | (Spaces access key from DO control panel) | Phase 6 backup destination authentication. (D-02) |
-| `DO_SPACES_SECRET` | (Spaces secret from DO control panel) | Same. |
-| `DO_SPACES_REGION` | (matches endpoint subdomain, e.g. `nyc3`) | DO Spaces validates region against the endpoint; mismatch = signature error. (Pitfall 5) |
-| `DO_SPACES_BUCKET` | (e.g. `devsroom-mess-backups`) | The bucket you created in DO. |
-| `DO_SPACES_ENDPOINT` | `https://<region>.digitaloceanspaces.com` | The S3-compatible API endpoint. |
-| `BACKUP_DISK` | `backups` | The filesystem disk (declared in `config/filesystems.php`) that `backup:run` writes to. |
-| `BACKUP_MAX_MB` | `5000` (starting point) | Size cap; `backup:monitor` flags if exceeded. Tunable. |
-| `BACKUP_NOTIFICATION_EMAIL` | `ops@your-domain.com` | Where spatie sends failure emails. Requires `MAIL_MAILER=smtp` (see §11.7). |
-| `BACKUP_ARCHIVE_PASSWORD` | (a strong password) | Optional AES-256 zip encryption (spatie v10). Leave empty to disable client-side encryption; DO Spaces provides server-side encryption at rest as the base layer. |
-| `DB_RESTORE_TEST_DATABASE` | `devsroom_mess_restore_test` | The scratch DB the restore-test job loads + wipes. Created on the same MySQL host if missing. |
-| `DUMP_BINARY_PATH` | `/usr/bin` (prod) — unset defaults to `/usr/bin` | Directory containing `mysqldump`. Prod Linux `/usr/bin/mysqldump` is correct. (Pitfall 2) |
+| `BACKUP_MAX_MB` | `5000` (starting point) | Size cap; `backup:purge` enforces it. Tunable. |
+| `BACKUP_NOTIFICATION_EMAIL` | `ops@your-domain.com` | Where spatie sends failure emails (an email saved on the Backups page wins over this). Requires `MAIL_MAILER=smtp` (see §11.7). |
+| `BACKUP_ARCHIVE_PASSWORD` | (a strong password) | Optional AES-256 zip encryption. Leave empty to disable client-side encryption (an encryption password saved on the Backups page wins over this). |
+| `BACKUP_LOG_KEEP_DAYS` | `90` | Activity-log retention enforced by `backup:prune-logs`. |
+| `DUMP_BINARY_PATH` | `/usr/bin` (prod) — unset defaults to `/usr/bin` | Directory containing `mysqldump`. (Pitfall 2) |
 
-Provisioning walkthrough: see §11.6 below.
+**Backup destinations need no env keys.** Local is always on; Google Drive and Cloudflare R2 are optional mirrors enabled + configured from the Backups page (`/dashboard/backups`) and stored encrypted in the database. See §11.6.
 
 ---
 
@@ -327,9 +321,10 @@ Each backup is a single zip that contains:
 
 ### 11.2 Where backups live
 
-- Off-server in a **DigitalOcean Spaces bucket** (S3-compatible) via the configured `backups` s3 disk. Region must match the endpoint subdomain (e.g. `nyc3` + `https://nyc3.digitaloceanspaces.com`). Provisioning: see §11.6. The env keys are listed in §5 above.
-- **Retention ladder** (D-02): `keep_all=7d`, `keep_daily=14d`, `keep_weekly=8w`, `keep_monthly=12mo`, `keep_yearly=2y`, plus a 5000 MB growth guard. The long monthly retention exists because `monthly_closings` snapshots are immutable financial records — a corruption discovered months later must still be recoverable.
-- **There is NO local copy.** `spatie/laravel-backup` writes the zip directly to object storage. `storage/app/laravel-backup` and `storage/app/backup-temp` are transient working areas only.
+- **Local, always** — `storage/app/backups/` (the `backups-local` disk). Every backup lands here first; this is what the Backups page lists, downloads, verifies and restores from.
+- **Off-server mirrors (optional)** — Google Drive and/or Cloudflare R2, enabled + configured from the Backups page (§11.6). Each backup row on the page shows which destinations actually hold the archive.
+- **Retention ladder** (D-02): `keep_all=7d`, `keep_daily=14d`, `keep_weekly=8w`, `keep_monthly=12mo`, `keep_yearly=2y`, plus a configurable MB growth guard. The long monthly retention exists because `monthly_closings` snapshots are immutable financial records — a corruption discovered months later must still be recoverable.
+- `storage/app/laravel-backup` and `storage/app/backup-temp` are transient working areas only.
 
 ### 11.3 Schedule
 
@@ -337,12 +332,12 @@ The backup schedule lives in `routes/console.php` and runs on the existing Larav
 
 | Time | Command | Purpose |
 |------|---------|---------|
-| 01:00 | `backup:clean` | Prune old backups per the retention ladder (§11.2). |
-| 01:30 | `backup:run` | The actual DB dump + files zip + upload. `withoutOverlapping()->onOneServer()`. |
+| 01:00 | `backup:purge` | Prune old backups per the retention ladder (§11.2) across every active destination. |
+| (configured) | `backup:run` | The actual DB dump + files zip + mirror upload. `withoutOverlapping()->onOneServer()`. |
 | 02:00 | `backup:monitor` | Health-check the latest backup (not too old, not too big). Emits `UnhealthyBackupWasFound` on failure → in-app bell + email (§11.7). |
-| 03:00 | `backup:restore-test` | Loads the latest dump into the scratch DB + asserts per-table COUNT(*) parity. Result surfaced as a health badge in the super-admin Backups UI. `withoutOverlapping()->onOneServer()`. |
+| 03:00 | `backup:prune-logs` | Drop activity-log rows older than `BACKUP_LOG_KEEP_DAYS` so the table can't grow without bound. `onOneServer()`. |
 
-All four commands are `class_exists`-guarded so an unconfigured Phase 6 degrades to "no backups" rather than crashing the scheduler.
+All commands are `class_exists`-guarded so an unconfigured Phase 6 degrades to "no backups" rather than crashing the scheduler.
 
 **On-demand** (in addition to the schedule):
 
@@ -357,11 +352,11 @@ All four commands are `class_exists`-guarded so an unconfigured Phase 6 degrades
 Use this path when the app itself is healthy but you need to roll the data back (e.g. a bad migration was applied + reverted, a manager corrupted `monthly_closings` and you need to restore yesterday's snapshot). If the app itself is unreachable, skip to §11.5.
 
 1. Log in to **`/dashboard/backups`** as a super-admin. This is the only role with access (T-06-03-01 — `role:super-admin` middleware on every route in the group; admins and users get 403).
-2. Review the **restore-test health badge** at the top of the page. It reads the latest `restore_tests` row. Do NOT proceed with a restore if the badge is `failed` or `error` — fix the test first (§11.9), because a restore from a known-bad backup wastes the maintenance window.
-3. Find the backup zip you want to restore in the list. Click **Download** first if you want an offline copy (this writes an `event='backup.download'` audit row — T-06-03-05, every download is tamper-evident). Then click **Restore** on the chosen zip.
+2. Review the **stats header** at the top of the page — last successful backup, archive count, total size on disk and the next scheduled run — plus the **per-destination ticks** on each row. Confirm the archive you are about to restore is the one you want, and that it is present where you expect it.
+3. Find the backup zip you want to restore in the list. Use **Verify archive** to confirm the stored checksum matches before you trust it, and **Download** if you want an offline copy (both write an audit row — T-06-03-05, every access is tamper-evident). Then click **Restore** on the chosen zip.
 4. The restore form (`resources/views/dashboard/backups/restore.blade.php`) renders a prominent red destructive warning + asks you to type the **active mess's name EXACTLY**. The expected value is `Mess::find(Mess::activeId())->name` — the typed-confirm second factor (D-03, Open Question #3 LOCKED). The restore POST is throttled at `5,1` (5 attempts/minute per IP — T-06-03-04).
 5. Type the mess name. Submit. `RestoreRequest` validates `mess_name in:<active mess name>`; a wrong value redirects back with a validation error and NO service call is made (T-06-03-02). If no active mess exists (pre-onboarding), the validator degrades to an unmatchable sentinel so a restore can NEVER proceed.
-6. The `BackupRestoreService` flips the app into **maintenance mode** (web requests now hit `errors/maintenance-backup-restore.blade.php`; `queue:restart` is called so no `CloseMonthJob` runs mid-restore — T-06-02-01), then: **downloads** the zip from DO Spaces → **extracts** it → **locates** the dump at `db-dumps/<dbname>.sql` via the Finder-based `BackupPathResolver` (handles both flat and nested layouts — Pitfall 1) → **restores the DB** via `mysql` CLI (Symfony Process with array args, never string-concat — Pattern 4a) → **copies files** back into `storage/app/public/` (NEVER `public/storage` — Pitfall 4, T-06-02-03) → **spot-checks** row counts. The `up` call is in a `finally {}` so the app ALWAYS returns to live even if an exception is thrown mid-restore.
+6. `BackupRestoreService` first takes a **pre-restore safety backup** of the current state (so a bad restore is reversible), then flips the app into **maintenance mode** (web requests now hit `errors/maintenance-backup-restore.blade.php`; `queue:restart` is called so no `CloseMonthJob` runs mid-restore — T-06-02-01), then: **reads** the zip from the backup disk → **extracts** it → **locates** the dump at `db-dumps/<dbname>.sql` via the Finder-based `BackupPathResolver` (handles both flat and nested layouts — Pitfall 1) → **restores the DB** via `mysql` CLI (Symfony Process with array args, never string-concat — Pattern 4a) → **copies files** back into `storage/app/public/` (NEVER `public/storage` — Pitfall 4, T-06-02-03) → **spot-checks** row counts. The `up` call is in a `finally {}` so the app ALWAYS returns to live even if an exception is thrown mid-restore.
 7. On success, `RestoreController::store()` writes a manual `Audit` row (`event='backup.restore'`) with the path + the restore tag (T-06-03-07), and redirects back to `dashboard.backups.index` with a success flash.
 8. On failure, the controller's try/catch writes `event='backup.restore.failed'` with the exception message and the exception NEVER escapes (T-06-03-07). The user sees "Restore failed. App is back online" — the live DB was NOT modified if the exception fired before the DB-restore step.
 
@@ -373,16 +368,15 @@ If the app itself is down (white screen, fatal error before Laravel boots, bad m
 
 1. SSH into the VPS. `cd /var/www/mess` (manual setup) or `cd /home/forge/your-domain.com` (Forge).
 2. `php artisan down` — maintenance mode on.
-3. Download the latest backup zip from DO Spaces. From inside the Laravel app:
+3. Download the backup zip from the backups disk (local by default, or your Drive/R2 mirror). From inside the Laravel app:
    ```bash
    php artisan tinker
-   >>> $disk = Storage::disk(config('backup.backup.destination.disks.0', 'backups'));
-   >>> $latest = collect($disk->allFiles())->sortDesc()->first();
+   >>> $disk = Storage::disk(config('backup.backup.destination.disks.0', 'backups-local'));
+   >>> $latest = collect($disk->allFiles())->filter(fn ($p) => str_ends_with($p, '.zip'))->sortDesc()->first();
    >>> $disk->download($latest)->send();
-   // Save the streamed body to /tmp/restore.zip (or use s3cmd / aws-cli / rclone outside Laravel
-   // if Laravel itself can't boot — the bucket/keys are in .env).
+   // Save the streamed body to /tmp/restore.zip.
    ```
-   If Laravel cannot boot at all, use `s3cmd` / `aws s3 cp` / `rclone` directly against DO Spaces with the keys from a known-good `.env` copy.
+   If Laravel cannot boot at all, copy the zip straight off disk (`/var/www/mess/storage/app/backups/...`) or download it from your Drive/R2 mirror with its own client.
 4. Unzip the backup:
    ```bash
    unzip /tmp/restore.zip -d /tmp/restore-extracted
@@ -402,42 +396,23 @@ If the app itself is down (white screen, fatal error before Laravel boots, bad m
    ```
 7. **Regenerate `APP_KEY` + rotate credentials (REQUIRED — `.env` is NOT in the backup per D-07).**
    - `php artisan key:generate` — generates a new `APP_KEY`. In v1 no domain columns are encrypted via `APP_KEY` (money is plain `DECIMAL`, audit rows are plaintext JSON); the impact is that all sessions + signed cookies are invalidated, so every user will be logged out once — expected, harmless. If you suspect compromise of the prior key, this also rotates the encryption key for any future encrypted-at-rest columns.
-   - Generate fresh DB passwords + DO Spaces keys if you suspect compromise. Update `.env` (Forge Environment UI or `nano /var/www/mess/.env`).
+   - Generate fresh DB passwords + any cloud-mirror keys if you suspect compromise. Update `.env` (Forge Environment UI or `nano /var/www/mess/.env`) and re-enter the Drive/R2 credentials on the Backups page (they are encrypted columns, so a new `APP_KEY` makes the old ciphertext unreadable).
    - `php artisan config:cache` (if your deploy uses it — note the pre-existing tyro-login Closure blocker logged in Plan 06-01's `deferred-items.md`; otherwise leave `config:clear`).
 8. `php artisan up` — maintenance mode off.
-9. Smoke-test: visit the app in a browser, log in as super-admin, walk to `/dashboard/backups` (badge should now reflect the post-restore state) and `/mess/audit` (the most recent writes should be the pre-disaster state). Run `php artisan backup:restore-test` once to confirm the restored data passes the parity check.
+9. Smoke-test: visit the app in a browser, log in as super-admin, walk to `/dashboard/backups` (the stats header should now reflect the post-restore state) and `/mess/audit` (the most recent writes should be the pre-disaster state).
 
-### 11.6 Configure DO Spaces (one-time setup)
+### 11.6 Configure off-site mirrors (optional)
 
-Follow these steps once, at first deploy:
+Local backups need **zero configuration**. To survive the loss of the VPS, add a mirror. Both providers are configured from the Backups page — credentials are stored encrypted in the database (never in `.env`, and never inside a backup archive).
 
-1. **Create the Space**: DigitalOcean control panel → Spaces → Create Space. Suggested name: `devsroom-mess-backups`. Pick a region close to your VPS (e.g. `nyc3` if your VPS is in NYC).
-2. **Generate Spaces access keys**: Spaces → Settings → Spaces Keys → Generate new key. Copy the **Key** and the **Secret** (the Secret is shown ONCE — record it somewhere durable, e.g. your password manager).
-3. **Set the prod `.env` keys** (via Forge's Environment UI or `nano /var/www/mess/.env`):
-   ```env
-   DO_SPACES_KEY=<access-key>
-   DO_SPACES_SECRET=<secret>
-   DO_SPACES_REGION=nyc3                                              # MUST match the endpoint subdomain
-   DO_SPACES_BUCKET=devsroom-mess-backups
-   DO_SPACES_ENDPOINT=https://nyc3.digitaloceanspaces.com
-   BACKUP_DISK=backups
-   BACKUP_MAX_MB=5000
-   BACKUP_NOTIFICATION_EMAIL=ops@your-domain.com
-   ```
-4. `php artisan config:cache` (or `config:clear` per the pre-existing tyro-login note).
-5. **Trigger the first backup**:
-   ```bash
-   php artisan backup:run --only-db     # DB-only smoke (faster — proves mysqldump + s3 upload)
-   php artisan backup:run               # full backup (DB + storage/app/public)
-   php artisan backup:list              # confirm the zip landed
-   php artisan backup:monitor           # confirm the health checks pass
-   ```
-   A successful first `backup:run` is the green light that Plan 06-01's plumbing works end-to-end.
-6. **Verify the restore-test works on the prod VPS**: `php artisan backup:restore-test`. The scratch DB (`devsroom_mess_restore_test` per `DB_RESTORE_TEST_DATABASE`) is created automatically on the same MySQL host; the test wipes it at the start of every run.
-7. **Verify region/endpoint match (Pitfall 5)**. `DO_SPACES_REGION` MUST match the subdomain of `DO_SPACES_ENDPOINT`:
-   - `nyc3` + `https://nyc3.digitaloceanspaces.com` ✓
-   - `sfo3` + `https://sfo3.digitaloceanspaces.com` ✓
-   - `nyc3` + `https://sfo3.digitaloceanspaces.com` ✗ → "authorization signature invalid" errors.
+1. Log in as **super-admin** → **Backups** → **Storage providers**.
+2. Enable the provider for **Use for backups** (and/or **Use for uploads mirror**) and paste its credentials:
+   - **Google Drive**: OAuth Client ID, Client secret, Refresh token, Folder ID.
+   - **Cloudflare R2**: Access key ID, Secret access key, Region (`auto`), Bucket, S3 endpoint.
+3. **Save configuration**, then click **Test connection**. It writes, reads and deletes a tiny probe file and reports the real error (auth, wrong bucket, network) instead of failing silently.
+4. Click **Backup now**. The backup list then shows a per-destination tick so you can confirm the archive actually landed on the mirror.
+
+> Secrets saved here are encrypted with `APP_KEY` at rest and are deliberately kept OUT of `.env` so they never travel inside a backup archive. Consequence: after restoring onto a fresh server you must re-enter them (the encrypted columns decrypt only with the original `APP_KEY`).
 
 ### 11.7 Enable failure notifications (REQUIRED for prod)
 
@@ -463,12 +438,12 @@ Recommended SMTP providers: AWS SES, Postmark, SendGrid, or your VPS's mail rela
 
 ### 11.8 Optional: host-level snapshot (defense-in-depth)
 
-The spatie + DO Spaces setup is the PRIMARY backup. As a second decoupled copy (so a DO-region outage does not take both the app AND the backups), enable host-level snapshots:
+The Local + optional off-site mirror setup is the PRIMARY backup. As a second decoupled copy (so a provider outage does not take both the app AND the backups), enable host-level snapshots:
 
 - **Forge**: site → Backups → enable (Forge writes a daily snapshot of the VPS disk).
-- **DigitalOcean**: Droplet → Snapshots → enable scheduled snapshots (daily or weekly).
+- Any VPS provider (Hetzner / Linode / AWS Lightsail / DigitalOcean): enable scheduled snapshots in its control panel.
 
-> These snapshots **include `.env`** (so they are sensitive — restrict access in the DO/Forge control panel). They are a full-system restore primitive, NOT a per-table restore — use them only when the spatie restore is insufficient (e.g. filesystem corruption outside `storage/app/public/`, a boot failure, a lost `/etc` config). T-06-04-04.
+> These snapshots **include `.env`** (so they are sensitive — restrict access in the provider's control panel). They are a full-system restore primitive, NOT a per-table restore — use them only when the application restore is insufficient (e.g. filesystem corruption outside `storage/app/public/`, a boot failure, a lost `/etc` config). T-06-04-04.
 
 This is **OPTIONAL** per the project decisions (CONTEXT.md deferred note) — Phase 6 ships "spatie + runbook", not "spatie + runbook + host snapshot". The operator can enable it independently of any code change.
 
@@ -477,12 +452,11 @@ This is **OPTIONAL** per the project decisions (CONTEXT.md deferred note) — Ph
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
 | `backup:run` fails with `The dump process failed` (dev only) | `mysqldump` not on PATH on Windows dev | Spatie v10 is NOT Windows-compatible (per its requirements doc). Set `DUMP_BINARY_PATH` in dev `.env` to the MySQL bin dir (e.g. `C:\Program Files\MySQL\MySQL Server 8.0\bin`). Prod Linux `/usr/bin/mysqldump` is fine. (Pitfall 2 — see `06-01-SMOKE.md` §4) |
-| `backup:run` fails with "authorization signature invalid" | DO Spaces region/endpoint mismatch | Confirm `DO_SPACES_REGION` matches the endpoint subdomain (e.g. `nyc3` + `https://nyc3.digitaloceanspaces.com`). (Pitfall 5 — §11.6 step 7) |
+| A cloud mirror never receives the archive | Invalid credentials, the provider toggle is off, or that mirror disk errored | Open **Backups → Storage providers → Test connection**; it reports the real error. Each backup row also shows a per-destination tick, so a missing tick means that mirror did not receive the archive. |
 | `backup:monitor` reports `UnhealthyBackupWasFound` | Backup too old OR too big | Check the scheduler is running (`sudo crontab -l \| grep schedule:run`). Check `BACKUP_MAX_MB` — increase if the mess genuinely has more data. Run `php artisan backup:run` manually to refresh. The notification lands in the super-admin bell + email (§11.7). |
-| restore-test reports FAILED but the backup looks fine | Scratch DB (`devsroom_mess_restore_test`) is stale or contaminated | The test wipes it every run. If still failing, manually `DROP DATABASE devsroom_mess_restore_test; CREATE DATABASE devsroom_mess_restore_test;` and re-run `php artisan backup:restore-test`. Also check the `restore_tests` row's `message` column for the per-table divergence detail. |
 | Restore shows "Restore failed. App is back online" but the app looks fine | The restore service caught an exception but called `up` in `finally` | Check `storage/logs/laravel.log` for the exception. The audit-log row (`event='backup.restore.failed'`) has the error message under `/mess/audit` (filter `tags=backup`). The live DB was NOT modified if the exception fired before the DB-restore step. |
 | Restore ran but files 404 on the web (broken image links) | The `public/storage` symlink was clobbered | `php artisan storage:link`. Verify with `ls -la public/storage` → points to `../storage/app/public`. (Pitfall 4 — §11.5 step 6) |
-| GTID error restoring a DO-managed MySQL dump (`ERROR 3546`) | (only if you moved to DO Managed DB) `mysqldump` emitted a `SET @@GLOBAL.GTID_PURGED` line | Self-managed VPS MySQL (per §2/§4) does NOT hit this. If you later move to DO Managed MySQL, add `--set-gtid-purged=OFF` to the dump config in `config/database.php` → `connections.mysql.dump`. (Pitfall 10) |
+| GTID error restoring a managed-MySQL dump (`ERROR 3546`) | `mysqldump` emitted a `SET @@GLOBAL.GTID_PURGED` line (only happens when moving to a managed/hosted MySQL) | Self-managed VPS MySQL (per §2/§4) does NOT hit this. If you later move to a managed MySQL, add `--set-gtid-purged=OFF` to the dump config in `config/database.php` → `connections.mysql.dump`. (Pitfall 10) |
 | Month-close completed but no immediate backup landed | Post-close `after()` hook's `Artisan::call('backup:run', ['--only-db' => true])` threw | The hook is wrapped in try/catch so the close itself succeeded (T-06-02-07). Check `storage/logs/laravel.log`. The nightly 01:30 run will still capture the close. |
 
 ---
@@ -635,16 +609,10 @@ x-app-env: &app-env
   MAIL_PASSWORD: ${MAIL_PASSWORD:-}
   MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-}
   DUMP_BINARY_PATH: /usr/bin
-  DB_RESTORE_TEST_DATABASE: ${DB_RESTORE_TEST_DATABASE:-}
-  DO_SPACES_KEY: ${DO_SPACES_KEY:-}
-  DO_SPACES_SECRET: ${DO_SPACES_SECRET:-}
-  DO_SPACES_REGION: ${DO_SPACES_REGION:-nyc3}
-  DO_SPACES_BUCKET: ${DO_SPACES_BUCKET:-}
-  DO_SPACES_ENDPOINT: ${DO_SPACES_ENDPOINT:-}
-  BACKUP_DISK: ${BACKUP_DISK:-backups}
   BACKUP_MAX_MB: ${BACKUP_MAX_MB:-5000}
   BACKUP_NOTIFICATION_EMAIL: ${BACKUP_NOTIFICATION_EMAIL:-}
   BACKUP_ARCHIVE_PASSWORD: ${BACKUP_ARCHIVE_PASSWORD:-}
+  BACKUP_LOG_KEEP_DAYS: ${BACKUP_LOG_KEEP_DAYS:-90}
   TELESCOPE_ENABLED: "false"
   DEBUGBAR_ENABLED: "false"
 
@@ -718,8 +686,7 @@ Set these once in the panel's Environment tab (Dokploy: service → **Environmen
 | `MYSQL_ROOT_PASSWORD` | another strong password | **Required.** Root on the `db` container only. |
 | `APP_DEBUG` | `false` (default) | §5 gate. |
 | `MAIL_MAILER` / `MAIL_HOST` / `MAIL_PORT` / `MAIL_USERNAME` / `MAIL_PASSWORD` / `MAIL_FROM_ADDRESS` | your SMTP relay | §11.7 — needed for invites + backup-failure email. `log` (default) swallows mail. |
-| `DB_RESTORE_TEST_DATABASE` | `mess_restore_test` | Created automatically on the same `db` host for the nightly restore-test (§11.6 step 6). |
-| `DO_SPACES_*`, `BACKUP_*` | per §5 / §11.6 | Strongly recommended — local backup zips live in the `app-storage` volume, which dies with the VPS. |
+| `BACKUP_*` | per §5 | **Strongly recommended** (`BACKUP_MAX_MB`, `BACKUP_NOTIFICATION_EMAIL`, `BACKUP_ARCHIVE_PASSWORD`) — local backup zips live in the `app-storage` volume, which dies with the VPS. Add an off-site mirror from the Backups page (§11.6). |
 | `LOG_CHANNEL` | `stack` (default) or `stderr` | `stderr` streams Laravel logs into the panel's log viewer (else read `storage/logs/laravel.log` via a shell). |
 
 ### 12.3 Deploy on Dokploy
@@ -759,7 +726,7 @@ Reference: [Coolify Laravel docs](https://coolify.io/docs/applications/framework
 | `config:cache` fails at container start (tyro-login Closure blocker, §11.5 step 7) | A config Closure can't be serialized to the cache | Set `OPTIMIZE=false` in the panel environment — the entrypoint then skips the cache commands (§12.1). |
 | `app` scaled to >1 replica → migration errors | Two containers run `migrate --force` concurrently | Keep `app` at **1** replica (Dokploy: Advanced → Cluster). One mess needs one. |
 | Panel log viewer is empty | Laravel logs to `storage/logs/laravel.log` (a file), not stdout | Set `LOG_CHANNEL=stderr` to stream into the viewer, or read the file via the panel's terminal. |
-| Local backups "disappear" after a redeploy | They live in the `app-storage` volume — volumes persist across redeploys but not across VPS loss | Mirror to DO Spaces (§11.6). Optionally add the panel's own DB-backup-to-S3 as a second copy. |
+| Local backups "disappear" after a redeploy | They live in the `app-storage` volume — volumes persist across redeploys but not across VPS loss | Add an off-site mirror (Google Drive / Cloudflare R2) from the Backups page (§11.6). Optionally add the panel's own DB-backup-to-S3 as a second copy. |
 | 500 on PDF/Excel export | Container memory cap | The image sets `memory_limit=512M`; if you added a Dokploy/Coolify **resource limit** below ~512 MB, raise it. |
 | Month-close never completes | The `queue` service is stopped | Panel → services → restart `queue`; check its logs for `CloseMonthJob` exceptions. |
 
