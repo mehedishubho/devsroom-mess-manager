@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Models\BackupConfig;
 use App\Models\BackupLog;
+use App\Services\BackupRetention;
 use App\Support\BackupDestinations;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
@@ -37,17 +37,18 @@ class PurgeBackups extends Command
 
     protected $description = 'Delete backups older than the configured retention and enforce the storage cap';
 
+    public function __construct(private readonly BackupRetention $retention)
+    {
+        parent::__construct();
+    }
+
     public function handle(): int
     {
         $deletedPaths = [];
         $failures = [];
 
         try {
-            $cfg = BackupConfig::current();
-
-            $keepDays = max(1, (int) $cfg->keep_all_days);
-            $maxBytes = max(1, (int) $cfg->max_mb) * 1024 * 1024;
-            $cutoff = now()->subDays($keepDays)->getTimestamp();
+            $config = $this->retention->config();
 
             foreach (BackupDestinations::all() as $diskName) {
                 try {
@@ -65,24 +66,15 @@ class PurgeBackups extends Command
                         'size' => (int) $disk->size($p),
                         'ts' => (int) $disk->lastModified($p),
                     ])
-                    ->values();
+                    ->values()
+                    ->all();
 
-                // 1) Age purge: anything older than the keep window.
-                foreach ($files->where('ts', '<', $cutoff) as $f) {
-                    $disk->delete($f['path']);
-                    $deletedPaths[] = $diskName.':'.$f['path'];
-                }
+                // Same rule the Backups page previews — one implementation.
+                $plan = $this->retention->plan($files, $config['keepDays'], $config['maxBytes']);
 
-                // 2) Size cap: delete oldest-first until under the cap.
-                $remaining = $files->where('ts', '>=', $cutoff)->sortBy('ts')->values();
-                $total = $remaining->sum('size');
-                foreach ($remaining as $f) {
-                    if ($total <= $maxBytes) {
-                        break;
-                    }
-                    $disk->delete($f['path']);
-                    $total -= $f['size'];
-                    $deletedPaths[] = $diskName.':'.$f['path'];
+                foreach ($plan['delete'] as $file) {
+                    $disk->delete($file['path']);
+                    $deletedPaths[] = $diskName.':'.$file['path'];
                 }
             }
         } catch (\Throwable $e) {

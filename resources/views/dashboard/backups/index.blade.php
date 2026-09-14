@@ -109,6 +109,86 @@
             </section>
         @endif
 
+    {{-- Storage & rotation: where archives live, how much room they take, and
+         exactly what the next automatic cleanup will remove. --}}
+    <section class="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
+        <h2 class="text-lg font-semibold leading-tight text-slate-900">{{ __('Storage & rotation') }}</h2>
+        <p class="mt-1 text-sm text-slate-600">{{ __('Where the archives live, how much space they use, and what the next cleanup will remove.') }}</p>
+
+        @php
+            $pct = $storage['capBytes'] > 0 ? min(100, (int) round($storage['localTotal'] / $storage['capBytes'] * 100)) : 0;
+            $barClass = $pct >= 90 ? '[&::-webkit-progress-value]:bg-rose-500 [&::-moz-progress-bar]:bg-rose-500' : ($pct >= 70 ? '[&::-webkit-progress-value]:bg-amber-500 [&::-moz-progress-bar]:bg-amber-500' : '[&::-webkit-progress-value]:bg-emerald-500 [&::-moz-progress-bar]:bg-emerald-500');
+        @endphp
+
+        <div class="mt-4">
+            <div class="flex flex-wrap items-baseline justify-between gap-2 text-sm">
+                <span class="font-medium text-slate-900">{{ __('This server') }}</span>
+                <span class="text-slate-600">
+                    {{ number_format($storage['localTotal'] / 1024 / 1024, 2) }} MB
+                    {{ __('of') }} {{ number_format($storage['capBytes'] / 1024 / 1024, 0) }} MB
+                    @if ($storage['growthBytes'] !== null)
+                        · {{ $storage['growthBytes'] >= 0 ? '+' : '−' }}{{ number_format(abs($storage['growthBytes']) / 1024 / 1024, 2) }} MB {{ __('vs 7 days ago') }}
+                    @endif
+                </span>
+            </div>
+            <progress class="mt-2 h-2 w-full overflow-hidden rounded-full [&::-webkit-progress-bar]:bg-slate-100 {{ $barClass }}"
+                      value="{{ $pct }}" max="100">{{ $pct }}%</progress>
+            <p class="mt-1 text-xs {{ $pct >= 90 ? 'text-rose-700' : ($pct >= 70 ? 'text-amber-700' : 'text-slate-500') }}">
+                {{ __(':pct% of the configured storage cap', ['pct' => $pct]) }}
+            </p>
+        </div>
+
+        <div class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            @foreach ($storage['disks'] as $diskName => $info)
+                <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <div class="flex items-center justify-between gap-2">
+                        <p class="text-sm font-medium text-slate-900">{{ $diskName }}</p>
+                        @if ($info['ok'])
+                            <span class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">{{ __('reachable') }}</span>
+                        @else
+                            <span class="inline-flex items-center rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-800">{{ __('unreachable') }}</span>
+                        @endif
+                    </div>
+                    @if ($info['ok'])
+                        <p class="mt-1 text-sm text-slate-700">
+                            {{ __(':count archive(s)', ['count' => number_format($info['count'])]) }}
+                            · {{ number_format($info['bytes'] / 1024 / 1024, 2) }} MB
+                        </p>
+                        @if ($info['oldest'])
+                            <p class="mt-0.5 text-xs text-slate-500">
+                                {{ __('oldest :oldest · newest :newest', [
+                                    'oldest' => \Illuminate\Support\Carbon::createFromTimestamp($info['oldest'])->diffForHumans(),
+                                    'newest' => \Illuminate\Support\Carbon::createFromTimestamp($info['newest'])->diffForHumans(),
+                                ]) }}
+                            </p>
+                        @endif
+                    @else
+                        <p class="mt-1 text-xs text-slate-500">{{ __('Could not be reached — check its credentials (Test connection below).') }}</p>
+                    @endif
+                </div>
+            @endforeach
+        </div>
+
+        <div class="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
+            @if ($rotation['count'] > 0)
+                <p class="font-medium text-slate-900">
+                    {{ __('Next cleanup will delete :count archive(s) (:size)', [
+                        'count' => $rotation['count'],
+                        'size' => number_format($rotation['bytes'] / 1024 / 1024, 2).' MB',
+                    ]) }}
+                </p>
+                <p class="mt-1 break-all text-xs text-slate-600">
+                    {{ implode(', ', $rotation['names']) }}@if ($rotation['count'] > count($rotation['names'])) …@endif
+                </p>
+            @else
+                <p class="text-slate-600">
+                    {{ __('Nothing to remove — every archive is inside the :days-day window and under the cap.', ['days' => $rotation['keepDays']]) }}
+                </p>
+            @endif
+            <p class="mt-1 text-xs text-slate-500">{{ __('backup:purge runs nightly at 01:00 using exactly this rule.') }}</p>
+        </div>
+    </section>
+
     {{-- Backup activity log (shown FIRST so a failed Backup now is immediately visible) --}}
     <section class="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
         <div class="flex flex-wrap items-start justify-between gap-3">
@@ -226,7 +306,7 @@
     <section class="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
         <div class="mb-4">
             <h2 class="text-lg font-semibold leading-tight text-slate-900">{{ __('Configuration') }}</h2>
-            <p class="mt-1 text-sm text-slate-600">{{ __('Schedule, retention, storage providers and alerts. Changes take effect immediately.') }}</p>
+            <p class="mt-1 text-sm text-slate-600">{{ $configSummary }}</p>
         </div>
         @include('dashboard.backups._configure_form')
     </section>

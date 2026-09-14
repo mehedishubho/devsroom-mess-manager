@@ -10,6 +10,7 @@ use App\Jobs\RunBackupJob;
 use App\Models\BackupConfig;
 use App\Models\BackupLog;
 use App\Models\Mess;
+use App\Services\BackupRetention;
 use App\Support\BackupArchive;
 use App\Support\BackupDestinations;
 use App\Support\CloudBackupCredentials;
@@ -20,6 +21,7 @@ use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -48,6 +50,8 @@ class BackupController extends Controller
 
     /** True when the backup_logs table isn't readable (e.g. not migrated yet). */
     private bool $backupLogUnavailable = false;
+
+    public function __construct(private readonly BackupRetention $retention) {}
 
     public function index(): View
     {
@@ -450,6 +454,8 @@ class BackupController extends Controller
 
         $scheduler = $this->schedulerHealth($original);
         $queue = $this->queueHealth();
+        $storage = $this->storageOverview($original);
+        $rotation = $this->rotationPreview($original);
 
         return [
             'backups' => $backups,
@@ -492,7 +498,110 @@ class BackupController extends Controller
             'queueIssue' => $queue['issue'],
             'queuePending' => $queue['pending'],
             'queueWorkerCommand' => $this->queueWorkerCommand(),
+            // Storage + rotation: how much each destination holds, how fast it
+            // is growing, and exactly what the next purge will remove.
+            'storage' => $storage,
+            'rotation' => $rotation,
+            'configSummary' => $this->configSummary(),
         ];
+    }
+
+    /**
+     * Per-destination usage (count / bytes / oldest / newest) plus the local
+     * total against the configured cap and the delta vs ~7 days ago.
+     *
+     * The growth figure only exists once this page has been viewed — the daily
+     * total is recorded on each render (`backup-size:{Y-m-d}`, 30-day TTL) — so
+     * it is null (not zero) until there is history to compare against.
+     */
+    private function storageOverview(Collection $localFiles): array
+    {
+        $disks = [];
+
+        foreach (BackupDestinations::all() as $diskName) {
+            try {
+                $disk = Storage::disk($diskName);
+
+                $files = collect($disk->allFiles())->filter(fn ($p) => str_ends_with($p, '.zip'));
+
+                $disks[$diskName] = [
+                    'ok' => true,
+                    'count' => $files->count(),
+                    'bytes' => (int) $files->sum(fn ($p) => (int) $disk->size($p)),
+                    'oldest' => $files->min(fn ($p) => (int) $disk->lastModified($p)),
+                    'newest' => $files->max(fn ($p) => (int) $disk->lastModified($p)),
+                ];
+            } catch (\Throwable $e) {
+                // An unreachable mirror is a fact worth showing, not a crash.
+                $disks[$diskName] = ['ok' => false, 'count' => 0, 'bytes' => 0, 'oldest' => null, 'newest' => null];
+            }
+        }
+
+        $config = $this->retention->config();
+        $localTotal = (int) $localFiles->sum('size');
+
+        $todayKey = 'backup-size:'.now()->toDateString();
+        $weekKey = 'backup-size:'.now()->subDays(7)->toDateString();
+
+        Cache::put($todayKey, $localTotal, now()->addDays(30));
+        $weekAgo = Cache::get($weekKey);
+
+        return [
+            'disks' => $disks,
+            'localTotal' => $localTotal,
+            'capBytes' => $config['maxBytes'],
+            'growthBytes' => is_numeric($weekAgo) ? $localTotal - (int) $weekAgo : null,
+        ];
+    }
+
+    /**
+     * What the next `backup:purge` will delete on the local disk.
+     *
+     * Runs the SAME BackupRetention::plan() the command runs, so this can never
+     * disagree with what actually happens.
+     */
+    private function rotationPreview(Collection $localFiles): array
+    {
+        $plan = $this->retention->planFor($localFiles->all());
+
+        return [
+            'count' => count($plan['delete']),
+            'bytes' => $plan['delete_bytes'],
+            'names' => array_slice(array_map(fn ($f) => basename($f['path']), $plan['delete']), 0, 5),
+            'keepDays' => $this->retention->config()['keepDays'],
+        ];
+    }
+
+    /**
+     * The settings in plain language, so an operator doesn't have to translate
+     * "keep_all_days = 7 / max_mb = 5000" into what will actually happen.
+     */
+    private function configSummary(): string
+    {
+        $config = BackupConfig::current();
+
+        $cadence = $config->frequency === 'off'
+            ? __('automatic backups are OFF')
+            : __(':frequency at :time', [
+                'frequency' => __(ucfirst((string) $config->frequency)),
+                'time' => $config->runAtLabel(),
+            ]);
+
+        $mirrors = collect(BackupDestinations::all())
+            ->reject(fn ($disk) => $disk === 'backups-local')
+            ->map(fn ($disk) => match ($disk) {
+                'backups-gdrive' => __('Google Drive'),
+                'backups-r2' => __('Cloudflare R2'),
+                default => $disk,
+            })
+            ->values();
+
+        return __(':cadence · every backup kept :days days · total capped at :cap · off-site: :mirrors', [
+            'cadence' => $cadence,
+            'days' => $config->keep_all_days,
+            'cap' => $config->max_mb.' MB',
+            'mirrors' => $mirrors->isEmpty() ? __('this server only') : $mirrors->implode(', '),
+        ]);
     }
 
     /**
