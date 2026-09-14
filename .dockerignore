@@ -1,0 +1,13 @@
+.git
+.env
+.claude
+node_modules
+vendor
+public/build
+public/storage
+storage/app
+storage/logs
+storage/framework/cache
+storage/framework/sessions
+storage/framework/views
+tests

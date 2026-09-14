@@ -1,0 +1,83 @@
+x-app-env: &app-env
+  APP_ENV: ${APP_ENV:-production}
+  APP_DEBUG: ${APP_DEBUG:-false}
+  APP_KEY: ${APP_KEY:?set APP_KEY in the panel environment}
+  APP_URL: ${APP_URL:?set APP_URL in the panel environment}
+  APP_TIMEZONE: ${APP_TIMEZONE:-Asia/Dhaka}
+  DB_CONNECTION: mysql
+  DB_HOST: db
+  DB_PORT: "3306"
+  DB_DATABASE: ${DB_DATABASE:?set DB_DATABASE in the panel environment}
+  DB_USERNAME: ${DB_USERNAME:?set DB_USERNAME in the panel environment}
+  DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in the panel environment}
+  QUEUE_CONNECTION: database
+  CACHE_STORE: ${CACHE_STORE:-database}
+  SESSION_DRIVER: database
+  SESSION_SECURE_COOKIE: "true"
+  LOG_CHANNEL: ${LOG_CHANNEL:-stack}
+  MAIL_MAILER: ${MAIL_MAILER:-log}
+  MAIL_HOST: ${MAIL_HOST:-}
+  MAIL_PORT: ${MAIL_PORT:-587}
+  MAIL_USERNAME: ${MAIL_USERNAME:-}
+  MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+  MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-}
+  DUMP_BINARY_PATH: /usr/bin
+  BACKUP_MAX_MB: ${BACKUP_MAX_MB:-5000}
+  BACKUP_NOTIFICATION_EMAIL: ${BACKUP_NOTIFICATION_EMAIL:-}
+  BACKUP_ARCHIVE_PASSWORD: ${BACKUP_ARCHIVE_PASSWORD:-}
+  BACKUP_LOG_KEEP_DAYS: ${BACKUP_LOG_KEEP_DAYS:-90}
+  TELESCOPE_ENABLED: "false"
+  DEBUGBAR_ENABLED: "false"
+
+x-app-base: &app-base
+  build: .
+  restart: unless-stopped
+  depends_on:
+    db:
+      condition: service_healthy
+  volumes:
+    - app-storage:/var/www/html/storage/app
+  environment:
+    <<: *app-env
+    RUN_MIGRATIONS: "false"
+
+services:
+  app:
+    <<: *app-base
+    environment:
+      <<: *app-env
+      RUN_MIGRATIONS: "true"   # only the web container migrates (additive-only, safe on redeploy)
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/up || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  queue:
+    <<: *app-base
+    command: ["php", "artisan", "queue:work", "database", "--sleep=3", "--tries=3", "--max-time=3600"]
+
+  scheduler:
+    <<: *app-base
+    command: ["php", "artisan", "schedule:work"]   # fires schedule:run every minute — no cron needed in a container
+
+  db:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${DB_DATABASE}
+      MARIADB_USER: ${DB_USERNAME}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in the panel environment}
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  app-storage:
+  db-data:
