@@ -456,6 +456,8 @@ class BackupController extends Controller
         $queue = $this->queueHealth();
         $storage = $this->storageOverview($original);
         $rotation = $this->rotationPreview($original);
+        $lastBackupAt = $this->lastSuccessfulBackupAt($original);
+        $health = $this->healthChecks($scheduler, $queue, $lastBackupAt, $storage);
 
         return [
             'backups' => $backups,
@@ -467,7 +469,7 @@ class BackupController extends Controller
             'totalCount' => $totalCount,
             'totalSize' => $totalSize,
             'filteredSize' => $filteredSize,
-            'lastBackupAt' => $this->lastSuccessfulBackupAt($original),
+            'lastBackupAt' => $lastBackupAt,
             'nextRunAt' => $this->nextRunAt(),
             // "Configured" reflects EITHER a DB-stored value (UI) or the env
             // fallback — both are legitimate sources.
@@ -487,22 +489,91 @@ class BackupController extends Controller
             'logAction' => $this->logFilterAction(),
             'logStatus' => $this->logFilterStatus(),
             'logActions' => self::LOG_ACTIONS,
-            // Scheduler health — surfaces a missing server cron (the #1 reason
-            // "backups are configured but none appear"). See schedulerHealth().
-            'schedulerHealthy' => $scheduler['healthy'],
-            'schedulerIssue' => $scheduler['issue'],
-            'schedulerCronLine' => $scheduler['cron_line'],
-            // Queue health — catches the "clicked Backup now, it says running
-            // forever" case, which is just an idle queue with no worker.
-            'queueHealthy' => $queue['healthy'],
-            'queueIssue' => $queue['issue'],
-            'queuePending' => $queue['pending'],
-            'queueWorkerCommand' => $this->queueWorkerCommand(),
             // Storage + rotation: how much each destination holds, how fast it
             // is growing, and exactly what the next purge will remove.
             'storage' => $storage,
             'rotation' => $rotation,
             'configSummary' => $this->configSummary(),
+            // One panel instead of three separate banners: is the backup system
+            // actually healthy, and if not, what do I run to fix it?
+            'health' => $health,
+        ];
+    }
+
+    /**
+     * Collapse the separate checks into a single ordered list for the health
+     * panel. Each entry is self-contained: state, one-line detail, and — when
+     * unhealthy — the exact command that fixes it.
+     *
+     * @return array<int, array{key:string, label:string, ok:bool, detail:string, fix:?array{label:string, command:string, note:?string}}>
+     */
+    private function healthChecks(array $scheduler, array $queue, ?Carbon $lastBackupAt, array $storage): array
+    {
+        $config = BackupConfig::current();
+
+        $maxHours = (int) match ($config->frequency) {
+            'weekly' => 180,
+            'monthly' => 744,
+            default => 25,
+        };
+
+        $ageHours = $lastBackupAt ? $lastBackupAt->diffInHours(now()) : null;
+        $lastBackupOk = $ageHours !== null && $ageHours <= $maxHours;
+
+        $unreachable = collect($storage['disks'])->reject(fn ($info) => $info['ok'])->keys();
+        $mirrors = collect($storage['disks'])->keys()->reject(fn ($disk) => $disk === 'backups-local');
+
+        return [
+            [
+                'key' => 'scheduler',
+                'label' => __('Scheduler'),
+                'ok' => $scheduler['healthy'],
+                'detail' => $scheduler['healthy']
+                    ? __('Automatic backups are scheduled and firing as configured.')
+                    : (string) $scheduler['issue'],
+                'fix' => $scheduler['healthy'] ? null : [
+                    'label' => __('Install this cron line on the server:'),
+                    'command' => $scheduler['cron_line'],
+                    'note' => __('In a container a host crontab cannot reach that path — run "php artisan schedule:work" as a long-lived service instead. If "php" is not on the cron user\'s PATH, run "php artisan backup:install" on the server to print this line with the absolute PHP path.'),
+                ],
+            ],
+            [
+                'key' => 'queue',
+                'label' => __('Queue worker'),
+                'ok' => $queue['healthy'],
+                'detail' => $queue['healthy']
+                    ? __('Background jobs are being processed. "Backup now" and restores run in the background.')
+                    : (string) $queue['issue'],
+                'fix' => $queue['healthy'] ? null : [
+                    'label' => __('Start a worker:'),
+                    'command' => 'cd '.base_path().' && '.$this->queueWorkerCommand(),
+                    'note' => __('Or enable the queue service in your hosting panel. With QUEUE_CONNECTION=sync this is not needed.'),
+                ],
+            ],
+            [
+                'key' => 'last-backup',
+                'label' => __('Last backup'),
+                'ok' => $lastBackupOk,
+                'detail' => $lastBackupAt
+                    ? __(':ago — :at', ['ago' => $lastBackupAt->diffForHumans(), 'at' => $lastBackupAt->format('Y-m-d H:i')])
+                    : __('No successful backup has ever been recorded.'),
+                'fix' => $lastBackupOk ? null : [
+                    'label' => __('Run one now:'),
+                    'command' => 'php artisan backup:run',
+                    'note' => __('Or click "Backup now" above — it will queue (and needs the worker below).'),
+                ],
+            ],
+            [
+                'key' => 'mirrors',
+                'label' => __('Off-site mirrors'),
+                'ok' => $unreachable->isEmpty(),
+                'detail' => $mirrors->isEmpty()
+                    ? __('None configured — every archive lives on this server only. A lost VPS means lost backups.')
+                    : ($unreachable->isEmpty()
+                        ? __(':list — all reachable.', ['list' => $mirrors->implode(', ')])
+                        : __(':list — could not be reached.', ['list' => $unreachable->implode(', ')])),
+                'fix' => null,
+            ],
         ];
     }
 
