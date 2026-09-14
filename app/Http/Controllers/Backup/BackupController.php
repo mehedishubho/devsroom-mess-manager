@@ -18,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use OwenIt\Auditing\Models\Audit;
@@ -210,6 +211,8 @@ class BackupController extends Controller
             'run_at' => $data['run_at'],
             'keep_all_days' => $data['keep_all_days'],
             'max_mb' => $data['max_mb'],
+            'notification_email' => ($data['notification_email'] ?? null) ?: null,
+            'encrypt_backups' => (bool) ($data['encrypt_backups'] ?? false),
             'gdrive_backup' => (bool) ($data['gdrive_backup'] ?? false),
             'gdrive_uploads' => (bool) ($data['gdrive_uploads'] ?? false),
             'r2_backup' => (bool) ($data['r2_backup'] ?? false),
@@ -224,9 +227,28 @@ class BackupController extends Controller
             'r2_use_path_style' => (bool) ($data['r2_use_path_style'] ?? false),
         ];
 
-        foreach (['gdrive_client_secret', 'gdrive_refresh_token', 'r2_secret'] as $secret) {
-            if (filled($data[$secret] ?? null)) {
+        // Secrets are only touched when explicitly addressed. A ticked
+        // "remove saved secret" box clears the stored value (a rotated or
+        // leaked credential MUST be removable); otherwise a non-empty box
+        // replaces it and an empty box keeps it untouched.
+        foreach (['gdrive_client_secret', 'gdrive_refresh_token', 'r2_secret', 'archive_password'] as $secret) {
+            if ((bool) ($data['clear_'.$secret] ?? false)) {
+                $payload[$secret] = null;
+            } elseif (filled($data[$secret] ?? null)) {
                 $payload[$secret] = $data[$secret];
+            }
+        }
+
+        // Encryption without a password would silently produce unencrypted
+        // archives while the UI claims otherwise — refuse the combination.
+        if ($payload['encrypt_backups'] === true) {
+            $hasPassword = ! empty($payload['archive_password'])
+                || (! array_key_exists('archive_password', $payload) && filled(BackupConfig::current()->archive_password));
+
+            if (! $hasPassword) {
+                return back()->withInput()->withErrors([
+                    'archive_password' => __('Set an archive password, or turn archive encryption off.'),
+                ]);
             }
         }
 
@@ -307,6 +329,39 @@ class BackupController extends Controller
     }
 
     /**
+     * Send a real test message to the configured backup-notification recipient
+     * so the operator can prove the failure-alert path works BEFORE a backup
+     * actually fails (with MAIL_MAILER=log the message lands in the log file,
+     * which is still the honest answer).
+     */
+    public function testNotification(Request $request): JsonResponse|RedirectResponse
+    {
+        // A just-saved recipient/encryption change may not be live yet.
+        try {
+            CloudBackupCredentials::applyToRuntimeConfig();
+        } catch (\Throwable) {
+            // proceed; the send below surfaces the real failure
+        }
+
+        $to = (string) config('backup.notifications.mail.to');
+
+        if ($to === '') {
+            return $this->testResult($request, false, __('No notification recipient is configured yet.'));
+        }
+
+        try {
+            Mail::raw(
+                __('This is a test message from :app. If you received it, backup notifications can reach you.', ['app' => config('app.name')]),
+                fn ($message) => $message->to($to)->subject(__('Backup notification test')),
+            );
+        } catch (\Throwable $e) {
+            return $this->testResult($request, false, $e->getMessage());
+        }
+
+        return $this->testResult($request, true, __('Test notification sent to :email. With MAIL_MAILER=log it goes to the log file, not an inbox.', ['email' => $to]));
+    }
+
+    /**
      * Shared view data for the Backups page (index + the configure alias).
      */
     private function indexData(): array
@@ -338,6 +393,7 @@ class BackupController extends Controller
             'gdriveSecretSaved' => filled($config->gdrive_client_secret),
             'gdriveRefreshSaved' => filled($config->gdrive_refresh_token),
             'r2SecretSaved' => filled($config->r2_secret),
+            'archivePasswordSaved' => filled($config->archive_password),
             // The activity log is non-critical — a fresh deploy that hasn't run
             // `php artisan migrate` yet (backup_logs table missing) must NOT 500
             // the whole Backups page and lock the super-admin out of configuring.

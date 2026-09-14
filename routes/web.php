@@ -83,6 +83,10 @@ Route::middleware(['auth', 'role:super-admin'])
         Route::post('/test/{provider}', [BackupController::class, 'testConnection'])
             ->middleware('throttle:10,1')
             ->name('test');
+        // Send a real test message to the configured notification recipient.
+        Route::post('/test-notification', [BackupController::class, 'testNotification'])
+            ->middleware('throttle:10,1')
+            ->name('test-notification');
         Route::post('/run', [BackupController::class, 'runNow'])->name('run');
         // Activity-log delete.
         Route::delete('/logs', [BackupController::class, 'clearLogs'])->name('logs.clear');

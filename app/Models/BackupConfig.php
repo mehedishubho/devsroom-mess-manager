@@ -30,6 +30,9 @@ class BackupConfig extends Model
         'run_at',
         'keep_all_days',
         'max_mb',
+        'notification_email',
+        'encrypt_backups',
+        'archive_password',
         'gdrive_backup',
         'gdrive_uploads',
         'r2_backup',
@@ -53,6 +56,10 @@ class BackupConfig extends Model
         return [
             'keep_all_days' => 'integer',
             'max_mb' => 'integer',
+            'encrypt_backups' => 'boolean',
+            // Encrypted at rest for the same reason as the provider secrets:
+            // a backup password must not leak into the archive it protects.
+            'archive_password' => 'encrypted',
             'gdrive_backup' => 'boolean',
             'gdrive_uploads' => 'boolean',
             'r2_backup' => 'boolean',

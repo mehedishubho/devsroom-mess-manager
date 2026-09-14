@@ -89,6 +89,21 @@ class CloudBackupCredentials
                 $monitor[$i]['disks'] = $disks;
             }
             config(['backup.monitor_backups' => $monitor]);
+
+            // Notification recipient + archive encryption are settable from the
+            // Backups page. A saved value wins; empty/false leaves the env
+            // fallback from config/backup.php in place (so an operator who only
+            // ever used .env keeps working unchanged).
+            if (filled($config->notification_email)) {
+                config(['backup.notifications.mail.to' => $config->notification_email]);
+            }
+
+            if ($config->encrypt_backups && filled($config->archive_password)) {
+                config([
+                    'backup.backup.password' => $config->archive_password,
+                    'backup.backup.encryption' => 'default',
+                ]);
+            }
         } catch (\Throwable) {
             // Best-effort: never break the request/boot over a config override.
         }

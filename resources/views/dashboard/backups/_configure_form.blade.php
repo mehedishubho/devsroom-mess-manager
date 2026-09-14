@@ -109,10 +109,24 @@
                     <span class="text-xs text-slate-600">{{ __('Client secret') }} @if ($gdriveSecretSaved ?? false)<span class="text-emerald-700">(saved ✓)</span>@endif</span>
                     <input type="password" name="gdrive_client_secret" class="input mt-0.5" placeholder="{{ ($gdriveSecretSaved ?? false) ? '•••••• (leave blank to keep saved)' : '' }}" autocomplete="new-password" />
                 </label>
+                @if ($gdriveSecretSaved ?? false)
+                    <label class="flex items-center gap-2 text-xs text-rose-700">
+                        <input type="hidden" name="clear_gdrive_client_secret" value="0" />
+                        <input type="checkbox" name="clear_gdrive_client_secret" value="1" class="h-3.5 w-3.5 rounded border-slate-300 text-rose-600 focus:ring-rose-500" />
+                        {{ __('Remove saved client secret') }}
+                    </label>
+                @endif
                 <label class="block">
                     <span class="text-xs text-slate-600">{{ __('Refresh token') }} @if ($gdriveRefreshSaved ?? false)<span class="text-emerald-700">(saved ✓)</span>@endif</span>
                     <input type="password" name="gdrive_refresh_token" class="input mt-0.5" placeholder="{{ ($gdriveRefreshSaved ?? false) ? '•••••• (leave blank to keep saved)' : '' }}" autocomplete="new-password" />
                 </label>
+                @if ($gdriveRefreshSaved ?? false)
+                    <label class="flex items-center gap-2 text-xs text-rose-700">
+                        <input type="hidden" name="clear_gdrive_refresh_token" value="0" />
+                        <input type="checkbox" name="clear_gdrive_refresh_token" value="1" class="h-3.5 w-3.5 rounded border-slate-300 text-rose-600 focus:ring-rose-500" />
+                        {{ __('Remove saved refresh token') }}
+                    </label>
+                @endif
                 <label class="block">
                     <span class="text-xs text-slate-600">{{ __('Folder ID') }}</span>
                     <input type="text" name="gdrive_folder_id" value="{{ old('gdrive_folder_id', $config->gdrive_folder_id) }}" class="input mt-0.5" autocomplete="off" />
@@ -135,6 +149,13 @@
                     <span class="text-xs text-slate-600">{{ __('Secret access key') }} @if ($r2SecretSaved ?? false)<span class="text-emerald-700">(saved ✓)</span>@endif</span>
                     <input type="password" name="r2_secret" class="input mt-0.5" placeholder="{{ ($r2SecretSaved ?? false) ? '•••••• (leave blank to keep saved)' : '' }}" autocomplete="new-password" />
                 </label>
+                @if ($r2SecretSaved ?? false)
+                    <label class="flex items-center gap-2 text-xs text-rose-700">
+                        <input type="hidden" name="clear_r2_secret" value="0" />
+                        <input type="checkbox" name="clear_r2_secret" value="1" class="h-3.5 w-3.5 rounded border-slate-300 text-rose-600 focus:ring-rose-500" />
+                        {{ __('Remove saved secret access key') }}
+                    </label>
+                @endif
                 <div class="grid grid-cols-2 gap-2">
                     <label class="block">
                         <span class="text-xs text-slate-600">{{ __('Region') }}</span>
@@ -198,6 +219,42 @@
         </div>
     </div>
 
+    {{-- Alerts + archive encryption --}}
+    <fieldset class="rounded-lg border border-slate-200 bg-slate-50/60 p-4">
+        <legend class="px-1 text-sm font-semibold text-slate-900">{{ __('Alerts & archive encryption') }}</legend>
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div class="flex flex-col gap-1">
+                <label for="notification_email" class="text-sm font-medium text-slate-900">{{ __('Failure notification email') }}</label>
+                <div class="flex gap-2">
+                    <input type="email" name="notification_email" id="notification_email" value="{{ old('notification_email', $config->notification_email) }}" class="input" placeholder="ops@your-domain.com" autocomplete="off" />
+                    <button type="button" data-test-notification class="btn btn-secondary shrink-0 text-xs">{{ __('Send test') }}</button>
+                </div>
+                <p class="text-xs text-slate-500">{{ __('Where backup failures are emailed. Requires a real mailer (MAIL_MAILER=smtp) — with "log" the message only reaches the log file.') }}</p>
+                @error('notification_email') <p class="text-xs text-red-700">{{ $message }}</p> @enderror
+            </div>
+            <div class="flex flex-col gap-1">
+                <label class="flex items-center gap-2 text-sm font-medium text-slate-900">
+                    <input type="hidden" name="encrypt_backups" value="0" />
+                    <input type="checkbox" name="encrypt_backups" value="1" @checked(old('encrypt_backups', (bool) $config->encrypt_backups)) class="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
+                    {{ __('Encrypt backup archives (AES-256)') }}
+                </label>
+                <label class="block">
+                    <span class="text-xs text-slate-600">{{ __('Archive password') }} @if ($archivePasswordSaved ?? false)<span class="text-emerald-700">(saved ✓)</span>@endif</span>
+                    <input type="password" name="archive_password" class="input mt-0.5" placeholder="{{ ($archivePasswordSaved ?? false) ? '•••••• (leave blank to keep saved)' : '' }}" autocomplete="new-password" />
+                </label>
+                @if ($archivePasswordSaved ?? false)
+                    <label class="flex items-center gap-2 text-xs text-rose-700">
+                        <input type="hidden" name="clear_archive_password" value="0" />
+                        <input type="checkbox" name="clear_archive_password" value="1" class="h-3.5 w-3.5 rounded border-slate-300 text-rose-600 focus:ring-rose-500" />
+                        {{ __('Remove saved archive password') }}
+                    </label>
+                @endif
+                <p class="text-xs text-slate-500">{{ __('An encrypted archive needs its password to restore — keep it in your password manager, not only here.') }}</p>
+                @error('archive_password') <p class="text-xs text-red-700">{{ $message }}</p> @enderror
+            </div>
+        </div>
+    </fieldset>
+
     <div class="flex justify-end">
         <button type="submit" class="btn btn-primary">{{ __('Save configuration') }}</button>
     </div>
@@ -217,6 +274,37 @@
                 result.classList.remove('hidden');
                 try {
                     var resp = await fetch('{{ url('/dashboard/backups/test') }}/' + encodeURIComponent(provider), {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Accept': 'application/json'
+                        }
+                    });
+                    var data = await resp.json();
+                    result.className = 'text-xs ' + (data.ok ? 'text-emerald-700' : 'text-rose-700');
+                    result.textContent = data.message;
+                } catch (e) {
+                    result.className = 'text-xs text-rose-700';
+                    result.textContent = e.message;
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = original;
+                }
+            });
+        });
+
+        // Send test notification — uses the SAVED recipient, so save first.
+        document.querySelectorAll('[data-test-notification]').forEach(function (btn) {
+            btn.addEventListener('click', async function () {
+                var result = document.getElementById('backup-test-result');
+                btn.disabled = true;
+                var original = btn.textContent;
+                btn.textContent = '{{ __('Sending…') }}';
+                result.className = 'text-xs text-slate-600';
+                result.textContent = '{{ __('Sending…') }}';
+                result.classList.remove('hidden');
+                try {
+                    var resp = await fetch('{{ route('dashboard.backups.test-notification') }}', {
                         method: 'POST',
                         headers: {
                             'X-CSRF-TOKEN': '{{ csrf_token() }}',

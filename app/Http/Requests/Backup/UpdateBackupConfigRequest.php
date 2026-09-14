@@ -29,6 +29,8 @@ class UpdateBackupConfigRequest extends FormRequest
             'run_at' => ['required', 'date_format:H:i'],
             'keep_all_days' => ['required', 'integer', 'min:1', 'max:3650'],
             'max_mb' => ['required', 'integer', 'min:100', 'max:1000000'],
+            'notification_email' => ['nullable', 'email', 'max:255'],
+            'encrypt_backups' => ['sometimes', 'boolean'],
             'gdrive_backup' => ['sometimes', 'boolean'],
             'gdrive_uploads' => ['sometimes', 'boolean'],
             'r2_backup' => ['sometimes', 'boolean'],
@@ -37,6 +39,8 @@ class UpdateBackupConfigRequest extends FormRequest
             // Cloud credentials (UI-editable). Secret fields are nullable so an
             // empty password box means "keep the stored value" — the controller
             // only overwrites a secret when the submitted value is non-empty.
+            // The matching `clear_*` checkbox is the explicit "remove it"
+            // signal (a leaked/rotated secret must be removable).
             'gdrive_client_id' => ['nullable', 'string', 'max:255'],
             'gdrive_client_secret' => ['nullable', 'string'],
             'gdrive_refresh_token' => ['nullable', 'string'],
@@ -47,6 +51,11 @@ class UpdateBackupConfigRequest extends FormRequest
             'r2_bucket' => ['nullable', 'string', 'max:255'],
             'r2_endpoint' => ['nullable', 'string', 'max:255'],
             'r2_use_path_style' => ['sometimes', 'boolean'],
+            'archive_password' => ['nullable', 'string', 'max:255'],
+            'clear_gdrive_client_secret' => ['sometimes', 'boolean'],
+            'clear_gdrive_refresh_token' => ['sometimes', 'boolean'],
+            'clear_r2_secret' => ['sometimes', 'boolean'],
+            'clear_archive_password' => ['sometimes', 'boolean'],
         ];
     }
 }
