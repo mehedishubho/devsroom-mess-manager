@@ -119,7 +119,18 @@ class BackupConfig extends Model
 
     protected static ?self $current = null;
 
-    /** The singleton row, memoized; an in-memory default on any failure. */
+    /**
+     * The singleton row, memoized. Falls back to an in-memory default when the
+     * row cannot be read (fresh clone, DB still coming up during early boot) —
+     * but deliberately does NOT memoize that fallback.
+     *
+     * Memoizing the fallback was a real bug: AppServiceProvider::boot() reads
+     * this to apply the runtime overrides, and when that early read missed, the
+     * default instance was cached for the rest of the process. Every subsequent
+     * reader — the Backups page, backup:purge, the schedule builder — then saw
+     * default settings instead of the operator's saved configuration, and
+     * writing through it INSERTED a second row instead of updating row 1.
+     */
     public static function current(): self
     {
         if (static::$current instanceof self) {
@@ -127,10 +138,16 @@ class BackupConfig extends Model
         }
 
         try {
-            return static::$current = static::find(1) ?? static::default();
+            $row = static::find(1);
+
+            if ($row !== null) {
+                return static::$current = $row;
+            }
         } catch (\Throwable) {
-            return static::$current = static::default();
+            // Transient, or a fresh clone without the table yet — retry next call.
         }
+
+        return static::default();
     }
 
     /** Forget the memoized row so the next `current()` re-reads the DB. */
