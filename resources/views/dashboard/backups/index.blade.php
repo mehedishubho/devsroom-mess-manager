@@ -1,5 +1,21 @@
 @extends('layouts.app')
 
+@php
+    // Sort links preserve the current search + direction.
+    $sortLink = function (string $column) use ($sort, $dir) {
+        $next = ($sort === $column && $dir === 'asc') ? 'desc' : 'asc';
+
+        return route('dashboard.backups.index', array_merge(request()->query(), ['sort' => $column, 'dir' => $next]));
+    };
+    $sortArrow = function (string $column) use ($sort, $dir) {
+        if ($sort !== $column) {
+            return '';
+        }
+
+        return $dir === 'asc' ? ' ▲' : ' ▼';
+    };
+@endphp
+
 @section('content')
     <header class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -15,6 +31,31 @@
             </form>
         </div>
     </header>
+
+    {{-- At-a-glance health: the page used to be all tables, so "is this working?"
+         took a careful read. These four numbers answer it immediately. --}}
+    <section class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <x-stat-card
+            :label="__('Last backup')"
+            :value="$lastBackupAt ? $lastBackupAt->diffForHumans() : __('Never')"
+            :hint="$lastBackupAt ? $lastBackupAt->format('Y-m-d H:i') : __('No successful backup recorded yet')"
+        />
+        <x-stat-card
+            :label="__('Archives')"
+            :value="number_format($totalCount)"
+            :hint="__('On this server')"
+        />
+        <x-stat-card
+            :label="__('Total size')"
+            :value="number_format($totalSize / 1024 / 1024, 2).' MB'"
+            :hint="__('Across all archives')"
+        />
+        <x-stat-card
+            :label="__('Next run')"
+            :value="$nextRunAt ? $nextRunAt->diffForHumans() : __('Off')"
+            :hint="$nextRunAt ? $nextRunAt->format('Y-m-d H:i') : __('Automatic backups are disabled')"
+        />
+    </section>
 
     {{-- Scheduler-health banner: surfaces a missing/failing server cron (the #1
          reason "backups are configured but none appear"). Code cannot install
@@ -39,14 +80,14 @@
                 </div>
             </div>
         </section>
-@endif
+    @endif
 
     {{-- Backup activity log (shown FIRST so a failed Backup now is immediately visible) --}}
     <section class="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
                 <h2 class="text-lg font-semibold leading-tight text-slate-900">{{ __('Activity log') }}</h2>
-                <p class="mt-1 text-sm text-slate-600">{{ __('Every backup / restore / configure attempt — failures show the real reason (e.g. mysqldump missing).') }}</p>
+                <p class="mt-1 text-sm text-slate-600">{{ __('Every backup / purge / monitor / restore attempt — failures show the real reason (e.g. mysqldump missing).') }}</p>
             </div>
             @if ($backupLogs->isNotEmpty())
                 <form action="{{ route('dashboard.backups.logs.clear') }}" method="POST" onsubmit="return confirm('{{ __('Delete ALL log entries?') }}');">
@@ -110,43 +151,118 @@
     <section class="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
         <div class="mb-4">
             <h2 class="text-lg font-semibold leading-tight text-slate-900">{{ __('Configuration') }}</h2>
-            <p class="mt-1 text-sm text-slate-600">{{ __('Schedule, retention, and storage providers. Changes take effect immediately.') }}</p>
+            <p class="mt-1 text-sm text-slate-600">{{ __('Schedule, retention, storage providers and alerts. Changes take effect immediately.') }}</p>
         </div>
         @include('dashboard.backups._configure_form')
     </section>
 
-    {{-- Backup list (download / restore / delete) --}}
+    {{-- Bulk delete lives OUTSIDE the table so the per-row forms are never
+         nested; the checkboxes join it via the HTML form attribute. --}}
+    <form id="backup-bulk-delete" method="POST" action="{{ route('dashboard.backups.bulk-delete') }}"
+          onsubmit="return confirm('{{ __('Delete the selected backups from every destination? This cannot be undone.') }}');">
+        @csrf
+        @method('DELETE')
+    </form>
+
+    {{-- Backup list (download / verify / restore / delete) --}}
     <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div class="border-b border-slate-200 px-4 py-3 md:px-6">
-            <h2 class="text-lg font-semibold leading-tight text-slate-900">{{ __('Backups') }}</h2>
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 md:px-6">
+            <div>
+                <h2 class="text-lg font-semibold leading-tight text-slate-900">{{ __('Backups') }}</h2>
+                <p class="mt-1 text-sm text-slate-600">
+                    {{ __(':count archive(s)', ['count' => number_format($totalCount)]) }}
+                    · {{ number_format($totalSize / 1024 / 1024, 2) }} MB
+                    @if ($search !== '')
+                        · {{ __(':count match ":term"', ['count' => number_format($backups->total()), 'term' => $search]) }}
+                    @endif
+                </p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+                <form method="GET" action="{{ route('dashboard.backups.index') }}" class="flex items-center gap-2">
+                    <input type="search" name="q" value="{{ $search }}" class="input" placeholder="{{ __('Search filename…') }}" aria-label="{{ __('Search backups') }}" />
+                    @if ($sort !== 'date' || $dir !== 'desc')
+                        <input type="hidden" name="sort" value="{{ $sort }}" />
+                        <input type="hidden" name="dir" value="{{ $dir }}" />
+                    @endif
+                    <button type="submit" class="btn btn-secondary">{{ __('Search') }}</button>
+                </form>
+                @if ($backups->isNotEmpty())
+                    <button type="submit" form="backup-bulk-delete" class="btn btn-secondary text-rose-700">{{ __('Delete selected') }}</button>
+                @endif
+            </div>
         </div>
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-slate-200">
                 <thead class="bg-slate-50">
                     <tr>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">{{ __('Path') }}</th>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">{{ __('Size') }}</th>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">{{ __('Last modified') }}</th>
+                        <th scope="col" class="w-10 px-4 py-3">
+                            <input type="checkbox" data-backup-select-all class="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" aria-label="{{ __('Select all backups') }}" />
+                        </th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
+                            <a href="{{ $sortLink('name') }}" class="hover:underline">{{ __('File') }}{{ $sortArrow('name') }}</a>
+                        </th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
+                            <a href="{{ $sortLink('size') }}" class="hover:underline">{{ __('Size') }}{{ $sortArrow('size') }}</a>
+                        </th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
+                            <a href="{{ $sortLink('date') }}" class="hover:underline">{{ __('Created') }}{{ $sortArrow('date') }}</a>
+                        </th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">{{ __('Destinations') }}</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">{{ __('Checksum') }}</th>
                         <th scope="col" class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-500">{{ __('Actions') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200 bg-white">
                     @forelse ($backups as $backup)
                         <tr class="transition-colors hover:bg-slate-50">
-                            <td class="break-all px-4 py-3 text-sm text-slate-900">{{ basename($backup['path']) }}</td>
+                            <td class="px-4 py-3">
+                                <input type="checkbox" form="backup-bulk-delete" name="paths[]" value="{{ $backup['path'] }}"
+                                       data-backup-select class="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                       aria-label="{{ __('Select :name', ['name' => $backup['name']]) }}" />
+                            </td>
+                            <td class="break-all px-4 py-3 text-sm text-slate-900">{{ $backup['name'] }}</td>
                             <td class="px-4 py-3 text-sm text-slate-500">{{ number_format($backup['size'] / 1024 / 1024, 2) }} MB</td>
                             <td class="px-4 py-3 text-sm text-slate-500">{{ \Illuminate\Support\Carbon::createFromTimestamp($backup['last_modified'])->diffForHumans() }}</td>
+                            <td class="px-4 py-3 text-sm">
+                                <div class="flex flex-wrap gap-1">
+                                    @foreach ($backup['destinations'] as $diskName => $present)
+                                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {{ $present ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500' }}"
+                                              title="{{ $present ? __('Present on :disk', ['disk' => $diskName]) : __('Missing from :disk', ['disk' => $diskName]) }}">
+                                            {{ $diskName }} {{ $present ? '✓' : '✗' }}
+                                        </span>
+                                    @endforeach
+                                </div>
+                            </td>
+                            <td class="px-4 py-3 text-xs text-slate-500">
+                                @if ($backup['checksum'])
+                                    <button type="button"
+                                            class="break-all text-left font-mono hover:text-slate-700"
+                                            title="{{ $backup['checksum'] }}"
+                                            onclick="navigator.clipboard && navigator.clipboard.writeText('{{ $backup['checksum'] }}'); this.textContent = '{{ __('Copied') }}';">
+                                        {{ substr($backup['checksum'], 0, 12) }}…
+                                    </button>
+                                @else
+                                    <span class="text-slate-400">{{ __('not computed') }}</span>
+                                @endif
+                            </td>
                             <td class="px-4 py-3 text-right">
                                 <div class="inline-flex items-center gap-3">
                                     <a href="{{ route('dashboard.backups.download', ['path' => $backup['path']]) }}"
                                        class="text-xs font-medium text-emerald-700 hover:underline">
                                         {{ __('Download') }}
                                     </a>
+                                    <form method="POST" action="{{ route('dashboard.backups.verify') }}" class="inline">
+                                        @csrf
+                                        <input type="hidden" name="path" value="{{ $backup['path'] }}" />
+                                        <button type="submit" class="text-xs font-medium text-sky-700 hover:underline">
+                                            {{ $backup['checksum'] ? __('Verify') : __('Compute checksum') }}
+                                        </button>
+                                    </form>
                                     <a href="{{ route('dashboard.backups.restore.show', ['path' => $backup['path']]) }}"
                                        class="text-xs font-medium text-amber-700 hover:underline">
                                         {{ __('Restore') }}
                                     </a>
-                                    <form method="POST" action="{{ route('dashboard.backups.destroy') }}" class="inline" onsubmit="return confirm('{{ __('Delete this backup? This cannot be undone.') }}');">
+                                    <form method="POST" action="{{ route('dashboard.backups.destroy') }}" class="inline" onsubmit="return confirm('{{ __('Delete this backup from every destination? This cannot be undone.') }}');">
                                         @csrf
                                         @method('DELETE')
                                         <input type="hidden" name="path" value="{{ $backup['path'] }}" />
@@ -159,13 +275,34 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="4" class="px-4 py-8 text-center text-sm text-slate-500">
-                                {{ __('No backups yet. Click "Backup now" to create one.') }}
+                            <td colspan="7" class="px-4 py-8 text-center text-sm text-slate-500">
+                                @if ($search !== '')
+                                    {{ __('No backups match ":term".', ['term' => $search]) }}
+                                @else
+                                    {{ __('No backups yet. Click "Backup now" to create one.') }}
+                                @endif
                             </td>
                         </tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
+        @if ($backups->hasPages())
+            <div class="border-t border-slate-200 px-4 py-3 md:px-6">{{ $backups->links() }}</div>
+        @endif
     </section>
+
+    @once
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                var all = document.querySelector('[data-backup-select-all]');
+                if (!all) return;
+                all.addEventListener('change', function () {
+                    document.querySelectorAll('[data-backup-select]').forEach(function (box) {
+                        box.checked = all.checked;
+                    });
+                });
+            });
+        </script>
+    @endonce
 @endsection

@@ -9,12 +9,14 @@ use App\Http\Requests\Backup\UpdateBackupConfigRequest;
 use App\Models\BackupConfig;
 use App\Models\BackupLog;
 use App\Models\Mess;
+use App\Support\BackupArchive;
 use App\Support\BackupDestinations;
 use App\Support\CloudBackupCredentials;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Log;
@@ -363,27 +365,89 @@ class BackupController extends Controller
 
     /**
      * Shared view data for the Backups page (index + the configure alias).
+     *
+     * The archive list is built from the filesystem (not a table), so it is
+     * collected, searched, sorted and then sliced by hand into a paginator.
+     * Checksums are NEVER computed here — only recalled — because hashing a
+     * large zip on every page load would make the page unusable. The Verify
+     * action computes one on demand.
      */
     private function indexData(): array
     {
         $disk = Storage::disk($this->backupDisk());
         $config = BackupConfig::current();
 
-        $backups = collect($disk->allFiles())
+        $original = collect($disk->allFiles())
             ->filter(fn ($p) => str_ends_with($p, '.zip'))
             ->map(fn ($p) => [
                 'path' => $p,
-                'size' => $disk->size($p),
-                'last_modified' => $disk->lastModified($p),
-            ])
-            ->sortByDesc('last_modified')
-            ->values();
+                'name' => basename($p),
+                'size' => (int) $disk->size($p),
+                'last_modified' => (int) $disk->lastModified($p),
+            ]);
 
-        $scheduler = $this->schedulerHealth($backups);
+        $totalCount = $original->count();
+        $totalSize = (int) $original->sum('size');
+
+        $search = trim((string) request()->query('q', ''));
+        $filtered = $original;
+
+        if ($search !== '') {
+            $needle = mb_strtolower($search);
+            $filtered = $filtered->filter(fn ($b) => str_contains(mb_strtolower($b['name']), $needle));
+        }
+
+        $sort = (string) request()->query('sort', 'date');
+        $direction = strtolower((string) request()->query('dir', 'desc')) === 'asc' ? 'asc' : 'desc';
+
+        $filtered = match ($sort) {
+            'name' => $filtered->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE),
+            'size' => $filtered->sortBy('size'),
+            default => $filtered->sortBy('last_modified'),
+        };
+
+        if ($direction === 'desc') {
+            $filtered = $filtered->reverse();
+        }
+
+        $filtered = $filtered->values();
+        $filteredSize = (int) $filtered->sum('size');
+
+        $perPage = 20;
+        $page = max(1, (int) request()->query('page', 1));
+
+        $backups = new LengthAwarePaginator(
+            $filtered->forPage($page, $perPage)->values(),
+            $filtered->count(),
+            $perPage,
+            $page,
+            ['path' => route('dashboard.backups.index'), 'query' => request()->query()],
+        );
+
+        // Per-row enrichment: where each archive actually lives, plus its
+        // remembered checksum (null until "Verify" has been run once).
+        $diskName = $this->backupDisk();
+        $backups->getCollection()->transform(function (array $backup) use ($diskName) {
+            $backup['destinations'] = BackupArchive::destinations($backup['path']);
+            $backup['checksum'] = BackupArchive::cachedChecksum($diskName, $backup['path'], $backup['last_modified']);
+
+            return $backup;
+        });
+
+        $scheduler = $this->schedulerHealth($original);
 
         return [
             'backups' => $backups,
             'config' => $config,
+            'diskNames' => BackupDestinations::all(),
+            'search' => $search,
+            'sort' => $sort,
+            'dir' => $direction,
+            'totalCount' => $totalCount,
+            'totalSize' => $totalSize,
+            'filteredSize' => $filteredSize,
+            'lastBackupAt' => $this->lastSuccessfulBackupAt($original),
+            'nextRunAt' => $this->nextRunAt(),
             // "Configured" reflects EITHER a DB-stored value (UI) or the env
             // fallback — both are legitimate sources.
             'gdriveConfigured' => BackupDestinations::gdriveConfigured() || CloudBackupCredentials::gdriveConfiguredFromDb(),
@@ -405,6 +469,166 @@ class BackupController extends Controller
             'schedulerIssue' => $scheduler['issue'],
             'schedulerCronLine' => $scheduler['cron_line'],
         ];
+    }
+
+    /**
+     * When the newest backup was created: the most recent successful `backup`
+     * log row, falling back to the newest archive on disk. Uses the ORIGINAL
+     * (unfiltered) collection so a search can't distort the header stats.
+     */
+    private function lastSuccessfulBackupAt(Collection $backups): ?Carbon
+    {
+        $fromLog = null;
+
+        try {
+            $row = BackupLog::query()
+                ->where('action', 'backup')
+                ->where('status', 'success')
+                ->latest('id')
+                ->first();
+            $fromLog = $row?->created_at;
+        } catch (\Throwable) {
+            // backup_logs missing — fall back to the archive mtime.
+        }
+
+        $fromDisk = $backups->isNotEmpty()
+            ? Carbon::createFromTimestamp((int) $backups->max('last_modified'))
+            : null;
+
+        if ($fromLog && $fromDisk) {
+            return $fromLog->greaterThan($fromDisk) ? $fromLog : $fromDisk;
+        }
+
+        return $fromLog ?? $fromDisk;
+    }
+
+    /**
+     * The next moment the scheduler will run `backup:run`, derived from the
+     * configured cadence. Null when automatic backups are off.
+     *
+     * Mirrors the schedule definitions in routes/console.php: daily() fires at
+     * the configured time every day, weekly() on Sunday, monthly() on the 1st.
+     */
+    private function nextRunAt(): ?Carbon
+    {
+        $config = BackupConfig::current();
+
+        if (! in_array($config->frequency, ['daily', 'weekly', 'monthly'], true)) {
+            return null;
+        }
+
+        [$hour, $minute] = array_map('intval', explode(':', $config->runAtLabel()));
+        $now = now();
+
+        $candidate = match ($config->frequency) {
+            'weekly' => $now->copy()->next(Carbon::SUNDAY)->setTime($hour, $minute),
+            'monthly' => $now->copy()->startOfMonth()->setTime($hour, $minute),
+            default => $now->copy()->setTime($hour, $minute),
+        };
+
+        if ($candidate->isPast()) {
+            $candidate = match ($config->frequency) {
+                'weekly' => $candidate->addWeek(),
+                'monthly' => $candidate->addMonthNoOverflow(),
+                default => $candidate->addDay(),
+            };
+        }
+
+        return $candidate;
+    }
+
+    /**
+     * Compute (or recompute) an archive's sha256 and report whether it matches
+     * the previously recorded digest. The first run simply records it; a later
+     * mismatch means the stored archive changed underneath us — corruption or
+     * tampering, which is exactly what an operator wants to know before
+     * restoring from it.
+     */
+    public function verify(Request $request): RedirectResponse
+    {
+        $path = (string) $request->input('path', '');
+        $this->guardPath($path);
+
+        $diskName = $this->backupDisk();
+        $disk = Storage::disk($diskName);
+
+        if ($path === '' || ! $disk->exists($path)) {
+            return $this->recordLog('verify', 'failure', __('Backup not found.'), path: $path);
+        }
+
+        $modified = (int) $disk->lastModified($path);
+        $previous = BackupArchive::cachedChecksum($diskName, $path, $modified);
+
+        try {
+            $hash = BackupArchive::checksum($diskName, $path, $modified);
+        } catch (\Throwable $e) {
+            return $this->recordLog('verify', 'failure', $e->getMessage(), path: $path);
+        }
+
+        if ($previous === null) {
+            return $this->recordLog('verify', 'success', __('Checksum recorded: :hash', ['hash' => $hash]), path: $path);
+        }
+
+        if (! hash_equals($previous, $hash)) {
+            $this->writeAudit('backup.verify.mismatch', ['path' => $path, 'previous' => $previous, 'current' => $hash]);
+
+            return $this->recordLog(
+                'verify',
+                'failure',
+                __('Archives do not match — the stored file changed since it was last verified. Do not restore from it unless you know why.'),
+                path: $path,
+            );
+        }
+
+        return $this->recordLog('verify', 'success', __('Archive verified — checksum matches (:hash).', ['hash' => $hash]), path: $path);
+    }
+
+    /**
+     * Delete several archives at once, fanning out over every active
+     * destination disk like the single-archive delete does.
+     */
+    public function bulkDestroy(Request $request): RedirectResponse
+    {
+        $paths = (array) $request->input('paths', []);
+        $paths = array_values(array_filter(array_map('strval', $paths), fn ($p) => $p !== ''));
+
+        if ($paths === []) {
+            return back()->withErrors(['backup' => __('Select at least one backup to delete.')]);
+        }
+
+        $deleted = 0;
+        $failures = [];
+
+        foreach ($paths as $path) {
+            $this->guardPath($path);
+
+            $deletedFrom = [];
+
+            foreach (BackupDestinations::all() as $diskName) {
+                try {
+                    $disk = Storage::disk($diskName);
+                    if ($disk->exists($path)) {
+                        $disk->delete($path);
+                        $deletedFrom[] = $diskName;
+                    }
+                } catch (\Throwable $e) {
+                    $failures[] = $diskName.': '.$e->getMessage();
+                }
+            }
+
+            if ($deletedFrom !== []) {
+                $deleted++;
+                $this->writeAudit('backup.delete', ['path' => $path, 'disks' => $deletedFrom, 'bulk' => true]);
+            }
+        }
+
+        $message = __('Deleted :count backup(s).', ['count' => $deleted]);
+
+        if ($failures !== []) {
+            $message .= ' '.__('Some destinations could not be reached: :errors', ['errors' => implode(' | ', array_unique($failures))]);
+        }
+
+        return $this->recordLog('delete', $deleted > 0 ? 'success' : 'failure', $message);
     }
 
     /**

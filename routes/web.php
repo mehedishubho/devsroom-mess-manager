@@ -97,6 +97,11 @@ Route::middleware(['auth', 'role:super-admin'])
         // form body (DELETE) — never as a URL segment.
         Route::get('/download', [BackupController::class, 'download'])->name('download');
         Route::delete('/delete', [BackupController::class, 'destroy'])->name('destroy');
+        // Compute/recompute an archive's sha256 (slow on big zips, so it is an
+        // explicit action rather than part of rendering the list).
+        Route::post('/verify', [BackupController::class, 'verify'])->name('verify');
+        // Bulk delete (fans out over every active destination disk).
+        Route::delete('/bulk-delete', [BackupController::class, 'bulkDestroy'])->name('bulk-delete');
         Route::get('/restore', [RestoreController::class, 'show'])->name('restore.show');
         // Throttle the destructive POST: 5 attempts per minute.
         Route::post('/restore', [RestoreController::class, 'store'])
