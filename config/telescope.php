@@ -17,7 +17,7 @@ return [
     */
 
     // D-06 Layer 2: returns false in production unless TELESCOPE_ENABLED is explicitly truthy.
-    'enabled' => env('TELESCOPE_ENABLED', fn () => app()->environment('local')),
+    'enabled' => env('TELESCOPE_ENABLED', false),
 
     /*
     |--------------------------------------------------------------------------
