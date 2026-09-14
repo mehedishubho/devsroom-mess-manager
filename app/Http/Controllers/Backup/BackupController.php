@@ -41,6 +41,9 @@ use OwenIt\Auditing\Models\Audit;
  */
 class BackupController extends Controller
 {
+    /** Actions the Activity log can record — also the filter whitelist. */
+    private const LOG_ACTIONS = ['backup', 'purge', 'monitor', 'download', 'delete', 'restore', 'verify', 'export', 'configure'];
+
     /** True when the backup_logs table isn't readable (e.g. not migrated yet). */
     private bool $backupLogUnavailable = false;
 
@@ -461,8 +464,11 @@ class BackupController extends Controller
             // The activity log is non-critical — a fresh deploy that hasn't run
             // `php artisan migrate` yet (backup_logs table missing) must NOT 500
             // the whole Backups page and lock the super-admin out of configuring.
-            'backupLogs' => $this->safeRecentLogs(),
+            'backupLogs' => $this->activityLogs(),
             'backupLogUnavailable' => $this->backupLogUnavailable,
+            'logAction' => $this->logFilterAction(),
+            'logStatus' => $this->logFilterStatus(),
+            'logActions' => self::LOG_ACTIONS,
             // Scheduler health — surfaces a missing server cron (the #1 reason
             // "backups are configured but none appear"). See schedulerHealth().
             'schedulerHealthy' => $scheduler['healthy'],
@@ -701,21 +707,133 @@ class BackupController extends Controller
     }
 
     /**
-     * Read the latest backup log rows, tolerating a missing backup_logs table
-     * (fresh deploy that hasn't run `php artisan migrate`). Sets the
-     * $backupLogUnavailable flag so the view can show a "run migrate" banner.
+     * The paginated, filterable activity log.
      *
-     * @return Collection
+     * The log used to be a hard `limit(25)`, which meant an older failure
+     * vanished the moment 25 newer rows accumulated — exactly when you'd want
+     * to find it. Filters + paging + a CSV export make it an actual audit
+     * surface, and each failure row carries an actionable hint.
      */
-    private function safeRecentLogs()
+    private function activityLogs(): LengthAwarePaginator
     {
+        $empty = fn () => new LengthAwarePaginator([], 0, 25, 1, [
+            'path' => route('dashboard.backups.index'),
+            'query' => request()->query(),
+        ]);
+
         try {
-            return BackupLog::latest('id')->limit(25)->get();
+            $query = BackupLog::query()->latest('id');
+
+            if ($this->logFilterAction() !== '') {
+                $query->where('action', $this->logFilterAction());
+            }
+
+            if ($this->logFilterStatus() !== '') {
+                $query->where('status', $this->logFilterStatus());
+            }
+
+            $logs = $query->paginate(25, ['*'], 'log_page')->withQueryString();
         } catch (\Throwable) {
             $this->backupLogUnavailable = true;
 
-            return collect();
+            return $empty();
         }
+
+        $logs->getCollection()->transform(function (BackupLog $log) {
+            $log->hint = $log->status === 'failure' ? $this->failureHint($log->message) : null;
+
+            return $log;
+        });
+
+        return $logs;
+    }
+
+    /** Whitelist the log action filter so a crafted query can't widen the scan. */
+    private function logFilterAction(): string
+    {
+        $action = (string) request()->query('log_action', '');
+
+        return in_array($action, self::LOG_ACTIONS, true) ? $action : '';
+    }
+
+    private function logFilterStatus(): string
+    {
+        $status = (string) request()->query('log_status', '');
+
+        return in_array($status, ['success', 'failure'], true) ? $status : '';
+    }
+
+    /**
+     * Turn a captured failure message into something actionable. The log
+     * already tells the operator WHY a backup failed; this tells them what to
+     * do about it without leaving the page.
+     */
+    private function failureHint(?string $message): ?string
+    {
+        if ($message === null || $message === '') {
+            return null;
+        }
+
+        $haystack = mb_strtolower($message);
+
+        return match (true) {
+            str_contains($haystack, 'mysqldump') || str_contains($haystack, 'dump process failed') || str_contains($haystack, 'command not found') => __('mysqldump is missing or not on PATH. Install the MySQL client and/or point DUMP_BINARY_PATH at its directory, then run `php artisan backup:install` on the server for a full diagnosis.'),
+            str_contains($haystack, 'not writable') || str_contains($haystack, 'permission denied') => __('storage/app is not writable by the web user. Re-own it to the account PHP runs as (`chown -R <site-user>:<site-user> storage`) — `php artisan backup:install` prints the exact commands and checks ownership.'),
+            str_contains($haystack, 'invalid argument') => __('ZipArchive failed while writing the archive. This is almost always a missing/unwritable storage/app/backup-temp directory or a full disk — run `php artisan backup:install` to pinpoint it.'),
+            str_contains($haystack, 'open_basedir') => __('PHP open_basedir excludes the system temp dir, which breaks ZipArchive. Point sys_temp_dir/upload_tmp_dir at storage/app/tmp, or widen open_basedir.'),
+            str_contains($haystack, 'connection refused') || str_contains($haystack, 'access denied') || str_contains($haystack, 'unknown database') => __('The database connection failed. Verify the DB credentials in .env and that MySQL is reachable from the app server.'),
+            str_contains($haystack, 'not found') || str_contains($haystack, 'no such file') => __('A required file or binary was not found. Run `php artisan backup:install` on the server — it checks mysqldump, the storage directories, open_basedir and the cron line.'),
+            default => null,
+        };
+    }
+
+    /**
+     * Export the (filtered) activity log as CSV. Audit-logged: pulling the
+     * operational history off-server is a significant act.
+     */
+    public function exportLogs(Request $request)
+    {
+        try {
+            $query = BackupLog::query();
+
+            if ($this->logFilterAction() !== '') {
+                $query->where('action', $this->logFilterAction());
+            }
+
+            if ($this->logFilterStatus() !== '') {
+                $query->where('status', $this->logFilterStatus());
+            }
+
+            $rows = $query->latest('id')->get();
+        } catch (\Throwable) {
+            return back()->withErrors(['backup' => __('The activity log is unavailable (the backup_logs table is missing).')]);
+        }
+
+        $this->writeAudit('backup.logs.export', [
+            'count' => $rows->count(),
+            'action' => $this->logFilterAction(),
+            'status' => $this->logFilterStatus(),
+        ]);
+
+        return response()->streamDownload(function () use ($rows) {
+            $out = fopen('php://output', 'w');
+
+            fputcsv($out, ['id', 'created_at', 'action', 'status', 'path', 'user_id', 'message']);
+
+            foreach ($rows as $row) {
+                fputcsv($out, [
+                    $row->id,
+                    $row->created_at?->toDateTimeString(),
+                    $row->action,
+                    $row->status,
+                    $row->path,
+                    $row->user_id,
+                    $row->message,
+                ]);
+            }
+
+            fclose($out);
+        }, 'backup-activity-'.now()->format('Y-m-d-His').'.csv', ['Content-Type' => 'text/csv']);
     }
 
     /**

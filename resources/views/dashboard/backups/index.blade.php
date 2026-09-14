@@ -89,14 +89,50 @@
                 <h2 class="text-lg font-semibold leading-tight text-slate-900">{{ __('Activity log') }}</h2>
                 <p class="mt-1 text-sm text-slate-600">{{ __('Every backup / purge / monitor / restore attempt — failures show the real reason (e.g. mysqldump missing).') }}</p>
             </div>
-            @if ($backupLogs->isNotEmpty())
-                <form action="{{ route('dashboard.backups.logs.clear') }}" method="POST" onsubmit="return confirm('{{ __('Delete ALL log entries?') }}');">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="btn btn-secondary">{{ __('Clear all') }}</button>
-                </form>
-            @endif
+            <div class="flex flex-wrap items-center gap-2">
+                <a href="{{ route('dashboard.backups.logs.export', array_filter(['log_action' => $logAction, 'log_status' => $logStatus])) }}" class="btn btn-secondary">{{ __('Export CSV') }}</a>
+                @if ($backupLogs->isNotEmpty())
+                    <form action="{{ route('dashboard.backups.logs.clear') }}" method="POST" onsubmit="return confirm('{{ __('Delete ALL log entries?') }}');">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn btn-secondary">{{ __('Clear all') }}</button>
+                    </form>
+                @endif
+            </div>
         </div>
+
+        {{-- Filters preserve the backup-list query so one refresh doesn't wipe the other. --}}
+        <form method="GET" action="{{ route('dashboard.backups.index') }}" class="mt-4 flex flex-wrap items-end gap-2">
+            @if ($search !== '')
+                <input type="hidden" name="q" value="{{ $search }}" />
+            @endif
+            @if ($sort !== 'date' || $dir !== 'desc')
+                <input type="hidden" name="sort" value="{{ $sort }}" />
+                <input type="hidden" name="dir" value="{{ $dir }}" />
+            @endif
+            <label class="flex flex-col gap-1">
+                <span class="text-xs font-medium text-slate-600">{{ __('Action') }}</span>
+                <select name="log_action" class="input">
+                    <option value="">{{ __('All actions') }}</option>
+                    @foreach ($logActions as $action)
+                        <option value="{{ $action }}" @selected($logAction === $action)>{{ $action }}</option>
+                    @endforeach
+                </select>
+            </label>
+            <label class="flex flex-col gap-1">
+                <span class="text-xs font-medium text-slate-600">{{ __('Status') }}</span>
+                <select name="log_status" class="input">
+                    <option value="">{{ __('Any status') }}</option>
+                    <option value="success" @selected($logStatus === 'success')>{{ __('success') }}</option>
+                    <option value="failure" @selected($logStatus === 'failure')>{{ __('failed') }}</option>
+                </select>
+            </label>
+            <button type="submit" class="btn btn-secondary">{{ __('Filter') }}</button>
+            @if ($logAction !== '' || $logStatus !== '')
+                <a href="{{ route('dashboard.backups.index') }}" class="text-xs font-medium text-slate-600 hover:underline">{{ __('Reset') }}</a>
+            @endif
+        </form>
+
         @if (! empty($backupLogUnavailable))
             <p class="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
                 {{ __('Activity log is unavailable — the backup_logs table is missing. Run "php artisan migrate --force" on the server to enable it.') }}
@@ -128,6 +164,11 @@
                             <td class="max-w-xl px-3 py-2 text-xs text-slate-600">
                                 @if ($log->path)<span class="break-all font-mono text-slate-500">{{ basename($log->path) }}</span>@if ($log->message)<br />@endif @endif
                                 @if ($log->message)<span class="break-words whitespace-pre-wrap">{{ $log->message }}</span>@endif
+                                @if (! empty($log->hint))
+                                    <p class="mt-1 rounded bg-amber-50 px-2 py-1 text-amber-900">
+                                        <span class="font-semibold">{{ __('What to do:') }}</span> {{ $log->hint }}
+                                    </p>
+                                @endif
                             </td>
                             <td class="px-3 py-2 text-right">
                                 <form method="POST" action="{{ route('dashboard.backups.logs.destroy', $log) }}" class="inline" onsubmit="return confirm('{{ __('Delete this log entry?') }}');">
@@ -145,6 +186,9 @@
                 </tbody>
             </table>
         </div>
+        @if ($backupLogs->hasPages())
+            <div class="mt-4">{{ $backupLogs->links() }}</div>
+        @endif
     </section>
 
     {{-- Schedule + retention + storage-provider toggles (Configure form, inline) --}}

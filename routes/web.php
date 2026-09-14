@@ -91,6 +91,8 @@ Route::middleware(['auth', 'role:super-admin'])
         // Activity-log delete.
         Route::delete('/logs', [BackupController::class, 'clearLogs'])->name('logs.clear');
         Route::delete('/logs/{log}', [BackupController::class, 'destroyLog'])->name('logs.destroy');
+        // CSV export of the (filtered) activity log.
+        Route::get('/logs/export', [BackupController::class, 'exportLogs'])->name('logs.export');
         // Per-backup actions. The backup path is "<APP_NAME>/<file>.zip" and
         // the embedded slash + .zip extension trip nginx static-file matching
         // on shared hosting, so the path is passed via ?path= (GET) or the
