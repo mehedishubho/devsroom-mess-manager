@@ -164,7 +164,7 @@ All channels **fail open** — a down or misconfigured provider logs the failure
 
 ## 5. Deployment
 
-> **Self-hosting panels:** [DEPLOYMENT.md §12](./DEPLOYMENT.md) now covers **[Dokploy](https://dokploy.com/)** and **[Coolify](https://coolify.io/)** — commit a Dockerfile + compose file to the repo and the panel handles web/queue/scheduler/MySQL/TLS/deploy-on-push. The cPanel recipe below (§5.3) is summarized in [DEPLOYMENT.md §13](./DEPLOYMENT.md).
+> **Self-hosting panels:** [DEPLOYMENT.md §6](./DEPLOYMENT.md) now covers **[Dokploy](https://dokploy.com/)** and **[Coolify](https://coolify.io/)** — commit a Dockerfile + compose file to the repo and the panel handles web/queue/scheduler/MySQL/TLS/deploy-on-push. The cPanel recipe below (§5.3) is summarized in [DEPLOYMENT.md §7](./DEPLOYMENT.md).
 
 ### 5.1 Production `.env` checklist (both VPS & shared)
 
@@ -211,14 +211,14 @@ php artisan config:cache && php artisan route:cache && php artisan view:cache
 
 Then three infrastructure pieces:
 
-1. **Nginx** vhost with document root = `/var/www/mess/public` (point `fastcgi` to PHP-FPM). See DEPLOYMENT.md §4.2.
+1. **Nginx** vhost with document root = `/var/www/mess/public` (point `fastcgi` to PHP-FPM). See DEPLOYMENT.md §5.2.
 2. **Supervisor** keeps the queue worker alive:
    ```ini
    [program:mess-queue]
    command=php /var/www/mess/artisan queue:work database --sleep=3 --tries=3 --max-time=3600
    autostart=true autorestart=true user=www-data
    ```
-   (DEPLOYMENT.md §4.3 — verbatim.)
+   (DEPLOYMENT.md §5.3 — verbatim.)
 3. **Cron** for the scheduler (runs backups/purge/monitor/log-prune/telescope:prune on schedule):
    ```
    * * * * * cd /var/www/mess && php artisan schedule:run >> /dev/null 2>&1

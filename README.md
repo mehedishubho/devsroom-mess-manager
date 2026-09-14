@@ -385,7 +385,7 @@ upload_tmp_dir = /home/<site-user>/htdocs/<domain>/storage/app/tmp
 
 The app also catches failures that `backup:run` silently swallows: if a run reports success but no zip was produced (e.g. `mysqldump` missing or the temp dir blocked), the pre-flight + post-run checks mark it failed and the activity log shows why.
 
-For the full VPS/Forge disaster-recovery runbook (restore steps, credential rotation, retention), see [**DEPLOYMENT.md §11**](./DEPLOYMENT.md).
+For the full VPS/Forge disaster-recovery runbook (restore steps, credential rotation, retention), see [**DEPLOYMENT.md §12**](./DEPLOYMENT.md).
 
 ---
 
