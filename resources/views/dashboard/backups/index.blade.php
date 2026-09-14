@@ -78,6 +78,7 @@
                     </div>
                         <p class="mt-2 text-xs text-amber-700">{{ __('Then click "Backup now" to confirm the mechanism works. If it fails, the Activity log below shows the reason.') }}</p>
                         <p class="mt-2 text-xs text-amber-700">{{ __('If "php" is not on the cron user\'s PATH (common on shared hosting), run "php artisan backup:install" on the server — it prints this exact line with the absolute PHP path.') }}</p>
+                        <p class="mt-2 text-xs text-amber-700">{{ __('Deployed in a container? A host crontab cannot reach this path (:path) because it only exists inside the container. Run "php artisan schedule:work" as a long-lived service instead — no cron needed.', ['path' => base_path()]) }}</p>
                     </div>
                 </div>
             </section>
