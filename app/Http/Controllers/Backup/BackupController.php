@@ -20,6 +20,7 @@ use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -448,6 +449,7 @@ class BackupController extends Controller
         });
 
         $scheduler = $this->schedulerHealth($original);
+        $queue = $this->queueHealth();
 
         return [
             'backups' => $backups,
@@ -484,6 +486,12 @@ class BackupController extends Controller
             'schedulerHealthy' => $scheduler['healthy'],
             'schedulerIssue' => $scheduler['issue'],
             'schedulerCronLine' => $scheduler['cron_line'],
+            // Queue health — catches the "clicked Backup now, it says running
+            // forever" case, which is just an idle queue with no worker.
+            'queueHealthy' => $queue['healthy'],
+            'queueIssue' => $queue['issue'],
+            'queuePending' => $queue['pending'],
+            'queueWorkerCommand' => $this->queueWorkerCommand(),
         ];
     }
 
@@ -664,7 +672,7 @@ class BackupController extends Controller
      */
     private function schedulerHealth(Collection $backups): array
     {
-        $cronLine = '* * * * * cd '.base_path().' && '.PHP_BINARY.' artisan schedule:run >> /dev/null 2>&1';
+        $cronLine = '* * * * * cd '.base_path().' && '.$this->phpBinaryForCron().' artisan schedule:run >> /dev/null 2>&1';
         $config = BackupConfig::current();
 
         // Backups intentionally off → nothing to warn about.
@@ -750,7 +758,17 @@ class BackupController extends Controller
         }
 
         $logs->getCollection()->transform(function (BackupLog $log) {
+            // A `running` row that never moved is not "in progress" — nothing
+            // picked the job up. Say so instead of spinning forever.
+            $log->stale = $log->status === 'running'
+                && $log->created_at !== null
+                && $log->created_at->lt(now()->subMinutes(self::QUEUE_STALE_MINUTES));
+
             $log->hint = $log->status === 'failure' ? $this->failureHint($log->message) : null;
+
+            if ($log->stale) {
+                $log->hint = __('This job was never picked up — no queue worker is consuming the queue. Start one (`:cmd`, or the queue service in your panel), then run it again.', ['cmd' => $this->queueWorkerCommand()]);
+            }
 
             return $log;
         });
@@ -774,10 +792,81 @@ class BackupController extends Controller
     }
 
     /**
-     * Turn a captured failure message into something actionable. The log
-     * already tells the operator WHY a backup failed; this tells them what to
-     * do about it without leaving the page.
+     * The PHP executable to put in the suggested cron line.
+     *
+     * `PHP_BINARY` is ONLY meaningful in the CLI SAPI. This banner is rendered
+     * by php-fpm, where `PHP_BINARY` is empty — which produced a cron line
+     * reading `... && artisan schedule:run` with no interpreter at all, i.e. a
+     * line guaranteed to fail. Fall back to a bare `php` (the conventional
+     * form, and correct in containers where php is on PATH); `backup:install`
+     * runs in CLI and prints the line with the absolute PHP path when a host
+     * needs one.
      */
+    private function phpBinaryForCron(): string
+    {
+        if (app()->runningInConsole() && PHP_BINARY !== '') {
+            return PHP_BINARY;
+        }
+
+        return 'php';
+    }
+
+    /**
+     * Is anything actually consuming the queue?
+     *
+     * "Backup now" and every restore are dispatched onto the `database` queue.
+     * With no worker running they sit in the `jobs` table forever and the
+     * activity row stays `running` — which reads as "still working" when the
+     * truth is "nothing is listening". A pending job older than a few minutes
+     * is a reliable tell.
+     *
+     * @return array{healthy:bool, pending:int, issue:?string}
+     */
+    private function queueHealth(): array
+    {
+        try {
+            $pending = DB::table('jobs')->count();
+
+            if ($pending === 0) {
+                return ['healthy' => true, 'pending' => 0, 'issue' => null];
+            }
+
+            $oldest = DB::table('jobs')->min('created_at');
+        } catch (\Throwable) {
+            // No jobs table (sync queue, or not migrated) — nothing to warn about.
+            return ['healthy' => true, 'pending' => 0, 'issue' => null];
+        }
+
+        $ageMinutes = $oldest ? (int) ((now()->getTimestamp() - (int) $oldest) / 60) : 0;
+
+        if ($ageMinutes < self::QUEUE_STALE_MINUTES) {
+            return ['healthy' => true, 'pending' => $pending, 'issue' => null];
+        }
+
+        return [
+            'healthy' => false,
+            'pending' => $pending,
+            'issue' => __(':count queued job(s) have been waiting :age — the queue worker is almost certainly not running. "Backup now" and restores stay stuck on "running" until a worker picks them up.', [
+                'count' => $pending,
+                'age' => trans_choice(':count minute|:count minutes', $ageMinutes, ['count' => $ageMinutes]),
+            ]),
+        ];
+    }
+
+    /**
+     * A `running` activity row older than this is treated as "never picked up"
+     * rather than "in progress".
+     */
+    private const QUEUE_STALE_MINUTES = 3;
+
+    /**
+     * The command an operator needs to start a worker for this deployment.
+     */
+    private function queueWorkerCommand(): string
+    {
+        return 'php artisan queue:work';
+    }
+
     private function failureHint(?string $message): ?string
     {
         if ($message === null || $message === '') {

@@ -182,7 +182,11 @@ sudo supervisorctl status     # verify mess-worker:RUNNING
 * * * * * cd /var/www/mess && php artisan schedule:run >> /dev/null 2>&1
 ```
 
-This fires Laravel's scheduler every minute. The scheduler runs `telescope:prune` daily (class_exists-guarded so prod without telescope doesn't error). Verify: `sudo crontab -l`.
+This fires Laravel's scheduler every minute. The scheduler runs `telescope:prune` daily (class_exists-guarded so prod without telescope doesn't error), plus the backup cadence (`backup:purge` 01:00, `backup:run` at the configured time, `backup:monitor` 02:00, `backup:prune-logs` 03:00). Verify: `sudo crontab -l`.
+
+> **The cron runs backups; the WORKER runs on-demand ones.** "Backup now", every restore, and the post-close hook are queued jobs. Without the queue worker from §4.3 running, they sit in the `jobs` table and the Backups page shows them as **stuck** (with a red banner). On a container platform with no host cron (Dokploy/Coolify/§12), run `php artisan schedule:work` as a long-lived service instead of this crontab line — and keep a separate `queue:work` service.
+>
+> If the banner's suggested line uses a bare `php`, that is the portable form. When the cron user's PATH lacks PHP (common on shared hosting), run `php artisan backup:install` on the server — it prints the same line with the absolute PHP path.
 
 ---
 
@@ -458,6 +462,7 @@ This is **OPTIONAL** per the project decisions (CONTEXT.md deferred note) — Ph
 | A cloud mirror never receives the archive | Invalid credentials, the provider toggle is off, or that mirror disk errored | Open **Backups → Storage providers → Test connection**; it reports the real error. Each backup row also shows a per-destination tick, so a missing tick means that mirror did not receive the archive. |
 | `backup:monitor` reports `UnhealthyBackupWasFound` | Backup too old OR too big | Check the scheduler is running (`sudo crontab -l \| grep schedule:run`). Check `BACKUP_MAX_MB` — increase if the mess genuinely has more data. Run `php artisan backup:run` manually to refresh. The notification lands in the super-admin bell + email (§11.7). |
 | Restore shows "Restore failed. App is back online" but the app looks fine | The restore service caught an exception but called `up` in `finally` | Check `storage/logs/laravel.log` for the exception. The audit-log row (`event='backup.restore.failed'`) has the error message under `/mess/audit` (filter `tags=backup`). The live DB was NOT modified if the exception fired before the DB-restore step. |
+| "Backup now" sits on `running` and then flips to `stuck` | No queue worker is consuming the queue, so the dispatched job never runs | Start one: `php artisan queue:work` (or the `queue` service in your panel / the supervisor program in §4.3). The Backups page shows a red "Background jobs are not being processed" banner while jobs are waiting. |
 | Restore ran but files 404 on the web (broken image links) | The `public/storage` symlink was clobbered | `php artisan storage:link`. Verify with `ls -la public/storage` → points to `../storage/app/public`. (Pitfall 4 — §11.5 step 6) |
 | GTID error restoring a managed-MySQL dump (`ERROR 3546`) | `mysqldump` emitted a `SET @@GLOBAL.GTID_PURGED` line (only happens when moving to a managed/hosted MySQL) | Self-managed VPS MySQL (per §2/§4) does NOT hit this. If you later move to a managed MySQL, add `--set-gtid-purged=OFF` to the dump config in `config/database.php` → `connections.mysql.dump`. (Pitfall 10) |
 | Month-close completed but no immediate backup landed | Post-close `after()` hook's `Artisan::call('backup:run', ['--only-db' => true])` threw | The hook is wrapped in try/catch so the close itself succeeded (T-06-02-07). Check `storage/logs/laravel.log`. The nightly 01:30 run will still capture the close. |

@@ -76,11 +76,37 @@
                             {{ __('Copy') }}
                         </button>
                     </div>
-                    <p class="mt-2 text-xs text-amber-700">{{ __('Then click "Backup now" to confirm the mechanism works. If it fails, the Activity log below shows the reason.') }}</p>
+                        <p class="mt-2 text-xs text-amber-700">{{ __('Then click "Backup now" to confirm the mechanism works. If it fails, the Activity log below shows the reason.') }}</p>
+                        <p class="mt-2 text-xs text-amber-700">{{ __('If "php" is not on the cron user\'s PATH (common on shared hosting), run "php artisan backup:install" on the server — it prints this exact line with the absolute PHP path.') }}</p>
+                    </div>
                 </div>
-            </div>
-        </section>
-    @endif
+            </section>
+        @endif
+
+        {{-- Queue-health banner: "Backup now" and restores are queued jobs. With no
+             worker they sit in the jobs table and the activity row says "running"
+             forever, which reads as "still working" when nothing is listening. --}}
+        @if (! ($queueHealthy ?? true))
+            <section class="mb-6 rounded-xl border border-rose-300 bg-rose-50 p-4 shadow-sm">
+                <div class="flex items-start gap-3">
+                    <span class="mt-0.5 text-xl" aria-hidden="true">⛔</span>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-sm font-semibold text-rose-900">{{ __('Background jobs are not being processed') }}</p>
+                        <p class="mt-1 text-sm text-rose-800">{{ $queueIssue }}</p>
+                        <p class="mt-3 text-xs font-medium uppercase tracking-wide text-rose-700">{{ __('Run a queue worker (or enable the queue service in your panel):') }}</p>
+                        <div class="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center">
+                            <code class="block flex-1 break-all rounded bg-rose-100 px-3 py-2 font-mono text-xs text-rose-900">cd {{ base_path() }} &amp;&amp; {{ $queueWorkerCommand }}</code>
+                            <button type="button"
+                                    class="btn btn-secondary text-xs"
+                                    onclick="navigator.clipboard && navigator.clipboard.writeText({{ json_encode('cd '.base_path().' && '.$queueWorkerCommand) }}); this.textContent = '{{ __('Copied') }}';">
+                                {{ __('Copy') }}
+                            </button>
+                        </div>
+                        <p class="mt-2 text-xs text-rose-700">{{ __('Until a worker is running, every "Backup now" and restore stays queued. On shared hosting with QUEUE_CONNECTION=sync jobs run inline, so this banner never appears.') }}</p>
+                    </div>
+                </div>
+            </section>
+        @endif
 
     {{-- Backup activity log (shown FIRST so a failed Backup now is immediately visible) --}}
     <section class="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
@@ -157,6 +183,8 @@
                             <td class="px-3 py-2 text-sm">
                                 @if ($log->status === 'success')
                                     <span class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">{{ __('success') }}</span>
+                                @elseif ($log->status === 'running' && ($log->stale ?? false))
+                                    <span class="inline-flex items-center rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-800" title="{{ __('No queue worker picked this up') }}">{{ __('stuck') }}</span>
                                 @elseif ($log->status === 'running')
                                     <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">{{ __('running') }}</span>
                                 @else
