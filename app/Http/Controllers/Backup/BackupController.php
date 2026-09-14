@@ -323,6 +323,15 @@ class BackupController extends Controller
             // proceed; the probe will surface the real failure
         }
 
+        // Then let the values currently typed in the form win, so credentials
+        // can be tested BEFORE saving them. An empty secret box means "I didn't
+        // retype it", so fall back to the stored secret.
+        $this->applyRequestCredentials($request, $provider);
+
+        // The disk may already have been resolved earlier in this request with
+        // the old config — drop it so the probe uses what we just applied.
+        Storage::forgetDisk($disk);
+
         $probe = '__connection_test.txt';
 
         try {
@@ -346,6 +355,42 @@ class BackupController extends Controller
         }
 
         return $ok ? back()->with('success', $message) : back()->withErrors(['test' => $message]);
+    }
+
+    /**
+     * Overlay the credentials typed in the form onto the disk config for a
+     * probe. Testing had to be done AFTER saving, which meant saving a value
+     * you already suspected was wrong — this closes that loop.
+     */
+    private function applyRequestCredentials(Request $request, string $provider): void
+    {
+        $saved = BackupConfig::current();
+
+        $map = $provider === 'gdrive'
+            ? [
+                'backups-gdrive' => [
+                    'clientId' => $request->input('gdrive_client_id') ?: $saved->gdrive_client_id,
+                    'clientSecret' => $request->input('gdrive_client_secret') ?: $saved->gdrive_client_secret,
+                    'refreshToken' => $request->input('gdrive_refresh_token') ?: $saved->gdrive_refresh_token,
+                    'folderId' => $request->input('gdrive_folder_id') ?: $saved->gdrive_folder_id,
+                ],
+            ]
+            : [
+                'backups-r2' => [
+                    'key' => $request->input('r2_key') ?: $saved->r2_key,
+                    'secret' => $request->input('r2_secret') ?: $saved->r2_secret,
+                    'region' => $request->input('r2_region') ?: $saved->r2_region,
+                    'bucket' => $request->input('r2_bucket') ?: $saved->r2_bucket,
+                    'endpoint' => $request->input('r2_endpoint') ?: $saved->r2_endpoint,
+                ],
+                'backups-r2.use_path_style_endpoint' => (bool) ($request->input('r2_use_path_style') ?? $saved->r2_use_path_style),
+            ];
+
+        foreach ($map as $key => $value) {
+            if (filled($value)) {
+                config(["filesystems.disks.{$key}" => $value]);
+            }
+        }
     }
 
     /**

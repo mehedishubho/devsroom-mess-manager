@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Backup\BackupController;
+use App\Http\Controllers\Backup\GoogleDriveController;
 use App\Http\Controllers\Backup\RestoreController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Mess\AdvanceBalanceController;
@@ -116,6 +117,10 @@ Route::middleware(['auth', 'role:super-admin'])
             ->name('restore.upload');
         // Last-resort: force the app out of maintenance mode.
         Route::post('/recover', [BackupController::class, 'recoverMaintenance'])->name('recover');
+        // Guided Google Drive connect — runs the real consent flow so the
+        // operator never has to hand-build a refresh token.
+        Route::get('/google/redirect', [GoogleDriveController::class, 'redirect'])->name('google.redirect');
+        Route::get('/google/callback', [GoogleDriveController::class, 'callback'])->name('google.callback');
     });
 
 // Public set-password (from invite link)

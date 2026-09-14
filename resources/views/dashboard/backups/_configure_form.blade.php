@@ -8,6 +8,24 @@
     @csrf
     @method('PUT')
 
+    {{-- One-click presets: the common shapes, without hand-tuning four numbers. --}}
+    <div class="flex flex-wrap items-center gap-2">
+        <span class="text-xs font-medium text-slate-600">{{ __('Start from a preset:') }}</span>
+        <button type="button" class="rounded border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
+                data-backup-preset='{"frequency":"weekly","run_at":"01:30","keep_all_days":"30","max_mb":"2000","encrypt_backups":"0"}'>
+            {{ __('Light') }}
+        </button>
+        <button type="button" class="rounded border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
+                data-backup-preset='{"frequency":"daily","run_at":"01:30","keep_all_days":"14","max_mb":"5000","encrypt_backups":"0"}'>
+            {{ __('Balanced') }}
+        </button>
+        <button type="button" class="rounded border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
+                data-backup-preset='{"frequency":"daily","run_at":"01:30","keep_all_days":"90","max_mb":"20000","encrypt_backups":"1"}'>
+            {{ __('Maximum safety') }}
+        </button>
+        <span id="backup-preset-note" class="hidden text-xs text-emerald-700">{{ __('Preset applied — review, then Save configuration.') }}</span>
+    </div>
+
     {{-- Destinations (read-only display) --}}
     <fieldset class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <legend class="mb-2 text-sm font-semibold text-slate-900">{{ __('Destinations') }}</legend>
@@ -91,7 +109,7 @@
         </summary>
 
         <div class="border-t border-slate-200 bg-white p-4">
-            <p class="mb-3 text-xs text-slate-500">{{ __('Stored encrypted in the database. Leave secret fields blank to keep the saved value. Save before testing. .env values still work as a fallback.') }}</p>
+            <p class="mb-3 text-xs text-slate-500">{{ __('Stored encrypted in the database. Test connection uses the values currently in the form — you do not have to save first. Leave a secret blank to keep the saved value. .env values still work as a fallback.') }}</p>
             <fieldset class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 
         {{-- Google Drive credentials --}}
@@ -100,6 +118,30 @@
                 <p class="font-medium text-slate-900">{{ __('Google Drive') }}</p>
                 <button type="button" data-test-provider="gdrive" class="rounded border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50">{{ __('Test connection') }}</button>
             </div>
+
+            <p class="mb-2 text-xs text-slate-500">{{ __('Fastest route: paste the Client ID + secret, Save, then click Connect Google Drive. Google asks for permission and we store the token — you never build a refresh token by hand.') }}</p>
+            <div class="mb-2">
+                <a href="{{ route('dashboard.backups.google.redirect') }}"
+                   class="inline-flex items-center rounded bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-slate-700">
+                    {{ __('Connect Google Drive') }}
+                </a>
+            </div>
+            @error('gdrive') <p class="mb-2 text-xs text-red-700">{{ $message }}</p> @enderror
+
+            <details class="mb-2 rounded border border-slate-200 bg-slate-50 p-2">
+                <summary class="cursor-pointer text-xs font-medium text-slate-700">{{ __('How do I get these?') }}</summary>
+                <ol class="mt-2 list-decimal space-y-1 pl-4 text-xs text-slate-600">
+                    <li>{{ __('Google Cloud Console → APIs & Services → Enable APIs → enable "Google Drive API".') }}</li>
+                    <li>{{ __('Credentials → Create credentials → OAuth client ID → type "Web application".') }}</li>
+                    <li>
+                        {{ __('Under "Authorized redirect URIs" add this URL exactly:') }}
+                        <code class="mt-1 block break-all rounded bg-white px-2 py-1 font-mono text-xs text-slate-800">{{ \App\Http\Controllers\Backup\GoogleDriveController::callbackUrl() }}</code>
+                    </li>
+                    <li>{{ __('Copy the Client ID and Client secret into the fields below and Save.') }}</li>
+                    <li>{{ __('Then click Connect Google Drive above — the refresh token is filled in for you.') }}</li>
+                </ol>
+            </details>
+
             <div class="space-y-2">
                 <label class="block">
                     <span class="text-xs text-slate-600">{{ __('Client ID') }}</span>
@@ -140,6 +182,18 @@
                 <p class="font-medium text-slate-900">{{ __('Cloudflare R2') }}</p>
                 <button type="button" data-test-provider="r2" class="rounded border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50">{{ __('Test connection') }}</button>
             </div>
+
+            <details class="mb-2 rounded border border-slate-200 bg-slate-50 p-2">
+                <summary class="cursor-pointer text-xs font-medium text-slate-700">{{ __('How do I get these?') }}</summary>
+                <ol class="mt-2 list-decimal space-y-1 pl-4 text-xs text-slate-600">
+                    <li>{{ __('Cloudflare dashboard → R2 → Create bucket.') }}</li>
+                    <li>{{ __('R2 → Manage API tokens → Create API token, with Object Read & Write for that bucket.') }}</li>
+                    <li>{{ __('Copy the Access Key ID and Secret Access Key into the fields below.') }}</li>
+                    <li>{{ __('Bucket = the bucket name. Endpoint = https://<account-id>.r2.cloudflarestorage.com.') }}</li>
+                    <li>{{ __('Region stays "auto" — that is Cloudflare\'s documented value.') }}</li>
+                </ol>
+            </details>
+
             <div class="space-y-2">
                 <label class="block">
                     <span class="text-xs text-slate-600">{{ __('Access key ID') }}</span>
@@ -260,8 +314,36 @@
     </div>
 
     <script>
-        // Test connection — POSTs to the test route (JSON) against the SAVED
-        // credentials. Reuses the page's CSRF token. No build step / dep.
+        // Presets — fill the schedule/retention/encryption fields, then let the
+        // operator review and Save. No server round-trip, nothing destructive.
+        document.querySelectorAll('[data-backup-preset]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var preset;
+
+                try {
+                    preset = JSON.parse(btn.getAttribute('data-backup-preset'));
+                } catch (e) {
+                    return;
+                }
+
+                Object.keys(preset).forEach(function (name) {
+                    var el = document.querySelector('[name="' + name + '"]');
+                    if (!el) return;
+                    if (el.type === 'checkbox') {
+                        el.checked = preset[name] === '1';
+                    } else {
+                        el.value = preset[name];
+                    }
+                });
+
+                var note = document.getElementById('backup-preset-note');
+                if (note) note.classList.remove('hidden');
+            });
+        });
+
+        // Test connection — POSTs the values currently in the form to the test
+        // route (JSON), so credentials can be verified before saving. Reuses the
+        // page's CSRF token. No build step / dep.
         document.querySelectorAll('[data-test-provider]').forEach(function (btn) {
             btn.addEventListener('click', async function () {
                 var provider = btn.getAttribute('data-test-provider');
@@ -273,12 +355,25 @@
                 result.textContent = '{{ __('Testing…') }}';
                 result.classList.remove('hidden');
                 try {
+                    // Send the values currently in the form so credentials can be
+                    // tested BEFORE saving. Blank secret boxes are sent empty and
+                    // the server falls back to the stored secret.
+                    var form = btn.closest('form');
+                    var body = new FormData();
+                    ['gdrive_client_id', 'gdrive_client_secret', 'gdrive_refresh_token', 'gdrive_folder_id',
+                     'r2_key', 'r2_secret', 'r2_region', 'r2_bucket', 'r2_endpoint', 'r2_use_path_style'
+                    ].forEach(function (name) {
+                        if (!form || !form.elements[name]) return;
+                        body.append(name, form.elements[name].value);
+                    });
+
                     var resp = await fetch('{{ url('/dashboard/backups/test') }}/' + encodeURIComponent(provider), {
                         method: 'POST',
                         headers: {
                             'X-CSRF-TOKEN': '{{ csrf_token() }}',
                             'Accept': 'application/json'
-                        }
+                        },
+                        body: body
                     });
                     var data = await resp.json();
                     result.className = 'text-xs ' + (data.ok ? 'text-emerald-700' : 'text-rose-700');
