@@ -412,12 +412,11 @@ If the app itself is down (white screen, fatal error before Laravel boots, bad m
 
 Local backups need **zero configuration**. To survive the loss of the VPS, add a mirror. Both providers are configured from the Backups page — credentials are stored encrypted in the database (never in `.env`, and never inside a backup archive).
 
-1. Log in as **super-admin** → **Backups** → **Storage providers**.
-2. Enable the provider for **Use for backups** (and/or **Use for uploads mirror**) and paste its credentials:
-   - **Google Drive**: OAuth Client ID, Client secret, Refresh token, Folder ID.
-   - **Cloudflare R2**: Access key ID, Secret access key, Region (`auto`), Bucket, S3 endpoint.
-3. **Save configuration**, then click **Test connection**. It writes, reads and deletes a tiny probe file and reports the real error (auth, wrong bucket, network) instead of failing silently.
-4. Click **Backup now**. The backup list then shows a per-destination tick so you can confirm the archive actually landed on the mirror.
+1. Log in as **super-admin** → **Backups** → **Storage providers**. Optionally start from a **preset** (Light / Balanced / Maximum safety) to set schedule + retention + encryption in one click.
+2. **Google Drive (easiest).** Paste the OAuth **Client ID** and **Client secret**, click **Save configuration**, then click **Connect Google Drive**. Google asks for permission and the refresh token — plus a newly created `… Backups` folder — are stored for you; **you never build a refresh token by hand**. To get the client credentials: Google Cloud console → enable the *Google Drive API* → Credentials → Create credentials → OAuth client ID → type *Web application* → add the redirect URI shown in the form's "How do I get these?" panel. That URI is built from `APP_URL`, so make sure it is the real public HTTPS URL before connecting.
+3. **Cloudflare R2.** Create a bucket and an R2 API token with *Object Read & Write* for it, then paste the Access key ID, Secret access key, Bucket and endpoint (`https://<account-id>.r2.cloudflarestorage.com`); region stays `auto`. Enable the provider for **Use for backups** (and/or **Use for uploads mirror**).
+4. **Test connection.** This probes the values *currently in the form*, so you do not have to save first. It writes, reads and deletes a tiny probe file and reports the real error (auth, wrong bucket, network) instead of failing silently.
+5. **Save configuration**, then click **Backup now**. The backup list shows a per-destination tick and the **Storage & rotation** panel shows per-destination usage, so you can confirm the archive actually landed on the mirror.
 
 > Secrets saved here are encrypted with `APP_KEY` at rest and are deliberately kept OUT of `.env` so they never travel inside a backup archive. Consequence: after restoring onto a fresh server you must re-enter them (the encrypted columns decrypt only with the original `APP_KEY`).
 
