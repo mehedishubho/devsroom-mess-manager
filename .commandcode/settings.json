@@ -4,7 +4,10 @@
       "Shell(node \"C:\\Users\\USER\\.claude\\gsd-core\\bin\\gsd-tools.cjs\" query config-get runtime --default claude --raw)",
       "Shell(node \"C:\\Users\\USER\\.claude\\gsd-core\\bin\\gsd-tools.cjs\" query config-get workflow.use_worktrees --raw)",
       "Shell(node \"C:\\Users\\USER\\.claude\\gsd-core\\bin\\gsd-tools.cjs\" query init.quick \"Google Sheets two-way-free DB mirror: queued fail-open sync of all domain tables via service account or OAuth, manager config page\")",
-      "Shell(php \"C:\\Users\\USER\\AppData\\Local\\Temp\\commandcode\\D--Devsroom-Work-devsroom-mess-management\\96fc529f-9ea6-4790-ad58-132f8574c2c0\\scratchpad\\gs_smoke.php\")"
+      "Shell(php \"C:\\Users\\USER\\AppData\\Local\\Temp\\commandcode\\D--Devsroom-Work-devsroom-mess-management\\96fc529f-9ea6-4790-ad58-132f8574c2c0\\scratchpad\\gs_smoke.php\")",
+      "Shell(dir:*)",
+      "Shell(findstr:*)",
+      "Shell(node \"C:\\Users\\USER\\.claude\\gsd-core\\bin\\gsd-tools.cjs\" query agent-skills gsd-planner)"
     ],
     "deny": [],
     "defaultMode": "default"
