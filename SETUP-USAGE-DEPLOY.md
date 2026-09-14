@@ -164,6 +164,8 @@ All channels **fail open** — a down or misconfigured provider logs the failure
 
 ## 5. Deployment
 
+> **Self-hosting panels:** [DEPLOYMENT.md §12](./DEPLOYMENT.md) now covers **[Dokploy](https://dokploy.com/)** and **[Coolify](https://coolify.io/)** — commit a Dockerfile + compose file to the repo and the panel handles web/queue/scheduler/MySQL/TLS/deploy-on-push. The cPanel recipe below (§5.3) is summarized in [DEPLOYMENT.md §13](./DEPLOYMENT.md).
+
 ### 5.1 Production `.env` checklist (both VPS & shared)
 
 | Key | Value | Why |
