@@ -114,42 +114,77 @@ class BackupController extends Controller
     }
 
     /**
-     * Delete a single backup archive from the local disk. Lighter-weight than
-     * a restore (only removes one zip), so a JS confirm on the button is enough
-     * — no typed-mess-name gate. Audit-logged (T-06-03-05).
+     * Delete a single backup archive from EVERY active destination disk.
+     *
+     * Deleting only from the primary disk (as this used to) left the cloud
+     * mirror copy behind: the archive vanished from the page while still
+     * occupying space on Drive/R2, and a later restore could silently revert
+     * to "yesterday's" file. A failure on one disk never aborts the others.
+     * Audit-logged (T-06-03-05).
      */
     public function destroy(Request $request): RedirectResponse
     {
         $path = (string) $request->input('path', '');
         $this->guardPath($path);
-        $disk = Storage::disk($this->backupDisk());
 
-        if ($path === '' || ! $disk->exists($path)) {
+        if ($path === '') {
             return back()->withErrors(['backup' => __('Backup not found.')]);
         }
 
-        $disk->delete($path);
-        $this->writeAudit('backup.delete', ['path' => $path]);
+        $deletedFrom = [];
+        $failures = [];
 
-        return $this->recordLog('delete', 'success', __('Backup deleted.'), path: $path);
+        foreach (BackupDestinations::all() as $diskName) {
+            try {
+                $disk = Storage::disk($diskName);
+                if ($disk->exists($path)) {
+                    $disk->delete($path);
+                    $deletedFrom[] = $diskName;
+                }
+            } catch (\Throwable $e) {
+                $failures[] = $diskName.': '.$e->getMessage();
+            }
+        }
+
+        if ($deletedFrom === []) {
+            return back()->withErrors(['backup' => __('Backup not found.')]);
+        }
+
+        $this->writeAudit('backup.delete', ['path' => $path, 'disks' => $deletedFrom]);
+
+        $message = __('Backup deleted from: :disks.', ['disks' => implode(', ', $deletedFrom)]);
+
+        if ($failures !== []) {
+            $message .= ' '.__('Some destinations could not be reached: :errors', ['errors' => implode(' | ', $failures)]);
+        }
+
+        return $this->recordLog('delete', $failures === [] ? 'success' : 'failure', $message, path: $path);
     }
 
     /**
-     * Delete a single backup activity-log entry.
+     * Delete a single backup activity-log entry. Audit-logged: clearing the
+     * record of what happened is itself a significant, tamper-evident act
+     * (download/delete/restore already leave a trail).
      */
     public function destroyLog(BackupLog $log): RedirectResponse
     {
+        $id = $log->id;
         $log->delete();
+
+        $this->writeAudit('backup.log.delete', ['log_id' => $id]);
 
         return back()->with('success', __('Log entry deleted.'));
     }
 
     /**
-     * Clear the entire backup activity log.
+     * Clear the entire backup activity log. Audit-logged (see destroyLog).
      */
     public function clearLogs(): RedirectResponse
     {
+        $count = BackupLog::query()->count();
         BackupLog::query()->delete();
+
+        $this->writeAudit('backup.logs.clear', ['deleted' => $count]);
 
         return back()->with('success', __('Activity log cleared.'));
     }

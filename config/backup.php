@@ -257,6 +257,16 @@ return [
     'log_channel' => null,
 
     /*
+     * Retention for the Backups-page activity log (the `backup_logs` table).
+     * Archives are rotated by `backup:purge`, but the table recording every
+     * action needs its own cap or it grows forever. Enforced nightly by
+     * `backup:prune-logs`.
+     */
+    'activity_log' => [
+        'keep_days' => (int) env('BACKUP_LOG_KEEP_DAYS', 90),
+    ],
+
+    /*
      * Here you can specify which backups should be monitored.
      */
     'monitor_backups' => [

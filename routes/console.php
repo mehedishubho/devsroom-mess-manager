@@ -38,4 +38,8 @@ if (class_exists(BackupServiceProvider::class)) {
             ->onOneServer();
     }
     Schedule::command('backup:monitor')->daily()->at('02:00')->onOneServer();
+
+    // Cap the activity log (backup_logs) so it cannot grow without bound —
+    // archive rotation (backup:purge) has no effect on the log table.
+    Schedule::command('backup:prune-logs')->daily()->at('03:00')->onOneServer();
 }

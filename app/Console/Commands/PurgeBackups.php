@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Models\BackupConfig;
+use App\Models\BackupLog;
 use App\Support\BackupDestinations;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -23,6 +25,11 @@ use Illuminate\Support\Facades\Storage;
  * because spatie's cleanup reads its config — and Laravel resolves config
  * before the DB boots, so DB-backed retention can't live in config/backup.php.
  * Reading BackupConfig here (at command runtime) is safe.
+ *
+ * Every run writes a BackupLog row (`purge`/success or `purge`/failure) so the
+ * Backups page Activity log shows rotation actually happening. spatie's
+ * Cleanup* events never fire here — they belong to `backup:clean`, which is
+ * not scheduled — so without this the purge action was invisible.
  */
 class PurgeBackups extends Command
 {
@@ -32,51 +39,91 @@ class PurgeBackups extends Command
 
     public function handle(): int
     {
-        $cfg = BackupConfig::current();
+        $deletedPaths = [];
+        $failures = [];
 
-        $keepDays = max(1, (int) $cfg->keep_all_days);
-        $maxBytes = max(1, (int) $cfg->max_mb) * 1024 * 1024;
-        $cutoff = now()->subDays($keepDays)->getTimestamp();
+        try {
+            $cfg = BackupConfig::current();
 
-        $deleted = 0;
+            $keepDays = max(1, (int) $cfg->keep_all_days);
+            $maxBytes = max(1, (int) $cfg->max_mb) * 1024 * 1024;
+            $cutoff = now()->subDays($keepDays)->getTimestamp();
 
-        foreach (BackupDestinations::all() as $diskName) {
-            try {
-                $disk = Storage::disk($diskName);
-            } catch (\Throwable) {
-                continue; // disk unusable (e.g. Spaces creds removed mid-flight) — skip
-            }
+            foreach (BackupDestinations::all() as $diskName) {
+                try {
+                    $disk = Storage::disk($diskName);
+                } catch (\Throwable $e) {
+                    $failures[] = $diskName.': '.$e->getMessage();
 
-            $files = collect($disk->allFiles())
-                ->filter(fn ($p) => str_ends_with($p, '.zip'))
-                ->map(fn ($p) => [
-                    'path' => $p,
-                    'size' => (int) $disk->size($p),
-                    'ts' => (int) $disk->lastModified($p),
-                ])
-                ->values();
-
-            // 1) Age purge: anything older than the keep window.
-            foreach ($files->where('ts', '<', $cutoff) as $f) {
-                $disk->delete($f['path']);
-                $deleted++;
-            }
-
-            // 2) Size cap: delete oldest-first until under the cap.
-            $remaining = $files->where('ts', '>=', $cutoff)->sortBy('ts')->values();
-            $total = $remaining->sum('size');
-            foreach ($remaining as $f) {
-                if ($total <= $maxBytes) {
-                    break;
+                    continue; // disk unusable (credentials removed mid-flight) — skip
                 }
-                $disk->delete($f['path']);
-                $total -= $f['size'];
-                $deleted++;
+
+                $files = collect($disk->allFiles())
+                    ->filter(fn ($p) => str_ends_with($p, '.zip'))
+                    ->map(fn ($p) => [
+                        'path' => $p,
+                        'size' => (int) $disk->size($p),
+                        'ts' => (int) $disk->lastModified($p),
+                    ])
+                    ->values();
+
+                // 1) Age purge: anything older than the keep window.
+                foreach ($files->where('ts', '<', $cutoff) as $f) {
+                    $disk->delete($f['path']);
+                    $deletedPaths[] = $diskName.':'.$f['path'];
+                }
+
+                // 2) Size cap: delete oldest-first until under the cap.
+                $remaining = $files->where('ts', '>=', $cutoff)->sortBy('ts')->values();
+                $total = $remaining->sum('size');
+                foreach ($remaining as $f) {
+                    if ($total <= $maxBytes) {
+                        break;
+                    }
+                    $disk->delete($f['path']);
+                    $total -= $f['size'];
+                    $deletedPaths[] = $diskName.':'.$f['path'];
+                }
             }
+        } catch (\Throwable $e) {
+            $this->recordLog('failure', $e->getMessage());
+
+            $this->error('Purge failed: '.$e->getMessage());
+
+            return self::FAILURE;
         }
 
-        $this->info("Purged {$deleted} backup(s).");
+        $count = count($deletedPaths);
+        $message = $count === 0
+            ? 'Nothing to purge — all backups are within the retention window.'
+            : "Purged {$count} backup(s):\n".implode("\n", $deletedPaths);
+
+        if ($failures !== []) {
+            $message .= "\n\nDisk problems:\n".implode("\n", $failures);
+        }
+
+        $this->recordLog($failures === [] ? 'success' : 'failure', $message);
+
+        $this->info("Purged {$count} backup(s).");
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Persist the outcome to the Activity log. Tolerates a missing
+     * backup_logs table (a fresh deploy that hasn't migrated yet) — logging
+     * must never break the command it logs.
+     */
+    private function recordLog(string $status, string $message): void
+    {
+        try {
+            BackupLog::create([
+                'action' => 'purge',
+                'status' => $status,
+                'message' => $message,
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('backup_logs write failed: '.$e->getMessage());
+        }
     }
 }
