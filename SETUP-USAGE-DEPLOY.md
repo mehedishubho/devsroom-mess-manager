@@ -27,7 +27,7 @@ The app uses the **Tyro** role system. Four roles:
 git clone <repo-url> devsroom-mess-management
 cd devsroom-mess-management
 
-# PHP deps (Laravel 13, PHP 8.3+)
+# PHP deps (Laravel 13 — requires PHP 8.4+, per composer.json)
 composer install
 
 # Frontend (Tailwind v4 + Chart.js via Vite)
@@ -339,7 +339,7 @@ cPanel → **Cron Jobs** → add (runs every minute; drives the backup schedule,
 * * * * * cd /home/username/mess && /usr/local/bin/php artisan schedule:run >> /dev/null 2>&1
 ```
 
-> Replace `/usr/local/bin/php` with your host's PHP 8.3+ CLI path (cPanel → "MultiPHP Manager" or `which php` over SSH). The backup cadence/retention you set in **Backups → Configure** takes effect through this cron.
+> Replace `/usr/local/bin/php` with your host's PHP 8.4+ CLI path (cPanel → "MultiPHP Manager" or `which php` over SSH). The backup cadence/retention you set in **Backups → Configure** takes effect through this cron.
 
 #### I. Configure backups after install
 
@@ -358,7 +358,7 @@ Log in as **super-admin** → **Backups → Configuration**: set frequency (dail
 
 Same recipe, different buttons:
 
-- **Plesk:** *Files* → upload/extract above `httpdocs`; set the domain *Document Root* to `/httpdocs/../mess/public` (or put the app in a subfolder and point docroot to its `public`). *Scheduled Tasks (CRON)* → add the `schedule:run` line. *SSH Access* → run migrate/cache. Set *PHP* to 8.3+ with the `pdo_mysql, gd, zip, mbstring, curl` extensions.
+- **Plesk:** *Files* → upload/extract above `httpdocs`; set the domain *Document Root* to `/httpdocs/../mess/public` (or put the app in a subfolder and point docroot to its `public`). *Scheduled Tasks (CRON)* → add the `schedule:run` line. *SSH Access* → run migrate/cache. Set *PHP* to 8.4+ with the `pdo_mysql, gd, zip, mbstring, curl` extensions.
 - **DirectAdmin:** *File Manager* → upload; set domain *Document Root* to the `public` folder via *Domain Setup*; *Cron Jobs* for the scheduler; *SSH* (enable per-user) for artisan commands.
 
 The constants everywhere: **docroot → `/public`**, **`QUEUE_CONNECTION=sync`**, **per-minute scheduler cron**, **`APP_DEBUG=false`**, **storage writable**, **`storage:link`**.

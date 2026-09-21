@@ -5,7 +5,7 @@
 **Run a full mess month end-to-end from a phone — meals, bazar, payments, month-close, and correct member bills — without spreadsheets and without arguing about who owes what.**
 
 [![Laravel](https://img.shields.io/badge/Laravel-13-FF2D20?logo=laravel&logoColor=white)](https://laravel.com)
-[![PHP](https://img.shields.io/badge/PHP-8.3%2B-777BB4?logo=php&logoColor=white)](https://www.php.net/)
+[![PHP](https://img.shields.io/badge/PHP-8.4%2B-777BB4?logo=php&logoColor=white)](https://www.php.net/)
 [![MySQL](https://img.shields.io/badge/MySQL-8-4479A1?logo=mysql&logoColor=white)](https://www.mysql.com/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
@@ -73,7 +73,7 @@ A web-based mess management system built for Bangladesh messes — bachelor host
 
 | Layer | Technology |
 |-------|------------|
-| **Backend** | Laravel 13 (PHP 8.3+) — server-rendered Blade, no SPA framework |
+| **Backend** | Laravel 13 (PHP 8.4+) — server-rendered Blade, no SPA framework |
 | **Database** | MySQL 8 (the only DB — dev/prod parity; no sqlite) |
 | **Frontend** | Tailwind CSS v4 (`@tailwindcss/vite`) + Chart.js 4.5 |
 | **Auth & Admin** | Tyro Dashboard + Tyro Login (roles: `super-admin` / `admin` / `manager` / `user`) |
@@ -86,7 +86,7 @@ A web-based mess management system built for Bangladesh messes — bachelor host
 
 ## Prerequisites
 
-- **PHP 8.4+** with extensions: `pdo_mysql`, `gd`, `zip`, `mbstring`, `curl`. (The dev build that authored this project is PHP 8.4.15 ZTS x64 VS17 — but any 8.4+ build works.)
+- **PHP 8.4+** — required by `composer.json` (`"php": "^8.4"`; PHP 8.3 or lower fails `composer install`) — with extensions: `pdo_mysql`, `gd`, `zip`, `mbstring`, `curl`. (The dev build that authored this project is PHP 8.4.15 ZTS x64 VS17 — but any 8.4+ build works.)
 - **MySQL 8+**. MySQL is required in both dev and prod (do NOT use sqlite — per the project's `dev/prod parity` constraint). The database name uses `snake_case` (e.g. `devsroom_mess_management`).
 - **Node.js 24+** with **npm** (for the Vite build of Tailwind v4 + Chart.js).
 - **Composer**.
