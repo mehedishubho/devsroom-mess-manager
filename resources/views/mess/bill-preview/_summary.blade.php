@@ -4,7 +4,7 @@
         <div class="mt-1 text-xl font-semibold text-slate-900">{{ \App\Support\Money::taka($preview['total_bazar']) }}</div>
     </div>
     <div class="rounded-lg border border-slate-200 bg-white p-4">
-        <div class="text-xs uppercase tracking-wide text-slate-500">{{ __('Total meals') }}</div>
+        <div class="text-xs uppercase tracking-wide text-slate-500">{{ __('Total meals (incl. guests)') }}</div>
         <div class="mt-1 text-xl font-semibold text-slate-900">{{ number_format($preview['total_meals'], 2) }}</div>
     </div>
     <div class="rounded-lg border border-slate-200 bg-white p-4">

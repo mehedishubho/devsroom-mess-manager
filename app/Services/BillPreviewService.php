@@ -55,7 +55,10 @@ class BillPreviewService
 
     public function cacheKey(int $messId, int $year, int $month): string
     {
-        return "bill-preview:v2:{$messId}:{$year}-".str_pad((string) $month, 2, '0', STR_PAD_LEFT);
+        // v3: guest meals now count in the meal-rate denominator and are
+        // charged at the live meal rate (GUEST-02) — bump so previews cached
+        // under the old math are not served after deploy.
+        return "bill-preview:v3:{$messId}:{$year}-".str_pad((string) $month, 2, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -146,20 +149,25 @@ class BillPreviewService
         $closedDatesSet = array_flip($closedDates);
 
         $mealTotalsByMember = $this->mealTotals($memberIds, $start, $end, $closedDatesSet, $disabledDaysByMember);
-        $guestTotalsByMember = $this->guestTotals($memberIds, $start, $end);
+        $guestUnitsByMember = $this->guestUnitsByMember($memberIds, $start, $end);
         $paymentsByMember = $this->paymentsByMember($memberIds, $start, $end);
         $advanceBalances = $this->advanceBalances($memberIds);
 
         // Meal-rate denominator = total meals actually eaten this month by ALL
-        // loaded members (active + former). Every meal eaten consumed groceries,
-        // so the total bazar cost must be spread across every meal — not just
-        // those of members who were "fully present" for the whole month. The old
-        // eligibleForDenominator() filter (strict joining/leaving-date bounds)
-        // zeroed the rate whenever the only eaters carried a leaving_date, which
-        // is why meal_rate showed ৳0.00 across reports + dashboard despite data.
+        // loaded members (active + former) PLUS guest meal units. Every meal
+        // eaten — member or guest — consumed groceries, so the total bazar cost
+        // must be spread across every meal. Guests are charged to their host at
+        // this same rate (GUEST-02), so the mess collects exactly the bazar
+        // spent. The old eligibleForDenominator() filter (strict
+        // joining/leaving-date bounds) zeroed the rate whenever the only eaters
+        // carried a leaving_date, which is why meal_rate showed ৳0.00 across
+        // reports + dashboard despite data.
         $totalMeals = 0.0;
         foreach ($members as $member) {
             $totalMeals += $mealTotalsByMember[$member->id] ?? 0.0;
+        }
+        foreach ($guestUnitsByMember as $units) {
+            $totalMeals += $units;
         }
 
         $mealRate = $totalMeals > 0 ? round($totalBazar / $totalMeals, 2) : 0.0;
@@ -173,7 +181,11 @@ class BillPreviewService
         $rows = [];
         foreach ($members as $member) {
             $meals = $mealTotalsByMember[$member->id] ?? 0.0;
-            $guestTotal = $guestTotalsByMember[$member->id] ?? 0.0;
+            // Guest charge (GUEST-02): the host's guest meal units (stored in
+            // guest_meals.charge_amount) billed at the current meal rate —
+            // money, not units, so it lands on the bill correctly.
+            $guestUnits = $guestUnitsByMember[$member->id] ?? 0.0;
+            $guestTotal = round($guestUnits * $mealRate, 2);
             $mealCost = round($meals * $mealRate, 2);
 
             $activeDays = $this->activeDaysForMember($member, $start, $end, $closedDatesSet, $disabledDayCountByMember[$member->id] ?? 0);
@@ -286,7 +298,15 @@ class BillPreviewService
         return $totals;
     }
 
-    private function guestTotals(array $memberIds, Carbon $start, Carbon $end): array
+    /**
+     * Guest meal units per member for the period. `charge_amount` stores meal
+     * UNITS (quantity × meal weight), not money — the taka charge is computed
+     * at the live meal rate in compute() so it stays accurate as the rate
+     * moves during an open month.
+     *
+     * @return array<int, float> [member_id => units]
+     */
+    private function guestUnitsByMember(array $memberIds, Carbon $start, Carbon $end): array
     {
         if (empty($memberIds)) {
             return [];

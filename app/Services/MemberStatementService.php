@@ -43,6 +43,7 @@ class MemberStatementService
      *     is_closed:bool,
      *     period_label:string,
      *     source:string,
+     *     meal_rate:float,
      * }
      */
     public function forMember(int $memberId, int $year, int $month): array
@@ -59,9 +60,22 @@ class MemberStatementService
 
         $isClosed = (bool) $closing;
 
-        $row = $isClosed
-            ? $this->rowFromSnapshot($memberId, $closing->id, $year, $month)
-            : $this->preview->forMember($memberId, $year, $month);
+        if ($isClosed) {
+            $row = $this->rowFromSnapshot($memberId, $closing->id, $year, $month);
+            $mealRate = (float) $closing->meal_rate;
+        } else {
+            // One preview call yields both the member row and the month's live
+            // meal rate (used to price guest-meal units in the statement).
+            $preview = $this->preview->preview($year, $month);
+            $row = null;
+            foreach ($preview['members'] as $memberRow) {
+                if ((int) $memberRow['member_id'] === $memberId) {
+                    $row = $memberRow;
+                    break;
+                }
+            }
+            $mealRate = (float) ($preview['meal_rate'] ?? 0.0);
+        }
 
         $daily = $this->dailyBreakdown($memberId, $start, $end);
 
@@ -89,6 +103,7 @@ class MemberStatementService
             'is_closed' => $isClosed,
             'period_label' => $periodLabel,
             'source' => $isClosed ? 'snapshot' : 'live',
+            'meal_rate' => $mealRate,
         ];
     }
 

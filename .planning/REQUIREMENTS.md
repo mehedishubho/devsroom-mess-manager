@@ -63,10 +63,10 @@
 
 ### Guest Meals
 
-- [ ] **GUEST-01**: Manager can add a guest meal (guest name, member name, date, meal type, quantity)
-- [ ] **GUEST-02**: Guest meal is charged to the specified member's bill at the current meal rate
-- [ ] **GUEST-03**: Guest meals are visible in the member statement
-- [ ] **GUEST-04**: Manager can edit or delete a guest meal (only if the month is not closed)
+- [x] **GUEST-01**: Manager can add a guest meal (guest name, member name, date, meal type, quantity)
+- [x] **GUEST-02**: Guest meal is charged to the specified member's bill at the current meal rate
+- [x] **GUEST-03**: Guest meals are visible in the member statement
+- [x] **GUEST-04**: Manager can edit or delete a guest meal (only if the month is not closed)
 
 ### Bazar / Market Expenses
 

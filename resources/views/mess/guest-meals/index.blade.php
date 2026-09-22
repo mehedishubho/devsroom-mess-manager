@@ -19,7 +19,7 @@
                     <th scope="col" class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">{{ __('Guest') }}</th>
                     <th scope="col" class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">{{ __('Meal') }}</th>
                     <th scope="col" class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-500">{{ __('Qty') }}</th>
-                    <th scope="col" class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-500">{{ __('Charge') }}</th>
+                    <th scope="col" class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-500">{{ __('Units') }}</th>
                     <th scope="col" class="relative px-4 py-3"><span class="sr-only">{{ __('Actions') }}</span></th>
                 </tr>
             </thead>
@@ -33,7 +33,14 @@
                         <td class="px-4 py-3 text-right text-sm text-slate-600">{{ $gm->quantity }}</td>
                         <td class="px-4 py-3 text-right text-sm font-medium text-slate-900">{{ number_format((float) $gm->charge_amount, 2) }}</td>
                         <td class="px-4 py-3 text-right text-sm">
-                            <a href="{{ route('mess.guest-meals.edit', $gm) }}" class="text-emerald-700 hover:underline">{{ __('Edit') }}</a>
+                            <div class="flex items-center justify-end gap-3">
+                                <a href="{{ route('mess.guest-meals.edit', $gm) }}" class="text-emerald-700 hover:underline">{{ __('Edit') }}</a>
+                                <form method="POST" action="{{ route('mess.guest-meals.destroy', $gm) }}" onsubmit="return confirm('{{ __('Remove this guest meal?') }}');" class="inline">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="text-rose-700 hover:underline">{{ __('Delete') }}</button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                 @empty

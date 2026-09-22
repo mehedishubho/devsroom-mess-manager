@@ -208,6 +208,8 @@ Route::middleware(['auth', 'roles:super-admin,manager', EnsureMessExists::class]
     Route::get('mess/guest-meals/{guestMeal}/edit', [GuestMealController::class, 'edit'])->name('mess.guest-meals.edit');
     Route::patch('mess/guest-meals/{guestMeal}', [GuestMealController::class, 'update'])->name('mess.guest-meals.update')
         ->middleware('month.open');
+    Route::delete('mess/guest-meals/{guestMeal}', [GuestMealController::class, 'destroy'])->name('mess.guest-meals.destroy')
+        ->middleware('month.open');
 
     Route::get('mess/meal-off', [MealOffApprovalController::class, 'index'])->name('mess.meal-off.index');
     Route::patch('mess/meal-off/{mealOffRequest}/approve', [MealOffApprovalController::class, 'approve'])->name('mess.meal-off.approve')

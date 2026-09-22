@@ -9,7 +9,12 @@
         $isSnapshot = ($statement['source'] ?? 'live') === 'snapshot';
         $meals = (float) ($row['meals'] ?? 0.0);
         $mealCost = (float) ($row['meal_cost'] ?? 0.0);
-        $mealRate = $meals > 0 ? ($mealCost / $meals) : 0.0;
+        // Authoritative month meal rate (live preview or frozen at close);
+        // derived fallback kept for pre-existing snapshots.
+        $mealRate = (float) ($statement['meal_rate'] ?? 0);
+        if ($mealRate <= 0 && $meals > 0) {
+            $mealRate = $mealCost / $meals;
+        }
         $billPayments = $statement['payments']->filter(fn ($p) => $p->type === PaymentType::BILL_PAYMENT);
         $advanceDeposits = $statement['payments']->filter(fn ($p) => $p->type === PaymentType::ADVANCE_DEPOSIT);
         $daily = $statement['daily'] ?? [];
@@ -23,7 +28,9 @@
             if ($d['dinner']) { $dailyTotalD++; }
             $dailyTotalValue += $d['meal_value'];
         }
-        $guestTotal = collect($statement['guests'])->sum('charge_amount');
+        // Guest rows store UNITS in charge_amount — the taka total comes from
+        // the bill row (units × meal rate); rows are priced with $mealRate.
+        $guestTotal = (float) ($statement['row']['guest_total'] ?? 0);
     @endphp
 
     <header class="mb-6">
@@ -152,7 +159,7 @@
                                     <td class="px-4 py-3 text-slate-900">{{ $g->date->format('d-m-Y') }}</td>
                                     <td class="px-4 py-3 text-slate-900">{{ $g->guest_name }}</td>
                                     <td class="px-4 py-3 text-slate-600">{{ __(ucfirst((string) $g->meal_type)) }}</td>
-                                    <td class="px-4 py-3 text-right tabular-nums">{{ Money::taka($g->charge_amount) }}</td>
+                                    <td class="px-4 py-3 text-right tabular-nums">{{ Money::taka(round((float) $g->charge_amount * $mealRate, 2)) }}</td>
                                 </tr>
                             @endforeach
                         </tbody>

@@ -49,4 +49,13 @@ class GuestMealController extends Controller
             ->route('mess.guest-meals.index')
             ->with('success', __('Guest meal updated.'));
     }
+
+    public function destroy(GuestMeal $guestMeal): RedirectResponse
+    {
+        $this->service->delete($guestMeal);
+
+        return redirect()
+            ->route('mess.guest-meals.index')
+            ->with('success', __('Guest meal removed.'));
+    }
 }
