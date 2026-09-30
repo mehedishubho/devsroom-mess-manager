@@ -1,11 +1,20 @@
 @extends('layouts.app')
 @section('content')
-    <header class="mb-6">
-        <h1 class="text-2xl font-semibold leading-tight text-slate-900">{{ __('Close month') }}</h1>
-        <p class="mt-1 text-sm text-slate-600">{{ __('Snapshot the mess for :label.', ['label' => \Carbon\Carbon::create($year, $month, 1)->format('F Y')]) }}</p>
+    <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-semibold leading-tight text-slate-900">{{ __('Close month') }}</h1>
+            <p class="mt-1 text-sm text-slate-600">{{ __('Snapshot the mess for :label.', ['label' => \Carbon\Carbon::create($year, $month, 1)->format('F Y')]) }}</p>
+        </div>
+        <x-month-nav :year="$year" :month="$month" route="mess.close.index" />
     </header>
 
     @include('mess.bill-preview._summary')
+
+    @if ($closeQueued)
+        <div role="alert" class="mt-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+            {{ __('A month close has been dispatched and is waiting to be processed. Keep the queue worker running (composer run dev) until it completes.') }}
+        </div>
+    @endif
 
     @if ($isClosed)
         @php

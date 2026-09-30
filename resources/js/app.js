@@ -1,5 +1,12 @@
 import './bootstrap';
 import Chart from 'chart.js/auto';
+import Alpine from 'alpinejs';
+
+// Alpine powers the small interactive bits (close-month confirmation modal,
+// expense form kind toggle, advance-balance adjust) — see x-data usage in
+// resources/views. Vite module scripts are deferred, so the DOM is ready here.
+window.Alpine = Alpine;
+Alpine.start();
 
 // Global init helper for dashboard charts (Phase 4 Plan 4.3).
 // Blade passes data via @json into a small inline script that calls this.
