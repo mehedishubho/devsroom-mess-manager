@@ -678,7 +678,18 @@ class BackupController extends Controller
      */
     private function rotationPreview(Collection $localFiles): array
     {
-        $plan = $this->retention->planFor($localFiles->all());
+        // Retention's contract is {path, size, ts} — the shape PurgeBackups
+        // builds. indexData() carries last_modified for the UI rows, so
+        // project explicitly instead of letting the shapes drift silently.
+        $files = $localFiles
+            ->map(fn (array $f) => [
+                'path' => $f['path'],
+                'size' => (int) $f['size'],
+                'ts' => (int) $f['last_modified'],
+            ])
+            ->all();
+
+        $plan = $this->retention->planFor($files);
 
         return [
             'count' => count($plan['delete']),
