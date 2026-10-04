@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Casts\SafeEncrypted;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 
@@ -59,7 +60,10 @@ class BackupConfig extends Model
             'encrypt_backups' => 'boolean',
             // Encrypted at rest for the same reason as the provider secrets:
             // a backup password must not leak into the archive it protects.
-            'archive_password' => 'encrypted',
+            // SafeEncrypted = `encrypted` that reads foreign-APP_KEY ciphertext
+            // (DB imported from another environment) as null instead of throwing
+            // DecryptException — an unreadable secret is "not stored", never a 500.
+            'archive_password' => SafeEncrypted::class,
             'gdrive_backup' => 'boolean',
             'gdrive_uploads' => 'boolean',
             'r2_backup' => 'boolean',
@@ -67,9 +71,9 @@ class BackupConfig extends Model
             // Encrypted at rest: backups include the DB dump, so plaintext
             // secrets would leak into every off-site backup. APP_KEY (in the
             // excluded .env) decrypts. Identifiers stay plaintext.
-            'gdrive_client_secret' => 'encrypted',
-            'gdrive_refresh_token' => 'encrypted',
-            'r2_secret' => 'encrypted',
+            'gdrive_client_secret' => SafeEncrypted::class,
+            'gdrive_refresh_token' => SafeEncrypted::class,
+            'r2_secret' => SafeEncrypted::class,
             'r2_use_path_style' => 'boolean',
         ];
     }
