@@ -17,6 +17,18 @@ if (class_exists(Telescope::class)) {
     Schedule::command('telescope:prune')->daily();
 }
 
+// Cron-driven queue drain for hosts without a resident worker (shared
+// hosting has no Supervisor). The minute cadence covers CloseMonthJob —
+// a month close completes within ~1 minute of the manager clicking Close.
+// Safe alongside a real worker (composer run dev, Supervisor): each job is
+// popped exactly once, whichever worker gets there first. The 10-minute
+// overlap mutex self-heals if a run is killed hard — well past the job's
+// own 120s timeout.
+Schedule::command('queue:work --stop-when-empty')
+    ->everyMinute()
+    ->withoutOverlapping(10)
+    ->onOneServer();
+
 // D-05: nightly backup pipeline (research Pattern 8). Mirrors the
 // telescope:prune class_exists guard. onOneServer requires the database
 // cache store (already in use). backup:run uses withoutOverlapping so a slow
