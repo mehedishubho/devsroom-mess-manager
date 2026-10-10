@@ -50,6 +50,9 @@ class SetPasswordController extends Controller
         $user = User::where('email', $invitation->email)->firstOrFail();
         $user->update([
             'password' => Hash::make($request->input('password')),
+            // Activation via the invite link counts as the first-login password
+            // set — otherwise RequirePasswordChange bounces the member again.
+            'password_changed_at' => now(),
             'email_verified_at' => now(),
         ]);
         $invitation->update(['accepted_at' => now()]);
